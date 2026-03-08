@@ -1,4 +1,4 @@
-import { Server, Building2, Users } from "lucide-react"
+import { Server, Building2, Users, Activity } from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DashboardCharts } from "./dashboard-charts"
@@ -6,6 +6,7 @@ import {
     fetchMe,
     listProperties,
     listTenants,
+    fetchReportRevenue,
 } from "@/lib/backend-api"
 import { getRoleFromCookie, getSessionTokenFromCookie } from "@/lib/cookie-utils"
 
@@ -17,9 +18,11 @@ export default async function AdminDashboard() {
     const meResult = await fetchMe(sessionToken)
     const propertiesResult = await listProperties(sessionToken)
     const tenantsResult = await listTenants(sessionToken)
+    const revenueResult = await fetchReportRevenue(sessionToken)
 
     const resolvedRole = meResult.data?.user.role
     const backendOnline = meResult.error === null
+    const unpaidBalance = revenueResult.data?.unpaidBalance || 0
 
     const properties = propertiesResult.data?.data ?? []
     const tenants = tenantsResult.data?.data ?? []
@@ -39,7 +42,7 @@ export default async function AdminDashboard() {
             </div>
 
             {/* KPI cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium text-neutral-300">API Status</CardTitle>
@@ -96,6 +99,17 @@ export default async function AdminDashboard() {
                                 <p className="text-xs text-neutral-400 mt-1">No unit data from API yet</p>
                             </>
                         )}
+                    </CardContent>
+                </Card>
+
+                <Card className="border-red-500/20 bg-red-500/5 backdrop-blur-sm">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-red-400 font-bold">Arrears</CardTitle>
+                        <Activity className="h-4 w-4 text-red-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-black text-red-400">KES {unpaidBalance.toLocaleString()}</div>
+                        <p className="text-xs text-neutral-500 mt-1 font-medium italic">Total outstanding balance</p>
                     </CardContent>
                 </Card>
             </div>

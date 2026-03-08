@@ -34,24 +34,53 @@ export interface UpdateLeaseDto {
 export class LeasesService {
   constructor(private readonly prisma: PrismaService) { }
 
-  async findAll(actor: AuthenticatedUser, page = 1, limit = 10, search?: string, tenantId?: string) {
+  async findAll(
+    actor: AuthenticatedUser,
+    page = 1,
+    limit = 10,
+    search?: string,
+    tenantId?: string,
+  ) {
     const skip = (page - 1) * limit;
     const take = limit;
 
+    const isSuperAdmin = actor.role === 'SUPER_ADMIN';
+    if (!isSuperAdmin && !actor.companyId) {
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      };
+    }
+
     const where: Prisma.LeaseWhereInput = {
-      ...(actor.role !== 'SUPER_ADMIN' ? { tenant: { companyId: actor.companyId } } : {}),
+      tenant: isSuperAdmin ? {} : { companyId: actor.companyId },
       ...(tenantId ? { tenantId } : {}),
-      ...(search ? {
-        OR: [
-          { tenant: { firstName: { contains: search, mode: 'insensitive' } } },
-          { tenant: { lastName: { contains: search, mode: 'insensitive' } } },
-          { unit: { unitNumber: { contains: search, mode: 'insensitive' } } },
-          { property: { name: { contains: search, mode: 'insensitive' } } },
-        ]
-      } : {}),
+      ...(search
+        ? {
+          OR: [
+            {
+              tenant: {
+                firstName: { contains: search, mode: 'insensitive' },
+              },
+            },
+            {
+              tenant: { lastName: { contains: search, mode: 'insensitive' } },
+            },
+            {
+              unit: { unitNumber: { contains: search, mode: 'insensitive' } },
+            },
+            { property: { name: { contains: search, mode: 'insensitive' } } },
+          ],
+        }
+        : {}),
     };
 
-    const [data, total] = await Promise.all([
+    const [leases, total] = await Promise.all([
       this.prisma.lease.findMany({
         where,
         include: {
@@ -64,6 +93,9 @@ export class LeasesService {
             },
           },
           unit: { select: { id: true, unitNumber: true } },
+          _count: {
+            select: { invoices: true, payments: true },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -72,8 +104,32 @@ export class LeasesService {
       this.prisma.lease.count({ where }),
     ]);
 
+    // Calculate balances for each lease
+    const dataWithBalances = await Promise.all(
+      leases.map(async (lease) => {
+        const [sumInvoices, sumPayments] = await Promise.all([
+          this.prisma.invoice.aggregate({
+            where: { leaseId: lease.id },
+            _sum: { amount: true },
+          }),
+          this.prisma.payment.aggregate({
+            where: { leaseId: lease.id },
+            _sum: { amount: true },
+          }),
+        ]);
+
+        const billed = sumInvoices._sum.amount || 0;
+        const paid = sumPayments._sum.amount || 0;
+
+        return {
+          ...lease,
+          balance: billed - paid,
+        };
+      }),
+    );
+
     return {
-      data,
+      data: dataWithBalances,
       meta: {
         total,
         page,
@@ -110,7 +166,24 @@ export class LeasesService {
       throw new ForbiddenException('You cannot access this lease.');
     }
 
-    return lease;
+    const [sumInvoices, sumPayments] = await Promise.all([
+      this.prisma.invoice.aggregate({
+        where: { leaseId: lease.id },
+        _sum: { amount: true },
+      }),
+      this.prisma.payment.aggregate({
+        where: { leaseId: lease.id },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const billed = sumInvoices._sum.amount || 0;
+    const paid = sumPayments._sum.amount || 0;
+
+    return {
+      ...lease,
+      balance: billed - paid,
+    };
   }
 
   async create(data: CreateLeaseDto, actor: AuthenticatedUser) {

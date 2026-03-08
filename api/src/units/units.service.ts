@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, UnitStatus } from '@prisma/client';
 import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
 
 export interface CreateUnitDto {
@@ -15,6 +15,7 @@ export interface CreateUnitDto {
   sizeSqm?: number;
   rentAmount?: number;
   propertyId: string;
+  status?: UnitStatus;
 }
 
 export interface UpdateUnitDto {
@@ -25,38 +26,51 @@ export interface UpdateUnitDto {
   sizeSqm?: number;
   rentAmount?: number;
   propertyId?: string;
+  status?: UnitStatus;
 }
 
 @Injectable()
 export class UnitsService {
   constructor(private readonly prisma: PrismaService) { }
 
-  async findAll(actor: AuthenticatedUser, page = 1, limit = 10, search?: string) {
+  async findAll(
+    actor: AuthenticatedUser,
+    page = 1,
+    limit = 10,
+    search?: string,
+  ) {
     const skip = (page - 1) * limit;
     const take = limit;
 
+    const isSuperAdmin = actor.role === 'SUPER_ADMIN';
+    if (!isSuperAdmin && !actor.companyId) {
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      };
+    }
+
     const where: Prisma.UnitWhereInput = {
-      ...(actor.role !== 'SUPER_ADMIN' ? { property: { companyId: actor.companyId } } : {}),
-      ...(search ? {
-        OR: [
-          { unitNumber: { contains: search, mode: 'insensitive' } },
-          { floor: { contains: search, mode: 'insensitive' } },
-          { property: { name: { contains: search, mode: 'insensitive' } } },
-          { property: { address: { contains: search, mode: 'insensitive' } } },
-          {
-            property: {
-              landlord: {
-                OR: [
-                  { firstName: { contains: search, mode: 'insensitive' } },
-                  { lastName: { contains: search, mode: 'insensitive' } },
-                ],
+      property: isSuperAdmin ? {} : { companyId: actor.companyId },
+      ...(search
+        ? {
+          OR: [
+            { unitNumber: { contains: search, mode: 'insensitive' } },
+            { floor: { contains: search, mode: 'insensitive' } },
+            { property: { name: { contains: search, mode: 'insensitive' } } },
+            {
+              property: {
+                address: { contains: search, mode: 'insensitive' },
               },
             },
-          },
-          {
-            leases: {
-              some: {
-                tenant: {
+            {
+              property: {
+                landlord: {
                   OR: [
                     { firstName: { contains: search, mode: 'insensitive' } },
                     { lastName: { contains: search, mode: 'insensitive' } },
@@ -64,9 +78,23 @@ export class UnitsService {
                 },
               },
             },
-          },
-        ],
-      } : {}),
+            {
+              leases: {
+                some: {
+                  tenant: {
+                    OR: [
+                      {
+                        firstName: { contains: search, mode: 'insensitive' },
+                      },
+                      { lastName: { contains: search, mode: 'insensitive' } },
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+        }
+        : {}),
     };
 
     const [data, total] = await Promise.all([
@@ -130,7 +158,22 @@ export class UnitsService {
       throw new ForbiddenException('You cannot access this unit.');
     }
 
-    return unit;
+    // Calculate balances for each lease in the unit
+    const leasesWithBalances = await Promise.all(
+      unit.leases.map(async (lease) => {
+        const billed = lease.invoices.reduce((sum, inv) => sum + inv.amount, 0);
+        const paid = lease.payments.reduce((sum, pmt) => sum + pmt.amount, 0);
+        return {
+          ...lease,
+          balance: billed - paid,
+        };
+      }),
+    );
+
+    return {
+      ...unit,
+      leases: leasesWithBalances,
+    };
   }
 
   async create(data: CreateUnitDto, actor: AuthenticatedUser) {
@@ -153,7 +196,7 @@ export class UnitsService {
     }
 
     return this.prisma.unit.create({
-      data,
+      data: data as any,
       include: {
         property: { select: { id: true, name: true, companyId: true } },
       },
@@ -197,7 +240,7 @@ export class UnitsService {
 
     return this.prisma.unit.update({
       where: { id },
-      data,
+      data: data as any,
       include: {
         property: { select: { id: true, name: true, companyId: true } },
       },

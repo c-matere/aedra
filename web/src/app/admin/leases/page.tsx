@@ -94,11 +94,18 @@ export default async function LeasesPage({
                   leaseTitle={lease.tenant ? `${lease.tenant.firstName} ${lease.tenant.lastName}` : lease.id}
                 >
                   <div className="flex-1 cursor-pointer group">
-                    <p className="text-sm font-medium text-white group-hover:text-blue-400 transition-colors">
-                      {lease.tenant
-                        ? `${lease.tenant.firstName} ${lease.tenant.lastName}`
-                        : lease.tenantId}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-white group-hover:text-blue-400 transition-colors">
+                        {lease.tenant
+                          ? `${lease.tenant.firstName} ${lease.tenant.lastName}`
+                          : lease.tenantId}
+                      </p>
+                      {lease.balance !== undefined && lease.balance > 0 && (
+                        <span className="px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-[10px] font-black text-red-400 uppercase tracking-tighter">
+                          Arrears: KES {lease.balance.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-neutral-400">
                       {lease.unit?.unitNumber || lease.unitId} • KSH {lease.rentAmount.toLocaleString()} • {lease.status}
                     </p>

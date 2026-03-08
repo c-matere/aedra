@@ -66,6 +66,7 @@ export interface PropertyRecord {
   status?: string;
   totalUnits?: number;
   occupiedUnits?: number;
+  vacatingUnits?: number;
   monthlyRevenue?: number;
   latitude?: number;
   longitude?: number;
@@ -170,6 +171,7 @@ export interface LeaseRecord {
   startDate?: string;
   endDate?: string;
   deposit?: number;
+  balance?: number;
 }
 
 export interface PaymentRecord {
@@ -478,6 +480,36 @@ export interface UpdateUserPayload {
   isActive?: boolean;
 }
 
+export interface RegisterCompanyPayload {
+  companyName: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface InvitationRecord {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role: UserRole;
+  token: string;
+  companyId?: string;
+  expiresAt: string;
+  usedAt?: string;
+  company?: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface AcceptInvitationPayload {
+  firstName: string;
+  lastName: string;
+  password: string;
+}
+
 export const TARGET_ENDPOINTS = {
   me: "/me",
   adminSettings: "/admin/settings",
@@ -492,9 +524,13 @@ export const TARGET_ENDPOINTS = {
   invoices: "/invoices",
   maintenanceRequests: "/maintenance-requests",
   users: "/users",
-  documents: "/documents",
   companies: "/companies",
+  documents: "/documents",
   reports: "/reports",
+  registerCompany: "/auth/register-company",
+  invite: "/users/invite",
+  verifyInvite: "/users/invite/verify",
+  acceptInvite: "/users/invite/accept",
 } as const;
 
 export function backendBaseUrl(): string {
@@ -519,22 +555,19 @@ async function backendRequest<T>(
   method: HttpMethod,
   payload?: unknown,
 ): Promise<BackendRequestResult<T>> {
-  if (!sessionToken) {
-    return {
-      data: null,
-      status: 401,
-      error: "Missing auth session",
-    };
-  }
-
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (sessionToken) {
+      headers["Authorization"] = `Bearer ${sessionToken}`;
+    }
+
     const response = await fetch(`${backendBaseUrl()}${path}`, {
       method,
       cache: "no-store",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${sessionToken}`,
-      },
+      headers,
       body: payload === undefined ? undefined : JSON.stringify(payload),
     });
 
@@ -1032,6 +1065,8 @@ export interface ReportOccupancy {
 
 export interface ReportRevenue {
   totalRevenue: number;
+  totalInvoiced: number;
+  unpaidBalance: number;
 }
 
 export async function fetchReportSummary(
@@ -1172,4 +1207,35 @@ export async function getAuditLogs(
   const qs = query.toString();
   const path = qs ? `${TARGET_ENDPOINTS.auditLogs}?${qs}` : TARGET_ENDPOINTS.auditLogs;
   return backendRequest<AuditLogsResponse>(path, token, "GET");
+}
+
+export async function registerCompany(
+  payload: RegisterCompanyPayload,
+): Promise<BackendRequestResult<{ accessToken: string; user: BackendUserContext }>> {
+  return backendRequest<{ accessToken: string; user: BackendUserContext }>(
+    TARGET_ENDPOINTS.registerCompany,
+    "", // No token for registration
+    "POST",
+    payload,
+  );
+}
+
+export async function createInvitation(
+  token: string,
+  payload: { email: string; role: UserRole; firstName?: string; lastName?: string },
+): Promise<BackendRequestResult<InvitationRecord>> {
+  return backendRequest<InvitationRecord>(TARGET_ENDPOINTS.invite, token, "POST", payload);
+}
+
+export async function verifyInvitation(
+  token: string,
+): Promise<BackendRequestResult<InvitationRecord>> {
+  return backendRequest<InvitationRecord>(`${TARGET_ENDPOINTS.verifyInvite}/${token}`, "", "GET");
+}
+
+export async function acceptInvitation(
+  token: string,
+  payload: AcceptInvitationPayload,
+): Promise<BackendRequestResult<BackendUserContext>> {
+  return backendRequest<BackendUserContext>(`${TARGET_ENDPOINTS.acceptInvite}/${token}`, "", "POST", payload);
 }

@@ -39,33 +39,53 @@ export interface UpdatePropertyDto {
 export class PropertiesService {
   constructor(private readonly prisma: PrismaService) { }
 
-  async findAll(actor: AuthenticatedUser, page = 1, limit = 10, search?: string) {
+  async findAll(
+    actor: AuthenticatedUser,
+    page = 1,
+    limit = 10,
+    search?: string,
+  ) {
     const skip = (page - 1) * limit;
     const take = limit;
 
+    const isSuperAdmin = actor.role === 'SUPER_ADMIN';
+    if (!isSuperAdmin && !actor.companyId) {
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      };
+    }
+
     const where: Prisma.PropertyWhereInput = {
-      ...(actor.role !== 'SUPER_ADMIN' ? { companyId: actor.companyId } : {}),
-      ...(search ? {
-        OR: [
-          { name: { contains: search, mode: 'insensitive' } },
-          { address: { contains: search, mode: 'insensitive' } },
-          {
-            landlord: {
-              OR: [
-                { firstName: { contains: search, mode: 'insensitive' } },
-                { lastName: { contains: search, mode: 'insensitive' } },
-              ],
-            },
-          },
-          {
-            units: {
-              some: {
-                unitNumber: { contains: search, mode: 'insensitive' },
+      ...(isSuperAdmin ? {} : { companyId: actor.companyId }),
+      ...(search
+        ? {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { address: { contains: search, mode: 'insensitive' } },
+            {
+              landlord: {
+                OR: [
+                  { firstName: { contains: search, mode: 'insensitive' } },
+                  { lastName: { contains: search, mode: 'insensitive' } },
+                ],
               },
             },
-          },
-        ],
-      } : {}),
+            {
+              units: {
+                some: {
+                  unitNumber: { contains: search, mode: 'insensitive' },
+                },
+              },
+            },
+          ],
+        }
+        : {}),
     };
 
     const [rawProperties, total] = await Promise.all([
@@ -93,9 +113,14 @@ export class PropertiesService {
 
     const data = rawProperties.map((p) => {
       const totalUnits = p.units.length;
-      const occupiedUnits = p.units.filter((u) => u.status === 'OCCUPIED').length;
+      const occupiedUnits = p.units.filter(
+        (u) => u.status === 'OCCUPIED' || u.status === 'VACATING',
+      ).length;
+      const vacatingUnits = p.units.filter(
+        (u) => u.status === 'VACATING',
+      ).length;
       const monthlyRevenue = p.units
-        .filter((u) => u.status === 'OCCUPIED')
+        .filter((u) => u.status === 'OCCUPIED' || u.status === 'VACATING')
         .reduce((sum, u) => sum + (u.rentAmount || 0), 0);
 
       const { units, ...rest } = p;
@@ -103,6 +128,7 @@ export class PropertiesService {
         ...rest,
         totalUnits,
         occupiedUnits,
+        vacatingUnits,
         monthlyRevenue,
       };
     });
@@ -162,15 +188,21 @@ export class PropertiesService {
     }
 
     const totalUnits = property.units.length;
-    const occupiedUnits = property.units.filter((u) => u.status === 'OCCUPIED').length;
+    const occupiedUnits = property.units.filter(
+      (u) => u.status === 'OCCUPIED' || u.status === 'VACATING',
+    ).length;
+    const vacatingUnits = property.units.filter(
+      (u) => u.status === 'VACATING',
+    ).length;
     const monthlyRevenue = property.units
-      .filter((u) => u.status === 'OCCUPIED')
+      .filter((u) => u.status === 'OCCUPIED' || u.status === 'VACATING')
       .reduce((sum, u) => sum + (u.rentAmount || 0), 0);
 
     return {
       ...property,
       totalUnits,
       occupiedUnits,
+      vacatingUnits,
       monthlyRevenue,
     };
   }

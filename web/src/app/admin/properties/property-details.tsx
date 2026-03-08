@@ -13,8 +13,13 @@ import {
     Loader2,
     Layers,
     ChevronRight,
-    Map as MapIcon
+    Map as MapIcon,
+    FileDown,
+    FileText,
+    ChevronDown
 } from "lucide-react"
+import { jsPDF } from "jspdf"
+import autoTable from "jspdf-autotable"
 import {
     SlidePanel,
     SlidePanelContent,
@@ -23,10 +28,18 @@ import {
     SlidePanelDescription
 } from "@/components/ui/slide-panel"
 import { getPropertyById, type PropertyRecord } from "@/lib/backend-api"
+import type { UserRole } from "@/lib/rbac"
+import { ClipboardList } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { UnitDetailsPanel } from "./unit-details"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface PropertyDetailsPanelProps {
     propertyId: string | null
@@ -42,36 +55,73 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
     const [error, setError] = useState<string | null>(null)
     const [isGenerating, setIsGenerating] = useState(false)
 
-    const handleGenerateReport = async () => {
+    const handleGenerateReport = async (format: 'PDF' | 'CSV') => {
         if (!property) return
         setIsGenerating(true)
 
         // Give it a small delay for UX "generating" feel
-        await new Promise(r => setTimeout(r, 1200))
+        await new Promise(r => setTimeout(r, 800))
 
-        const csvRows = [
-            ["PROPERTY REPORT", property.name],
-            ["ADDRESS", property.address || "N/A"],
-            ["GENERATED AT", new Date().toLocaleString()],
-            [""],
-            ["UNIT NUMBER", "STATUS", "RENT", "BEDS", "BATHS"],
-            ...(property.units?.map(u => [
+        if (format === 'CSV') {
+            const csvRows = [
+                ["PROPERTY REPORT", property.name],
+                ["ADDRESS", property.address || "N/A"],
+                ["GENERATED AT", new Date().toLocaleString()],
+                [""],
+                ["UNIT NUMBER", "STATUS", "RENT", "BEDS", "BATHS"],
+                ...(property.units?.map(u => [
+                    u.unitNumber,
+                    u.status,
+                    u.rentAmount || 0,
+                    u.bedrooms || 0,
+                    u.bathrooms || 0
+                ]) || [])
+            ]
+
+            const csvContent = "data:text/csv;charset=utf-8," + csvRows.map(e => e.join(",")).join("\n")
+            const encodedUri = encodeURI(csvContent)
+            const link = document.createElement("a")
+            link.setAttribute("href", encodedUri)
+            link.setAttribute("download", `${property.name.replace(/\s+/g, '_')}_Inventory_Report.csv`)
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+        } else {
+            const doc = new jsPDF()
+
+            // Header
+            doc.setFontSize(20)
+            doc.setTextColor(16, 185, 129) // Emerald-500
+            doc.text("PROPERTY REPORT", 14, 22)
+
+            doc.setFontSize(14)
+            doc.setTextColor(0, 0, 0)
+            doc.text(property.name, 14, 32)
+
+            doc.setFontSize(10)
+            doc.setTextColor(100, 100, 100)
+            doc.text(`${property.address || 'No address provided'}`, 14, 38)
+            doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 44)
+
+            // Table
+            const tableData = property.units?.map(u => [
                 u.unitNumber,
                 u.status,
-                u.rentAmount || 0,
+                `KES ${u.rentAmount?.toLocaleString() || 0}`,
                 u.bedrooms || 0,
                 u.bathrooms || 0
-            ]) || [])
-        ]
+            ]) || []
 
-        const csvContent = "data:text/csv;charset=utf-8," + csvRows.map(e => e.join(",")).join("\n")
-        const encodedUri = encodeURI(csvContent)
-        const link = document.createElement("a")
-        link.setAttribute("href", encodedUri)
-        link.setAttribute("download", `${property.name.replace(/\s+/g, '_')}_Inventory_Report.csv`)
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+            autoTable(doc, {
+                startY: 55,
+                head: [['Unit', 'Status', 'Rent', 'Beds', 'Baths']],
+                body: tableData,
+                headStyles: { fillColor: [16, 185, 129] },
+                alternateRowStyles: { fillColor: [245, 245, 245] },
+            })
+
+            doc.save(`${property.name.replace(/\s+/g, '_')}_Inventory_Report.pdf`)
+        }
 
         setIsGenerating(false)
     }
@@ -135,7 +185,7 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                     ) : property ? (
                         <div className="flex-1 overflow-y-auto py-8 space-y-8 pr-2 custom-scrollbar">
                             {/* Summary Cards */}
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-1 transition-all hover:bg-white/10">
                                     <span className="text-[10px] font-bold text-neutral-555 uppercase tracking-widest flex items-center gap-1.5">
                                         <Layers className="h-3 w-3 text-blue-400" /> Units
@@ -150,12 +200,23 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                                         {property.totalUnits ? Math.round(((property.occupiedUnits || 0) / property.totalUnits) * 100) : 0}%
                                     </span>
                                 </div>
-                                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-1 transition-all hover:bg-white/10">
+                                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-1 transition-all hover:bg-white/10 overflow-hidden">
                                     <span className="text-[10px] font-bold text-neutral-555 uppercase tracking-widest flex items-center gap-1.5 text-amber-400">
                                         <TrendingUp className="h-3 w-3" /> Revenue
                                     </span>
-                                    <span className="text-lg font-black text-white truncate">
-                                        {property.monthlyRevenue ? `KES ${property.monthlyRevenue.toLocaleString()}` : "—"}
+                                    <div className="flex items-baseline gap-1 min-w-0">
+                                        <span className="text-[10px] font-bold text-neutral-500">KES</span>
+                                        <span className="text-base md:text-lg font-black text-white truncate">
+                                            {property.monthlyRevenue?.toLocaleString() || "—"}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className={`bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-1 transition-all hover:bg-white/10 ${property.vacatingUnits && property.vacatingUnits > 0 ? 'ring-1 ring-purple-500/50 bg-purple-500/5' : ''}`}>
+                                    <span className="text-[10px] font-bold text-neutral-555 uppercase tracking-widest flex items-center gap-1.5 text-purple-400">
+                                        <ClipboardList className="h-3 w-3" /> Notice
+                                    </span>
+                                    <span className={`text-2xl font-black ${property.vacatingUnits && property.vacatingUnits > 0 ? 'text-purple-400' : 'text-white'}`}>
+                                        {property.vacatingUnits || 0}
                                     </span>
                                 </div>
                             </div>
@@ -228,15 +289,25 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                                                 <div className="flex items-center gap-3">
                                                     <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-xs font-black ${unit.status === 'OCCUPIED' ? 'bg-emerald-500/20 text-emerald-400' :
                                                         unit.status === 'UNDER_MAINTENANCE' ? 'bg-amber-500/20 text-amber-400' :
-                                                            'bg-blue-500/20 text-blue-400'
+                                                            unit.status === 'VACATING' ? 'bg-purple-500/20 text-purple-400' :
+                                                                'bg-blue-500/20 text-blue-400'
                                                         }`}>
                                                         {unit.unitNumber.match(/\d+/)?.[0] || 'U'}
                                                     </div>
                                                     <div>
-                                                        <p className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">Unit {unit.unitNumber}</p>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">Unit {unit.unitNumber}</p>
+                                                            {unit.status === 'VACATING' && (
+                                                                <span className="px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-[9px] font-black text-purple-400 uppercase tracking-tight">
+                                                                    Notice Given
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <p className="text-[10px] text-neutral-500 flex items-center gap-2 mt-0.5">
                                                             {unit.bedrooms} BR · {unit.bathrooms} BA ·
-                                                            <span className={`font-bold ${unit.status === 'OCCUPIED' ? 'text-emerald-500/60' : 'text-blue-500/60'
+                                                            <span className={`font-bold ${unit.status === 'OCCUPIED' ? 'text-emerald-500/60' :
+                                                                unit.status === 'VACATING' ? 'text-purple-500/60' :
+                                                                    'text-blue-500/60'
                                                                 }`}>{unit.status}</span>
                                                         </p>
                                                     </div>
@@ -261,21 +332,50 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                                 <Button variant="outline" className="h-12 border-white/10 bg-white/5 hover:bg-white/10 text-white font-bold rounded-2xl">
                                     <MapIcon className="mr-2 h-4 w-4 text-emerald-400" /> View on Map
                                 </Button>
-                                <Button
-                                    variant="glass"
-                                    onClick={handleGenerateReport}
-                                    disabled={isGenerating}
-                                    className="h-12 bg-emerald-500 text-black font-black hover:bg-emerald-400 rounded-2xl shadow-lg border-none"
-                                >
-                                    {isGenerating ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Generating...
-                                        </>
-                                    ) : (
-                                        "Generate Report"
-                                    )}
-                                </Button>
+
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="default"
+                                            disabled={isGenerating}
+                                            className="h-12 bg-emerald-600 hover:bg-emerald-500 text-white font-black shadow-lg rounded-2xl border-none transition-all duration-300 group"
+                                        >
+                                            {isGenerating ? (
+                                                <>
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    Generating...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    Generate Report
+                                                    <ChevronDown className="ml-1 h-4 w-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+                                                </>
+                                            )}
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48 bg-neutral-900 border-white/10 text-white rounded-xl shadow-2xl">
+                                        <DropdownMenuItem
+                                            onClick={() => handleGenerateReport('PDF')}
+                                            className="flex items-center gap-2 p-3 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer rounded-lg transition-colors"
+                                        >
+                                            <FileText className="h-4 w-4 text-emerald-500" />
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-xs underline-offset-1">Portable Document (PDF)</span>
+                                                <span className="text-[9px] text-neutral-500">Best for printing & sharing</span>
+                                            </div>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onClick={() => handleGenerateReport('CSV')}
+                                            className="flex items-center gap-2 p-3 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer rounded-lg transition-colors"
+                                        >
+                                            <FileDown className="h-4 w-4 text-emerald-500" />
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-xs">Spreadsheet (CSV)</span>
+                                                <span className="text-[9px] text-neutral-500">Best for data analysis</span>
+                                            </div>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </section>
                         </div>
                     ) : null}

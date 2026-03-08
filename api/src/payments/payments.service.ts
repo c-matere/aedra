@@ -32,21 +32,63 @@ export interface UpdatePaymentDto {
 export class PaymentsService {
   constructor(private readonly prisma: PrismaService) { }
 
-  async findAll(actor: AuthenticatedUser, page = 1, limit = 10, search?: string) {
+  async findAll(
+    actor: AuthenticatedUser,
+    page = 1,
+    limit = 10,
+    search?: string,
+  ) {
     const skip = (page - 1) * limit;
     const take = limit;
 
+    const isSuperAdmin = actor.role === 'SUPER_ADMIN';
+    if (!isSuperAdmin && !actor.companyId) {
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      };
+    }
+
     const where: Prisma.PaymentWhereInput = {
-      ...(actor.role !== 'SUPER_ADMIN' ? { lease: { tenant: { companyId: actor.companyId } } } : {}),
-      ...(search ? {
-        OR: [
-          { reference: { contains: search, mode: 'insensitive' } },
-          { lease: { tenant: { firstName: { contains: search, mode: 'insensitive' } } } },
-          { lease: { tenant: { lastName: { contains: search, mode: 'insensitive' } } } },
-          { lease: { property: { name: { contains: search, mode: 'insensitive' } } } },
-          { lease: { unit: { unitNumber: { contains: search, mode: 'insensitive' } } } },
-        ]
-      } : {}),
+      lease: isSuperAdmin ? {} : { tenant: { companyId: actor.companyId } },
+      ...(search
+        ? {
+          OR: [
+            { reference: { contains: search, mode: 'insensitive' } },
+            {
+              lease: {
+                tenant: {
+                  firstName: { contains: search, mode: 'insensitive' },
+                },
+              },
+            },
+            {
+              lease: {
+                tenant: {
+                  lastName: { contains: search, mode: 'insensitive' },
+                },
+              },
+            },
+            {
+              lease: {
+                property: { name: { contains: search, mode: 'insensitive' } },
+              },
+            },
+            {
+              lease: {
+                unit: {
+                  unitNumber: { contains: search, mode: 'insensitive' },
+                },
+              },
+            },
+          ],
+        }
+        : {}),
     };
 
     const [data, total] = await Promise.all([

@@ -48,6 +48,10 @@ import {
     updateInvoice,
     deleteInvoice,
     updateMe,
+    registerCompany,
+    createInvitation,
+    verifyInvitation,
+    acceptInvitation,
     type CreatePropertyPayload,
     type UpdatePropertyPayload,
     type CreateTenantPayload,
@@ -69,7 +73,9 @@ import {
     type CreateDocumentPayload,
     type UpdateDocumentPayload,
     type CreateInvoicePayload,
-    type UpdateInvoicePayload
+    type UpdateInvoicePayload,
+    type RegisterCompanyPayload,
+    type AcceptInvitationPayload
 } from "./backend-api"
 import type { UserRole } from "./rbac"
 import { getSessionTokenFromCookie } from "./cookie-utils"
@@ -314,4 +320,26 @@ export async function getAuditLogsAction(params?: {
 }) {
     const token = await getSessionTokenFromCookie();
     return getAuditLogs(token!, params);
+}
+
+export async function registerCompanyAction(payload: RegisterCompanyPayload) {
+    const result = await registerCompany(payload);
+    if (result.data?.accessToken) {
+        // We might want to set cookie here, but usually it's better to let the route handler do it or use a separate action
+        // For simplicity, we'll return the data and handle it in the UI
+    }
+    return result;
+}
+
+export async function createInvitationAction(payload: { email: string; role: UserRole; firstName?: string; lastName?: string }) {
+    const token = await getSessionTokenFromCookie();
+    return createInvitation(token!, payload);
+}
+
+export async function verifyInvitationAction(token: string) {
+    return verifyInvitation(token);
+}
+
+export async function acceptInvitationAction(token: string, payload: AcceptInvitationPayload) {
+    return acceptInvitation(token, payload);
 }

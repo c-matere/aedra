@@ -20,7 +20,7 @@ import type { RequestWithUser } from '../auth/request-with-user.interface';
 @Controller('properties')
 @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF)
 export class PropertiesController {
-  constructor(private readonly propertiesService: PropertiesService) { }
+  constructor(private readonly propertiesService: PropertiesService) {}
 
   @Get()
   findAll(

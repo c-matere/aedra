@@ -10,6 +10,7 @@ import {
   Put,
   Query,
   Req,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   UsersService,
@@ -71,5 +72,35 @@ export class UsersController {
   @Delete(':id')
   remove(@Req() req: RequestWithUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.remove(req.user!, id);
+  }
+
+  @Post('invite')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
+  async createInvitation(
+    @Req() req: RequestWithUser,
+    @Body() data: { email: string; role: UserRole; firstName?: string; lastName?: string },
+  ) {
+    if (!data.email || !data.role) {
+      throw new BadRequestException('Email and role are required.');
+    }
+    return this.usersService.createInvitation(req.user!, data);
+  }
+
+  @Get('invite/verify/:token')
+  @Roles()
+  async verifyInvitation(@Param('token') token: string) {
+    return this.usersService.verifyInvitation(token);
+  }
+
+  @Post('invite/accept/:token')
+  @Roles()
+  async acceptInvitation(
+    @Param('token') token: string,
+    @Body() data: { firstName: string; lastName: string; password: string },
+  ) {
+    if (!data.firstName || !data.lastName || !data.password) {
+      throw new BadRequestException('All fields are required.');
+    }
+    return this.usersService.acceptInvitation(token, data);
   }
 }

@@ -104,9 +104,10 @@ export function CompanyEditButton({ company, token }: CompanyEditButtonProps) {
                 <DialogFooter>
                     <Button
                         type="submit"
+                        variant="default"
                         onClick={handleUpdate}
                         disabled={loading}
-                        className="bg-white text-black hover:bg-neutral-200"
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-black shadow-lg border-none transition-all duration-300"
                     >
                         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Save changes

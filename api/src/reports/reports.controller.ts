@@ -6,23 +6,23 @@ import type { RequestWithUser } from '../auth/request-with-user.interface';
 
 @Controller('reports')
 export class ReportsController {
-    constructor(private readonly reportsService: ReportsService) { }
+  constructor(private readonly reportsService: ReportsService) {}
 
-    @Get('summary')
-    @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
-    async getSummary(@Req() req: RequestWithUser) {
-        return this.reportsService.getSummary(req.user!);
-    }
+  @Get('summary')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
+  async getSummary(@Req() req: RequestWithUser) {
+    return this.reportsService.getSummary(req.user!);
+  }
 
-    @Get('occupancy')
-    @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
-    async getOccupancy(@Req() req: RequestWithUser) {
-        return this.reportsService.getOccupancy(req.user!);
-    }
+  @Get('occupancy')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
+  async getOccupancy(@Req() req: RequestWithUser) {
+    return this.reportsService.getOccupancy(req.user!);
+  }
 
-    @Get('revenue')
-    @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
-    async getRevenue(@Req() req: RequestWithUser) {
-        return this.reportsService.getRevenue(req.user!);
-    }
+  @Get('revenue')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
+  async getRevenue(@Req() req: RequestWithUser) {
+    return this.reportsService.getRevenue(req.user!);
+  }
 }

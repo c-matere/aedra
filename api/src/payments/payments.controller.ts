@@ -19,7 +19,7 @@ import { PaymentsService } from './payments.service';
 @Controller('payments')
 @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF)
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) { }
+  constructor(private readonly paymentsService: PaymentsService) {}
 
   @Get()
   findAll(

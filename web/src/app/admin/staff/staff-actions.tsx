@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
+import { Loader2, MoreHorizontal, Pencil, Plus, Trash2, Share2, Copy, Check } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,9 +14,10 @@ import {
   SlidePanelTitle,
   SlidePanelTrigger,
 } from "@/components/ui/slide-panel"
-import { createUserAction, deleteUserAction, updateUserAction } from "@/lib/actions"
+import { createUserAction, deleteUserAction, updateUserAction, createInvitationAction } from "@/lib/actions"
 import type { UserRecord } from "@/lib/backend-api"
 import type { UserRole } from "@/lib/rbac"
+import { getWhatsAppInviteLink } from "@/lib/whatsapp"
 
 const USER_ROLES: UserRole[] = ["SUPER_ADMIN", "COMPANY_ADMIN", "COMPANY_STAFF"]
 
@@ -48,11 +49,13 @@ export function AddStaffButton({ role }: { role: UserRole | null }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [inviteToken, setInviteToken] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!canMutate(role)) {
-      setError("You do not have permission to add staff users.")
+      setError("You do not have permission to invite staff.")
       return
     }
 
@@ -60,83 +63,125 @@ export function AddStaffButton({ role }: { role: UserRole | null }) {
     setError(null)
 
     const formData = new FormData(e.currentTarget)
-    const email = String(formData.get("email") || "")
-    const password = String(formData.get("password") || "")
     const firstName = String(formData.get("firstName") || "")
     const lastName = String(formData.get("lastName") || "")
-    const phone = String(formData.get("phone") || "")
+    const email = String(formData.get("email") || "")
     const selectedRole = String(formData.get("role") || "COMPANY_STAFF") as UserRole
 
-    const selectedPermissions = ALL_PERMISSIONS
-      .filter(p => formData.get(`perm_${p.id}`) === "on")
-      .map(p => p.id)
-
-    const payload = {
+    const res = await createInvitationAction({
       email,
-      password,
       firstName,
       lastName,
-      phone: phone || undefined,
       role: selectedRole,
-      permissions: selectedPermissions,
-      isActive: true,
-    }
+    })
 
-    const res = await createUserAction(role, payload)
     if (res.error) {
       setError(res.error)
-    } else {
-      setOpen(false)
-      router.refresh()
+    } else if (res.data) {
+      setInviteToken(res.data.token)
     }
 
     setLoading(false)
   }
 
+  const copyToClipboard = () => {
+    if (!inviteToken) return
+    const baseUrl = window.location.origin
+    navigator.clipboard.writeText(`${baseUrl}/invite/${inviteToken}`)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   return (
-    <SlidePanel open={open} onOpenChange={setOpen}>
+    <SlidePanel open={open} onOpenChange={(val) => {
+      setOpen(val)
+      if (!val) {
+        setInviteToken(null)
+        router.refresh()
+      }
+    }}>
       <SlidePanelTrigger asChild>
         <Button variant="glass" disabled={!canMutate(role)}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Staff
+          Invite Staff
         </Button>
       </SlidePanelTrigger>
       <SlidePanelContent>
         <SlidePanelHeader>
-          <SlidePanelTitle>Add Staff User</SlidePanelTitle>
-          <SlidePanelDescription>Create a new authenticated staff account.</SlidePanelDescription>
+          <SlidePanelTitle>Invite Staff Member</SlidePanelTitle>
+          <SlidePanelDescription>Send an invitation link via WhatsApp or copy it manually.</SlidePanelDescription>
         </SlidePanelHeader>
 
-        <form onSubmit={onSubmit} className="space-y-4 py-6">
-          {error ? <p className="text-sm text-red-400">{error}</p> : null}
-          <Input name="firstName" placeholder="First name" required />
-          <Input name="lastName" placeholder="Last name" required />
-          <Input name="email" type="email" placeholder="Email" required />
-          <Input name="phone" placeholder="Phone (optional)" />
-          <Input name="password" type="password" placeholder="Temporary password" required />
-          <select name="role" defaultValue="COMPANY_STAFF" className="h-10 w-full rounded-md border border-white/10 bg-white/5 px-3 text-sm text-white">
-            {USER_ROLES.map((itemRole) => (
-              <option key={itemRole} value={itemRole}>{itemRole}</option>
-            ))}
-          </select>
-
-          <div className="space-y-2 pt-2">
-            <h3 className="text-sm font-medium text-neutral-300">Access Permissions</h3>
-            <div className="grid grid-cols-2 gap-2 rounded-md border border-white/10 bg-white/5 p-3">
-              {ALL_PERMISSIONS.map((perm) => (
-                <label key={perm.id} className="flex items-center gap-2 text-xs text-neutral-400">
-                  <input name={`perm_${perm.id}`} type="checkbox" className="h-3.5 w-3.5" />
-                  {perm.label}
-                </label>
-              ))}
+        {!inviteToken ? (
+          <form onSubmit={onSubmit} className="space-y-4 py-6">
+            {error ? <p className="text-sm text-red-400">{error}</p> : null}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs text-neutral-400 uppercase font-bold">First Name</label>
+                <Input name="firstName" placeholder="John" required />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs text-neutral-400 uppercase font-bold">Last Name</label>
+                <Input name="lastName" placeholder="Doe" required />
+              </div>
             </div>
-          </div>
+            <div className="space-y-2">
+              <label className="text-xs text-neutral-400 uppercase font-bold">Email Address</label>
+              <Input name="email" type="email" placeholder="staff@example.com" required />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs text-neutral-400 uppercase font-bold">Role</label>
+              <select name="role" defaultValue="COMPANY_STAFF" className="h-10 w-full rounded-md border border-white/10 bg-white/5 px-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-white/20">
+                <option value="COMPANY_ADMIN">Company Admin</option>
+                <option value="COMPANY_STAFF">Company Staff</option>
+              </select>
+            </div>
 
-          <Button type="submit" disabled={loading || !canMutate(role)} className="w-full">
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Create User
-          </Button>
-        </form>
+            <Button
+              type="submit"
+              variant="default"
+              disabled={loading || !canMutate(role)}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black mt-4 shadow-lg border-none transition-all duration-300"
+            >
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Generate Invitation
+            </Button>
+          </form>
+        ) : (
+          <div className="space-y-6 py-8 flex flex-col items-center">
+            <div className="h-16 w-16 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+              <Share2 className="h-8 w-8 text-emerald-500" />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-semibold text-white">Invitation Generated!</h3>
+              <p className="text-sm text-neutral-400">The invitation link is ready. You can now share it via WhatsApp.</p>
+            </div>
+
+            <div className="w-full space-y-3">
+              <Button
+                className="w-full bg-[#25D366] text-white hover:bg-[#22c35e]"
+                onClick={() => {
+                  const link = getWhatsAppInviteLink("", "Aedra", inviteToken)
+                  window.open(link, "_blank")
+                }}
+              >
+                Send via WhatsApp
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full border-white/10 text-white hover:bg-white/5"
+                onClick={copyToClipboard}
+              >
+                {copied ? <Check className="mr-2 h-4 w-4 text-emerald-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                {copied ? "Copied!" : "Copy Link"}
+              </Button>
+            </div>
+
+            <Button variant="ghost" className="text-neutral-500 text-xs" onClick={() => setInviteToken(null)}>
+              Invite another person
+            </Button>
+          </div>
+        )}
       </SlidePanelContent>
     </SlidePanel>
   )

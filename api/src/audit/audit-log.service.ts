@@ -159,7 +159,8 @@ export class AuditLogService {
       }));
     } catch (error) {
       this.logger.warn(
-        `Reading persisted audit logs failed, using memory fallback: ${error instanceof Error ? error.message : String(error)
+        `Reading persisted audit logs failed, using memory fallback: ${
+          error instanceof Error ? error.message : String(error)
         }`,
       );
 
@@ -177,7 +178,9 @@ export class AuditLogService {
           filter.actorId ? entry.actorId === filter.actorId : true,
         )
         .filter((entry) =>
-          filter.actorCompanyId ? entry.actorCompanyId === filter.actorCompanyId : true,
+          filter.actorCompanyId
+            ? entry.actorCompanyId === filter.actorCompanyId
+            : true,
         )
         .filter((entry) =>
           filter.targetId ? entry.targetId === filter.targetId : true,

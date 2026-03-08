@@ -23,7 +23,7 @@ import type { RequestWithUser } from '../auth/request-with-user.interface';
 @Controller('tenants')
 @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
 export class TenantsController {
-  constructor(private readonly tenantsService: TenantsService) { }
+  constructor(private readonly tenantsService: TenantsService) {}
 
   @Get()
   findAll(

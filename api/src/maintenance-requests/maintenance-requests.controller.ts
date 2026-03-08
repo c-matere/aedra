@@ -21,7 +21,7 @@ import { MaintenanceRequestsService } from './maintenance-requests.service';
 export class MaintenanceRequestsController {
   constructor(
     private readonly maintenanceRequestsService: MaintenanceRequestsService,
-  ) { }
+  ) {}
 
   @Get()
   findAll(

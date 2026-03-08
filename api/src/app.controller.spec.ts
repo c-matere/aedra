@@ -101,7 +101,13 @@ describe('AppController', () => {
     });
 
     it('should ignore invalid action/outcome values', async () => {
-      await appController.getAuditLogs(superAdminReq, '10', 'BAD', 'WRONG', 'users');
+      await appController.getAuditLogs(
+        superAdminReq,
+        '10',
+        'BAD',
+        'WRONG',
+        'users',
+      );
 
       expect(auditLogService.read).toHaveBeenCalledWith({
         limit: 10,

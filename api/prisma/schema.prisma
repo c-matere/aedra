@@ -63,6 +63,7 @@ model Company {
   properties          Property[]
   tenants             Tenant[]
   users               User[]
+  invitations         Invitation[]
 }
 
 /// A landlord / property owner managed by a Company.
@@ -351,6 +352,24 @@ model Penalty {
   @@index([deletedAt])
 }
 
+model Invitation {
+  id        String   @id @default(uuid())
+  email     String
+  firstName String?
+  lastName  String?
+  role      UserRole @default(COMPANY_STAFF)
+  token     String   @unique
+  companyId String?
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([token])
+}
+
 model AuditLog {
   id             String   @id @default(uuid())
   timestamp      DateTime @default(now())
@@ -397,6 +416,7 @@ enum UnitStatus {
   VACANT
   OCCUPIED
   UNDER_MAINTENANCE
+  VACATING
 }
 
 /// Type of property

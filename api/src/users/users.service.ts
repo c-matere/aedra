@@ -2,11 +2,13 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '../auth/roles.enum';
 import * as bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
 
 export interface CreateUserDto {
@@ -41,8 +43,21 @@ export class UsersService {
     const skip = (page - 1) * limit;
     const take = limit;
 
+    const isSuperAdmin = actor.role === UserRole.SUPER_ADMIN;
+    if (!isSuperAdmin && !actor.companyId) {
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      };
+    }
+
     const where: Prisma.UserWhereInput = {
-      ...(actor.role !== UserRole.SUPER_ADMIN ? { companyId: actor.companyId } : {}),
+      ...(isSuperAdmin ? {} : { companyId: actor.companyId }),
       ...(search ? {
         OR: [
           { firstName: { contains: search, mode: 'insensitive' } },
@@ -87,6 +102,7 @@ export class UsersService {
 
     if (
       actor.role !== UserRole.SUPER_ADMIN &&
+      actor.id !== id &&
       user.companyId !== actor.companyId
     ) {
       throw new ForbiddenException('You cannot access this user.');
@@ -124,6 +140,7 @@ export class UsersService {
 
     if (
       actor.role !== UserRole.SUPER_ADMIN &&
+      actor.id !== id &&
       existing.companyId !== actor.companyId
     ) {
       throw new ForbiddenException('You cannot update this user.');
@@ -202,6 +219,76 @@ export class UsersService {
       ...data,
       companyId: actor.companyId,
     };
+  }
+
+  async createInvitation(actor: AuthenticatedUser, data: { email: string; role: UserRole; firstName?: string; lastName?: string }) {
+    if (actor.role === UserRole.COMPANY_STAFF) {
+      throw new ForbiddenException('Staff members cannot invite users.');
+    }
+
+    const token = randomBytes(16).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
+
+    return this.prisma.invitation.create({
+      data: {
+        email: data.email.toLowerCase().trim(),
+        firstName: data.firstName,
+        lastName: data.lastName,
+        role: data.role,
+        token,
+        companyId: actor.companyId ?? undefined,
+        expiresAt,
+      } as any,
+    });
+  }
+
+  async verifyInvitation(token: string) {
+    const invitation = await this.prisma.invitation.findUnique({
+      where: { token },
+      include: { company: true },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found.');
+    }
+
+    if (invitation.usedAt) {
+      throw new BadRequestException('Invitation already used.');
+    }
+
+    if (invitation.expiresAt < new Date()) {
+      throw new BadRequestException('Invitation expired.');
+    }
+
+    return invitation;
+  }
+
+  async acceptInvitation(token: string, data: { firstName: string; lastName: string; password: string }) {
+    const invitation = await this.verifyInvitation(token);
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+
+    return this.prisma.$transaction(async (tx) => {
+      const inv = invitation as any;
+      const user = await tx.user.create({
+        data: {
+          email: inv.email,
+          password: hashedPassword,
+          firstName: data.firstName || inv.firstName || '',
+          lastName: data.lastName || inv.lastName || '',
+          role: inv.role,
+          companyId: inv.companyId,
+          isActive: true,
+        },
+      });
+
+      await tx.invitation.update({
+        where: { id: invitation.id },
+        data: { usedAt: new Date() },
+      });
+
+      return user;
+    });
   }
 
   private safeUserSelect() {

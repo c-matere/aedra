@@ -15,6 +15,7 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../auth/roles.enum';
 import type { RequestWithUser } from '../auth/request-with-user.interface';
 import { UnitsService } from './units.service';
+import { UnitStatus } from '@prisma/client';
 
 @Controller('units')
 @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF)
@@ -53,6 +54,7 @@ export class UnitsController {
       sizeSqm?: number;
       rentAmount?: number;
       propertyId: string;
+      status?: UnitStatus;
     },
     @Req() req: RequestWithUser,
   ) {
@@ -72,6 +74,7 @@ export class UnitsController {
       sizeSqm?: number;
       rentAmount?: number;
       propertyId?: string;
+      status?: UnitStatus;
     },
     @Req() req: RequestWithUser,
   ) {
@@ -91,6 +94,7 @@ export class UnitsController {
       sizeSqm?: number;
       rentAmount?: number;
       propertyId?: string;
+      status?: UnitStatus;
     },
     @Req() req: RequestWithUser,
   ) {

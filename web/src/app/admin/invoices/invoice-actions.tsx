@@ -123,7 +123,13 @@ export function AddInvoiceButton({ role, leases }: { role: UserRole | null; leas
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-neutral-300">Due Date</label>
-              <Input name="dueDate" type="date" required className="bg-white/5 border-white/10 text-white" />
+              <Input
+                name="dueDate"
+                type="date"
+                required
+                defaultValue={new Date().toISOString().split('T')[0]}
+                className="bg-white/5 border-white/10 text-white"
+              />
             </div>
           </div>
           <div className="space-y-2">

@@ -99,4 +99,4 @@ import { redisStore } from 'cache-manager-redis-yet';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

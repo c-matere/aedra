@@ -16,6 +16,14 @@ interface LoginBody {
   password?: string;
 }
 
+interface RegisterCompanyBody {
+  companyName: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -30,6 +38,21 @@ export class AuthController {
     }
 
     return this.authService.login(email, password);
+  }
+
+  @Post('register-company')
+  async registerCompany(@Body() body: RegisterCompanyBody) {
+    if (
+      !body.companyName ||
+      !body.email ||
+      !body.password ||
+      !body.firstName ||
+      !body.lastName
+    ) {
+      throw new BadRequestException('All fields are required.');
+    }
+
+    return this.authService.registerCompany(body);
   }
 
   @Get('session')

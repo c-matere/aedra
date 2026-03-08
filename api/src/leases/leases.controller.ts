@@ -19,7 +19,7 @@ import { LeasesService } from './leases.service';
 @Controller('leases')
 @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF)
 export class LeasesController {
-  constructor(private readonly leasesService: LeasesService) { }
+  constructor(private readonly leasesService: LeasesService) {}
 
   @Get()
   findAll(

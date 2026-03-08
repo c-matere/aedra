@@ -51,23 +51,32 @@ export interface UpdateMaintenanceRequestDto {
 
 @Injectable()
 export class MaintenanceRequestsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(actor: AuthenticatedUser, page = 1, limit = 10, search?: string) {
+  async findAll(
+    actor: AuthenticatedUser,
+    page = 1,
+    limit = 10,
+    search?: string,
+  ) {
     const skip = (page - 1) * limit;
     const take = limit;
 
     const where: Prisma.MaintenanceRequestWhereInput = {
       ...(actor.role !== 'SUPER_ADMIN' ? { companyId: actor.companyId } : {}),
-      ...(search ? {
-        OR: [
-          { title: { contains: search, mode: 'insensitive' } },
-          { vendor: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
-          { property: { name: { contains: search, mode: 'insensitive' } } },
-          { unit: { unitNumber: { contains: search, mode: 'insensitive' } } },
-        ]
-      } : {}),
+      ...(search
+        ? {
+            OR: [
+              { title: { contains: search, mode: 'insensitive' } },
+              { vendor: { contains: search, mode: 'insensitive' } },
+              { description: { contains: search, mode: 'insensitive' } },
+              { property: { name: { contains: search, mode: 'insensitive' } } },
+              {
+                unit: { unitNumber: { contains: search, mode: 'insensitive' } },
+              },
+            ],
+          }
+        : {}),
     };
 
     const [data, total] = await Promise.all([

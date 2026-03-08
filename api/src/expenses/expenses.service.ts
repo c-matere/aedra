@@ -34,21 +34,43 @@ export interface UpdateExpenseDto {
 export class ExpensesService {
   constructor(private readonly prisma: PrismaService) { }
 
-  async findAll(actor: AuthenticatedUser, page = 1, limit = 10, search?: string) {
+  async findAll(
+    actor: AuthenticatedUser,
+    page = 1,
+    limit = 10,
+    search?: string,
+  ) {
     const skip = (page - 1) * limit;
     const take = limit;
 
+    const isSuperAdmin = actor.role === 'SUPER_ADMIN';
+    if (!isSuperAdmin && !actor.companyId) {
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      };
+    }
+
     const where: Prisma.ExpenseWhereInput = {
-      ...(actor.role !== 'SUPER_ADMIN' ? { companyId: actor.companyId } : {}),
-      ...(search ? {
-        OR: [
-          { description: { contains: search, mode: 'insensitive' } },
-          { vendor: { contains: search, mode: 'insensitive' } },
-          { reference: { contains: search, mode: 'insensitive' } },
-          { property: { name: { contains: search, mode: 'insensitive' } } },
-          { unit: { unitNumber: { contains: search, mode: 'insensitive' } } },
-        ]
-      } : {}),
+      ...(isSuperAdmin ? {} : { companyId: actor.companyId }),
+      ...(search
+        ? {
+          OR: [
+            { description: { contains: search, mode: 'insensitive' } },
+            { vendor: { contains: search, mode: 'insensitive' } },
+            { reference: { contains: search, mode: 'insensitive' } },
+            { property: { name: { contains: search, mode: 'insensitive' } } },
+            {
+              unit: { unitNumber: { contains: search, mode: 'insensitive' } },
+            },
+          ],
+        }
+        : {}),
     };
 
     const [data, total] = await Promise.all([

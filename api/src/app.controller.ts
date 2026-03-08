@@ -17,7 +17,7 @@ export class AppController {
     private readonly appService: AppService,
     private readonly auditLogService: AuditLogService,
     private readonly usersService: UsersService,
-  ) { }
+  ) {}
 
   @Get()
   getHello(): string {

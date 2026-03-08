@@ -45,6 +45,8 @@ export default function LoginPage() {
         }
     }
 
+    const isRegistered = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('registered') === 'true'
+
     return (
         <div className="dark flex min-h-screen items-center justify-center bg-neutral-950 text-neutral-50 relative overflow-hidden px-4">
             {/* Background Grid Pattern */}
@@ -72,6 +74,11 @@ export default function LoginPage() {
 
                     <CardContent>
                         <form onSubmit={handleLogin} className="space-y-4">
+                            {isRegistered && (
+                                <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-200 mb-4">
+                                    Registration successful! Please sign in with your credentials.
+                                </div>
+                            )}
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-neutral-300 ml-1">Company Email</label>
                                 <div className="relative">
@@ -132,7 +139,7 @@ export default function LoginPage() {
                     <CardFooter className="flex flex-col items-center pt-6 space-y-4">
                         <div className="text-sm text-neutral-400">
                             Don&apos;t have an account?{" "}
-                            <Link href="#" className="font-semibold text-white hover:text-neutral-300 hover:underline">
+                            <Link href="/register" className="font-semibold text-white hover:text-neutral-300 hover:underline">
                                 Register Company
                             </Link>
                         </div>

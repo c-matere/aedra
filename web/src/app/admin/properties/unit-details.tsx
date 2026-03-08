@@ -19,7 +19,7 @@ import {
     Phone,
     Plus
 } from "lucide-react"
-import { AddInvoiceButton, AddPaymentButton } from "./lease-actions"
+import { AddInvoiceButton, AddPaymentButton, VacationNoticeButton, TerminateLeaseButton } from "./lease-actions"
 import { UserRole } from "@/lib/rbac"
 import {
     SlidePanel,
@@ -45,24 +45,24 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
+    const fetchDetails = async () => {
+        if (!unitId) return
+        setLoading(true)
+        setError(null)
+        const res = await getUnitById(token, unitId)
+        if (res.error) {
+            setError(res.error)
+        } else {
+            setUnit(res.data)
+        }
+        setLoading(false)
+    }
+
     useEffect(() => {
         if (!unitId) {
             setUnit(null)
             return
         }
-
-        async function fetchDetails() {
-            setLoading(true)
-            setError(null)
-            const res = await getUnitById(token, unitId!)
-            if (res.error) {
-                setError(res.error)
-            } else {
-                setUnit(res.data)
-            }
-            setLoading(false)
-        }
-
         fetchDetails()
     }, [unitId, token])
 
@@ -121,7 +121,7 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <Card className="bg-white/5 border-white/10 flex flex-col items-center justify-center p-4">
                                     <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Status</span>
-                                    <Badge variant={unit.status === 'OCCUPIED' ? 'success' : unit.status === 'UNDER_MAINTENANCE' ? 'warning' : 'info'}>
+                                    <Badge variant={unit.status === 'OCCUPIED' ? 'success' : unit.status === 'UNDER_MAINTENANCE' ? 'warning' : unit.status === 'VACATING' ? 'vacating' : 'info'}>
                                         {unit.status}
                                     </Badge>
                                 </Card>
@@ -162,9 +162,17 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
                                                         <ChevronRight className="h-3 w-3 text-neutral-600" />
                                                         {lease.endDate ? new Date(lease.endDate).toLocaleDateString() : 'Active'}
                                                     </div>
-                                                    <Badge variant={lease.status === 'ACTIVE' ? 'success' : 'secondary'}>
-                                                        {lease.status}
-                                                    </Badge>
+                                                    <div className="flex items-center gap-2">
+                                                        {lease.status === 'ACTIVE' && (
+                                                            <>
+                                                                <VacationNoticeButton leaseId={lease.id} unitId={unit.id} role={role} onSuccess={fetchDetails} />
+                                                                <TerminateLeaseButton leaseId={lease.id} unitId={unit.id} role={role} onSuccess={fetchDetails} />
+                                                            </>
+                                                        )}
+                                                        <Badge variant={lease.status === 'ACTIVE' ? 'success' : 'secondary'}>
+                                                            {lease.status}
+                                                        </Badge>
+                                                    </div>
                                                 </div>
 
                                                 <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -201,6 +209,18 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
                                                                 <p className="text-[9px] text-neutral-500 uppercase">Deposit</p>
                                                                 <p className="text-sm font-black text-amber-400">KES {lease.deposit?.toLocaleString() || 0}</p>
                                                             </div>
+                                                            {(lease as any).balance !== undefined && (lease as any).balance > 0 && (
+                                                                <div className="bg-red-500/10 p-2 rounded-lg border border-red-500/20 col-span-2">
+                                                                    <p className="text-[9px] text-red-400 font-bold uppercase">Outstanding Balance (Arrears)</p>
+                                                                    <p className="text-sm font-black text-red-500">KES {(lease as any).balance.toLocaleString()}</p>
+                                                                </div>
+                                                            )}
+                                                            {(lease as any).balance !== undefined && (lease as any).balance <= 0 && (
+                                                                <div className="bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20 col-span-2">
+                                                                    <p className="text-[9px] text-emerald-400 font-bold uppercase">Balance</p>
+                                                                    <p className="text-sm font-black text-emerald-500">PAID UP</p>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
 
@@ -210,7 +230,7 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
                                                                 <h5 className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-1.5">
                                                                     <FileText className="h-3 w-3 text-blue-400" /> Recent Invoices
                                                                 </h5>
-                                                                <AddInvoiceButton leaseId={lease.id} role={role} />
+                                                                <AddInvoiceButton leaseId={lease.id} role={role} onSuccess={fetchDetails} />
                                                             </div>
                                                             <div className="space-y-1">
                                                                 {lease.invoices && lease.invoices.length > 0 ? (
@@ -230,7 +250,7 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
                                                                 <h5 className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-1.5">
                                                                     <CreditCard className="h-3 w-3 text-emerald-400" /> Recent Payments
                                                                 </h5>
-                                                                <AddPaymentButton leaseId={lease.id} role={role} />
+                                                                <AddPaymentButton leaseId={lease.id} role={role} onSuccess={fetchDetails} />
                                                             </div>
                                                             <div className="space-y-1">
                                                                 {lease.payments && lease.payments.length > 0 ? (

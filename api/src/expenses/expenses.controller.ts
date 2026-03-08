@@ -19,7 +19,7 @@ import { ExpensesService } from './expenses.service';
 @Controller('expenses')
 @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
 export class ExpensesController {
-  constructor(private readonly expensesService: ExpensesService) { }
+  constructor(private readonly expensesService: ExpensesService) {}
 
   @Get()
   findAll(

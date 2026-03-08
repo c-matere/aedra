@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Plus } from "lucide-react"
+import { ClipboardList, Loader2, Plus, XCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,7 +14,12 @@ import {
     SlidePanelTitle,
     SlidePanelTrigger,
 } from "@/components/ui/slide-panel"
-import { createInvoiceAction, createPaymentAction } from "@/lib/actions"
+import {
+    createInvoiceAction,
+    createPaymentAction,
+    updateLeaseAction,
+    updateUnitAction
+} from "@/lib/actions"
 import { parseForm, parseNumber, parseText, FieldSchema } from "@/lib/form-helpers"
 import type { UserRole } from "@/lib/rbac"
 
@@ -45,9 +50,10 @@ function canMutate(role: UserRole | null) {
 interface AddActionProps {
     leaseId: string
     role: UserRole | null
+    onSuccess?: () => void
 }
 
-export function AddInvoiceButton({ leaseId, role }: AddActionProps) {
+export function AddInvoiceButton({ leaseId, role, onSuccess }: AddActionProps) {
     const router = useRouter()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
@@ -77,6 +83,7 @@ export function AddInvoiceButton({ leaseId, role }: AddActionProps) {
             setError(res.error)
         } else {
             setOpen(false)
+            if (onSuccess) onSuccess()
             router.refresh()
         }
         setLoading(false)
@@ -131,7 +138,7 @@ export function AddInvoiceButton({ leaseId, role }: AddActionProps) {
     )
 }
 
-export function AddPaymentButton({ leaseId, role }: AddActionProps) {
+export function AddPaymentButton({ leaseId, role, onSuccess }: AddActionProps) {
     const router = useRouter()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
@@ -161,6 +168,7 @@ export function AddPaymentButton({ leaseId, role }: AddActionProps) {
             setError(res.error)
         } else {
             setOpen(false)
+            if (onSuccess) onSuccess()
             router.refresh()
         }
         setLoading(false)
@@ -226,5 +234,119 @@ export function AddPaymentButton({ leaseId, role }: AddActionProps) {
                 </form>
             </SlidePanelContent>
         </SlidePanel>
+    )
+}
+export function VacationNoticeButton({ leaseId, unitId, role, onSuccess }: AddActionProps & { unitId?: string }) {
+    const router = useRouter()
+    const [open, setOpen] = useState(false)
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+
+    async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault()
+        if (!canMutate(role)) return
+
+        setLoading(true)
+        setError(null)
+
+        const formData = new FormData(e.currentTarget)
+        const moveOutDate = formData.get("moveOutDate") as string
+
+        const res = await updateLeaseAction(role, leaseId, {
+            endDate: moveOutDate
+        })
+
+        if (res.error) {
+            setError(res.error)
+        } else {
+            if (unitId) {
+                const unitRes = await updateUnitAction(role, unitId, { status: 'VACATING' })
+                if (unitRes.error) {
+                    setError(`Lease updated, but unit status failed: ${unitRes.error}`)
+                    setLoading(false)
+                    return
+                }
+            }
+            setOpen(false)
+            if (onSuccess) onSuccess()
+            router.refresh()
+        }
+        setLoading(false)
+    }
+
+    return (
+        <SlidePanel open={open} onOpenChange={setOpen}>
+            <SlidePanelTrigger asChild>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 text-[10px] font-bold border-purple-500/30 text-purple-400 hover:bg-purple-500/10 uppercase tracking-wider"
+                    disabled={!canMutate(role)}
+                >
+                    <ClipboardList className="h-3 w-3 mr-1" />
+                    Notice
+                </Button>
+            </SlidePanelTrigger>
+            <SlidePanelContent zIndex={300}>
+                <SlidePanelHeader>
+                    <SlidePanelTitle>Vacation Notice</SlidePanelTitle>
+                    <SlidePanelDescription>Schedule an expected move-out date for the tenant.</SlidePanelDescription>
+                </SlidePanelHeader>
+                <form onSubmit={onSubmit} className="space-y-4 py-6">
+                    {error ? <p className="text-sm text-red-400">{error}</p> : null}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-neutral-300">Expected Move-Out Date</label>
+                        <Input name="moveOutDate" type="date" required defaultValue={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]} />
+                    </div>
+                    <Button type="submit" disabled={loading} className="w-full">
+                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Confirm Notice
+                    </Button>
+                </form>
+            </SlidePanelContent>
+        </SlidePanel>
+    )
+}
+
+export function TerminateLeaseButton({ leaseId, unitId, role, onSuccess }: AddActionProps & { unitId?: string }) {
+    const router = useRouter()
+    const [loading, setLoading] = useState(false)
+
+    async function handleTerminate() {
+        if (!confirm("Are you sure you want to terminate this lease? This will also mark the unit as VACANT.")) return
+        if (!canMutate(role)) return
+
+        setLoading(true)
+        const res = await updateLeaseAction(role, leaseId, { status: 'TERMINATED' })
+
+        if (res.error) {
+            alert(`Failed to terminate lease: ${res.error}`)
+            setLoading(false)
+            return
+        }
+
+        if (unitId) {
+            const unitRes = await updateUnitAction(role, unitId, { status: 'VACANT' })
+            if (unitRes.error) {
+                alert(`Lease terminated, but failed to mark unit as vacant: ${unitRes.error}`)
+            }
+        }
+
+        if (onSuccess) onSuccess()
+        router.refresh()
+        setLoading(false)
+    }
+
+    return (
+        <Button
+            variant="destructive"
+            size="sm"
+            disabled={loading || !canMutate(role)}
+            onClick={handleTerminate}
+            className="h-8 px-3 text-[10px] font-bold uppercase tracking-wider"
+        >
+            {loading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
+            Terminate
+        </Button>
     )
 }

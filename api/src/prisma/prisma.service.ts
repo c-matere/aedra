@@ -31,8 +31,19 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
   // Define a set of models that support soft delete
   private readonly softDeleteModels = [
-    'User', 'Company', 'Landlord', 'Property', 'Unit', 'Tenant', 'Lease',
-    'MaintenanceRequest', 'Payment', 'Invoice', 'Document', 'Expense', 'Penalty'
+    'User',
+    'Company',
+    'Landlord',
+    'Property',
+    'Unit',
+    'Tenant',
+    'Lease',
+    'MaintenanceRequest',
+    'Payment',
+    'Invoice',
+    'Document',
+    'Expense',
+    'Penalty',
   ];
 
   getSoftDeleteClient() {
@@ -54,7 +65,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
           async findUnique({ model, args, query }) {
             if (PrismaService.prototype.softDeleteModels.includes(model)) {
               // Convert findUnique to findFirst to allow filtering by deletedAt
-              return (this as any).findFirst({
+              return this.findFirst({
                 where: { ...(args as any).where, deletedAt: null },
                 select: (args as any).select,
                 include: (args as any).include,
@@ -64,7 +75,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
           },
           async delete({ model, args, query }) {
             if (PrismaService.prototype.softDeleteModels.includes(model)) {
-              return (this as any).update({
+              return this.update({
                 where: (args as any).where,
                 data: { deletedAt: new Date() },
               });
@@ -73,7 +84,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
           },
           async deleteMany({ model, args, query }) {
             if (PrismaService.prototype.softDeleteModels.includes(model)) {
-              return (this as any).updateMany({
+              return this.updateMany({
                 where: (args as any).where,
                 data: { deletedAt: new Date() },
               });
