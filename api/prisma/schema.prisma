@@ -1,0 +1,510 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [postgis]
+}
+
+/// This table contains check constraints and requires additional setup for migrations.
+model spatial_ref_sys {
+  srid      Int     @id
+  auth_name String? @db.VarChar(256)
+  auth_srid Int?
+  srtext    String? @db.VarChar(2048)
+  proj4text String? @db.VarChar(2048)
+
+  @@ignore
+}
+
+/// A user who can log in to the Aedra platform.
+/// Super Admins have no companyId (they are platform-level).
+/// Company Admins & Staff belong to exactly one Company.
+model User {
+  id                     String               @id @default(uuid())
+  email                  String               @unique
+  password               String
+  firstName              String
+  lastName               String
+  phone                  String?
+  role                   UserRole             @default(COMPANY_STAFF)
+  permissions            String[]             @default([])
+  isActive               Boolean              @default(true)
+  companyId              String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  deletedAt              DateTime?
+  maintenanceAssignments MaintenanceRequest[]
+  company                Company?             @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([role])
+  @@index([deletedAt])
+}
+
+/// A property management company operating in Mombasa.
+/// This is the tenant isolation boundary — all business data is scoped here.
+model Company {
+  id                  String               @id @default(uuid())
+  name                String
+  email               String?
+  phone               String?
+  address             String?
+  logo                String?
+  isActive            Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  documents           Document[]
+  expenses            Expense[]
+  landlords           Landlord[]
+  maintenanceRequests MaintenanceRequest[]
+  properties          Property[]
+  tenants             Tenant[]
+  users               User[]
+}
+
+/// A landlord / property owner managed by a Company.
+/// A single landlord can own multiple properties.
+model Landlord {
+  id         String     @id @default(uuid())
+  firstName  String
+  lastName   String
+  email      String?
+  phone      String?
+  idNumber   String?
+  address    String?
+  companyId  String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  company    Company    @relation(fields: [companyId], references: [id])
+  deletedAt  DateTime?
+  properties Property[]
+
+  @@index([companyId])
+  @@index([deletedAt])
+}
+
+/// A property (building, plot, estate) managed by a Company on behalf of a Landlord.
+model Property {
+  id                  String               @id @default(uuid())
+  name                String
+  address             String?
+  propertyType        PropertyType         @default(RESIDENTIAL)
+  description         String?
+  latitude            Float?
+  longitude           Float?
+  landlordId          String
+  companyId           String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  documents           Document[]
+  expenses            Expense[]
+  leases              Lease[]
+  maintenanceRequests MaintenanceRequest[]
+  company             Company              @relation(fields: [companyId], references: [id])
+  landlord            Landlord             @relation(fields: [landlordId], references: [id])
+  tenants             Tenant[]
+  units               Unit[]
+  deletedAt           DateTime?
+
+  @@index([companyId])
+  @@index([landlordId])
+  @@index([deletedAt])
+}
+
+/// A rentable unit inside a property (e.g. Apartment 3B, Shop 12, Office Suite A).
+model Unit {
+  id                  String               @id @default(uuid())
+  unitNumber          String
+  floor               String?
+  bedrooms            Int?
+  bathrooms           Int?
+  sizeSqm             Float?
+  rentAmount          Float?
+  status              UnitStatus           @default(VACANT)
+  propertyId          String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  documents           Document[]
+  expenses            Expense[]
+  leases              Lease[]
+  maintenanceRequests MaintenanceRequest[]
+  property            Property             @relation(fields: [propertyId], references: [id])
+  deletedAt           DateTime?
+
+  @@index([propertyId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+/// A tenant — a person or business that rents space from a managed property.
+/// "Tenant" here means the real-world renter, NOT the multi-tenant software concept.
+model Tenant {
+  id         String     @id @default(uuid())
+  firstName  String
+  lastName   String
+  email      String?
+  phone      String?
+  idNumber   String?
+  companyId  String
+  propertyId String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  deletedAt  DateTime?
+  documents  Document[]
+  leases     Lease[]
+  company    Company    @relation(fields: [companyId], references: [id])
+  property   Property   @relation(fields: [propertyId], references: [id])
+
+  @@index([companyId])
+  @@index([propertyId])
+  @@index([deletedAt])
+}
+
+/// A lease agreement linking a Tenant to a Unit for a period of time.
+model Lease {
+  id         String      @id @default(uuid())
+  startDate  DateTime
+  endDate    DateTime
+  rentAmount Float
+  deposit    Float?
+  status     LeaseStatus @default(PENDING)
+  propertyId String
+  unitId     String?
+  tenantId   String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  deletedAt  DateTime?
+  documents  Document[]
+  invoices   Invoice[]
+  property   Property    @relation(fields: [propertyId], references: [id])
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  unit       Unit?       @relation(fields: [unitId], references: [id])
+  payments   Payment[]
+  penalties  Penalty[]
+
+  @@index([propertyId])
+  @@index([unitId])
+  @@index([tenantId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+/// A maintenance request / work order raised for a property or unit.
+/// Tracks the full lifecycle from initial report through to resolution.
+model MaintenanceRequest {
+  id            String              @id @default(uuid())
+  title         String
+  description   String?
+  category      MaintenanceCategory @default(GENERAL)
+  priority      MaintenancePriority @default(MEDIUM)
+  status        MaintenanceStatus   @default(REPORTED)
+  reportedAt    DateTime            @default(now())
+  scheduledAt   DateTime?
+  completedAt   DateTime?
+  estimatedCost Float?
+  actualCost    Float?
+  vendor        String?
+  vendorPhone   String?
+  notes         String?
+  companyId     String
+  propertyId    String
+  unitId        String?
+  assignedToId  String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  deletedAt     DateTime?
+  assignedTo    User?               @relation(fields: [assignedToId], references: [id])
+  company       Company             @relation(fields: [companyId], references: [id])
+  property      Property            @relation(fields: [propertyId], references: [id])
+  unit          Unit?               @relation(fields: [unitId], references: [id])
+
+  @@index([companyId])
+  @@index([propertyId])
+  @@index([unitId])
+  @@index([status])
+  @@index([priority])
+  @@index([assignedToId])
+  @@index([deletedAt])
+}
+
+/// A payment made by a tenant against a lease.
+model Payment {
+  id        String        @id @default(uuid())
+  amount    Float
+  paidAt    DateTime      @default(now())
+  method    PaymentMethod @default(MPESA)
+  type      PaymentType   @default(RENT)
+  reference String?
+  notes     String?
+  leaseId   String
+  penaltyId String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  deletedAt DateTime?
+  lease     Lease         @relation(fields: [leaseId], references: [id])
+  penalty   Penalty?      @relation(fields: [penaltyId], references: [id])
+
+  @@index([leaseId])
+  @@index([penaltyId])
+  @@index([method])
+  @@index([deletedAt])
+}
+
+/// An invoice issued against a lease for standard billing purposes.
+model Invoice {
+  id          String   @id @default(uuid())
+  amount      Float
+  description String
+  type        InvoiceType @default(RENT)
+  dueDate     DateTime
+  status      String      @default("PENDING")
+  leaseId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  lease       Lease    @relation(fields: [leaseId], references: [id])
+
+  @@index([leaseId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+/// A document file uploaded into the platform.
+/// Scoped to a Company and optionally tied to a specific Property, Unit, Tenant, or Lease.
+model Document {
+  id          String       @id @default(uuid())
+  name        String
+  fileUrl     String
+  type        DocumentType @default(OTHER)
+  description String?
+  companyId   String
+  propertyId  String?
+  unitId      String?
+  tenantId    String?
+  leaseId     String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+  company     Company      @relation(fields: [companyId], references: [id])
+  lease       Lease?       @relation(fields: [leaseId], references: [id])
+  property    Property?    @relation(fields: [propertyId], references: [id])
+  tenant      Tenant?      @relation(fields: [tenantId], references: [id])
+  unit        Unit?        @relation(fields: [unitId], references: [id])
+
+  @@index([companyId])
+  @@index([propertyId])
+  @@index([unitId])
+  @@index([tenantId])
+  @@index([leaseId])
+  @@index([deletedAt])
+}
+
+/// An expense incurred for maintaining or operating a property or unit.
+/// Scoped to a Company, optionally tied to a specific Property or Unit.
+model Expense {
+  id          String          @id @default(uuid())
+  description String
+  amount      Float
+  category    ExpenseCategory @default(OTHER)
+  date        DateTime        @default(now())
+  vendor      String?
+  reference   String?
+  notes       String?
+  companyId   String
+  propertyId  String?
+  unitId      String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
+  company     Company         @relation(fields: [companyId], references: [id])
+  property    Property?       @relation(fields: [propertyId], references: [id])
+  unit        Unit?           @relation(fields: [unitId], references: [id])
+
+  @@index([companyId])
+  @@index([propertyId])
+  @@index([category])
+  @@index([deletedAt])
+}
+
+/// A penalty charged to a tenant — late payment fees, lease violations,
+/// property damage charges, early termination fees, etc.
+model Penalty {
+  id          String        @id @default(uuid())
+  type        PenaltyType   @default(LATE_PAYMENT)
+  status      PenaltyStatus @default(PENDING)
+  amount      Float
+  description String?
+  issuedAt    DateTime      @default(now())
+  leaseId     String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+  payments    Payment[]
+  lease       Lease         @relation(fields: [leaseId], references: [id])
+
+  @@index([leaseId])
+  @@index([type])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model AuditLog {
+  id             String   @id @default(uuid())
+  timestamp      DateTime @default(now())
+  action         String
+  outcome        String
+  method         String
+  path           String
+  entity         String?
+  targetId       String?
+  actorId        String?
+  actorRole      String?
+  actorCompanyId String?
+  statusCode     Int?
+  durationMs     Int?
+  ip             String?
+  userAgent      String?
+  requestId      String?
+  metadata       Json?
+
+  @@index([timestamp(sort: Desc)])
+  @@index([action])
+  @@index([outcome])
+  @@index([entity])
+  @@index([actorId])
+}
+
+/// Global user roles across the platform
+enum UserRole {
+  SUPER_ADMIN
+  COMPANY_ADMIN
+  COMPANY_STAFF
+}
+
+/// Status of a lease
+enum LeaseStatus {
+  ACTIVE
+  EXPIRED
+  TERMINATED
+  PENDING
+}
+
+/// Status of a unit (vacancy tracking)
+enum UnitStatus {
+  VACANT
+  OCCUPIED
+  UNDER_MAINTENANCE
+}
+
+/// Type of property
+enum PropertyType {
+  RESIDENTIAL
+  COMMERCIAL
+  MIXED_USE
+  INDUSTRIAL
+  LAND
+}
+
+/// Category of an expense
+enum ExpenseCategory {
+  MAINTENANCE
+  REPAIR
+  UTILITY
+  INSURANCE
+  TAX
+  MANAGEMENT_FEE
+  LEGAL
+  CLEANING
+  SECURITY
+  OTHER
+}
+
+/// Type of penalty
+enum PenaltyType {
+  LATE_PAYMENT
+  LEASE_VIOLATION
+  PROPERTY_DAMAGE
+  EARLY_TERMINATION
+  OTHER
+}
+
+/// Status of a penalty
+enum PenaltyStatus {
+  PENDING
+  PAID
+  WAIVED
+  PARTIALLY_PAID
+}
+
+/// Type of document uploaded to the platform
+enum DocumentType {
+  AGREEMENT
+  COMPLIANCE
+  ID_PROOF
+  INVOICE_COPY
+  OTHER
+}
+
+/// How a payment was made
+enum PaymentMethod {
+  MPESA
+  BANK_TRANSFER
+  CASH
+  CHEQUE
+  CARD
+  OTHER
+}
+
+/// What the payment is for
+enum PaymentType {
+  RENT
+  DEPOSIT
+  PENALTY
+  UTILITY
+  OTHER
+}
+
+/// Type of invoice
+enum InvoiceType {
+  RENT
+  MAINTENANCE
+  PENALTY
+  UTILITY
+  OTHER
+}
+
+/// Status of a maintenance request
+enum MaintenanceStatus {
+  REPORTED
+  ACKNOWLEDGED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+/// Priority level for maintenance
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+/// Category of maintenance work
+enum MaintenanceCategory {
+  PLUMBING
+  ELECTRICAL
+  STRUCTURAL
+  PAINTING
+  APPLIANCE
+  PEST_CONTROL
+  HVAC
+  ROOFING
+  FLOORING
+  GENERAL
+  OTHER
+}

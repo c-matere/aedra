@@ -1,0 +1,1 @@
+{"id":"847daee1-c36a-4525-a328-a48ec8773326","amount":5000,"description":"Rent for March 2026","dueDate":"2026-03-13T16:55:19.000Z","status":"PENDING","leaseId":"81f7b58a-35d3-4027-b819-195eb6cbd717","createdAt":"2026-03-06T13:55:19.282Z","updatedAt":"2026-03-06T13:55:19.282Z","lease":{"id":"81f7b58a-35d3-4027-b819-195eb6cbd717","tenant":{"firstName":"John","lastName":"Doe"}}}
