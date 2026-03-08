@@ -19,8 +19,10 @@ import {
   deleteLandlordAction,
   updateLandlordAction,
   createPropertyAction,
+  listPropertiesAction,
 } from "@/lib/actions"
 import { FieldSchema, parseForm, parseText } from "@/lib/form-helpers"
+import { AsyncCombobox } from "@/components/ui/async-combobox"
 import type { LandlordRecord } from "@/lib/backend-api"
 import type { UserRole } from "@/lib/rbac"
 
@@ -28,9 +30,7 @@ type LandlordFormValues = {
   firstName: string
   lastName: string
   email?: string
-  propertyName: string
-  propertyType: string
-  propertyAddress?: string
+  propertyIds?: string[]
 }
 
 const landlordFieldSchema: FieldSchema[] = [
@@ -52,21 +52,9 @@ const landlordFieldSchema: FieldSchema[] = [
     parser: parseText,
   },
   {
-    name: "propertyName",
-    required: true,
-    parser: parseText,
-    errorMessage: "Property name is required.",
-  },
-  {
-    name: "propertyType",
-    required: true,
-    parser: parseText,
-    errorMessage: "Property type is required.",
-  },
-  {
-    name: "propertyAddress",
+    name: "propertyIds",
     required: false,
-    parser: parseText,
+    parser: (val) => (typeof val === "string" ? val.split(",").filter(Boolean) : []),
   },
 ]
 
@@ -79,6 +67,7 @@ export function AddLandlordButton({ role }: { role: UserRole | null }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedPropertyId, setSelectedPropertyId] = useState("")
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -90,40 +79,54 @@ export function AddLandlordButton({ role }: { role: UserRole | null }) {
     setLoading(true)
     setError(null)
 
-    const { values, errors } = parseForm<LandlordFormValues>(landlordFieldSchema, new FormData(e.currentTarget))
+    const formData = new FormData(e.currentTarget)
+    // Ensure selectedPropertyId is in the formData if not already handled by AsyncCombobox hidden input
+    if (selectedPropertyId && !formData.has("propertyIds")) {
+      formData.set("propertyIds", selectedPropertyId)
+    }
+
+    const { values, errors } = parseForm<LandlordFormValues>(landlordFieldSchema, formData)
     if (errors.length) {
       setError(errors.join(" · "))
       setLoading(false)
       return
     }
 
-    const { firstName, lastName, email, propertyName, propertyType, propertyAddress } = values
+    const { firstName, lastName, email, propertyIds } = values
 
-    if (!firstName || !lastName || !propertyName || !propertyType) {
-      setError("First name, last name, property name, and property type are required.")
+    if (!firstName || !lastName) {
+      setError("First and last names are required.")
       setLoading(false)
       return
     }
 
-    const res = await createPropertyAction(role, {
-      name: propertyName,
-      propertyType,
-      address: propertyAddress,
-      landlord: {
-        firstName,
-        lastName,
-        email,
-      }
+    const res = await createLandlordAction(role, {
+      firstName,
+      lastName,
+      email,
+      propertyIds: propertyIds,
     })
 
     if (res.error) {
       setError(res.error)
     } else {
       setOpen(false)
+      setSelectedPropertyId("")
       router.refresh()
     }
 
     setLoading(false)
+  }
+
+  const handleSearchProperties = async (query: string) => {
+    const res = await listPropertiesAction(role, { search: query, limit: 20 })
+    if (res.data) {
+      return res.data.data.map(p => ({
+        value: p.id,
+        label: `${p.name} ${p.landlord ? `(current: ${p.landlord.firstName} ${p.landlord.lastName})` : "(Unassigned)"}`
+      }))
+    }
+    return []
   }
 
   return (
@@ -172,41 +175,17 @@ export function AddLandlordButton({ role }: { role: UserRole | null }) {
           </div>
           <div className="h-px bg-white/10 w-full my-4" />
           <div className="space-y-4">
-            <h4 className="text-sm font-medium text-white">First Property Details</h4>
-            <p className="text-xs text-neutral-400">A landlord must have at least one property to be added.</p>
+            <h4 className="text-sm font-medium text-white">Assign Property</h4>
+            <p className="text-xs text-neutral-400">Select an existing property to assign to this landlord.</p>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-300">Property Name</label>
-              <Input
-                name="propertyName"
-                placeholder="e.g. Sunset Apartments"
-                required
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-300">Property Type</label>
-              <select
-                name="propertyType"
-                required
-                className="flex h-10 w-full rounded-md border bg-white/5 border-white/10 text-white px-3 py-2 text-sm ring-offset-background placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                defaultValue="RESIDENTIAL"
-              >
-                <option value="RESIDENTIAL" className="bg-neutral-900">Residential</option>
-                <option value="COMMERCIAL" className="bg-neutral-900">Commercial</option>
-                <option value="MIXED_USE" className="bg-neutral-900">Mixed Use</option>
-                <option value="INDUSTRIAL" className="bg-neutral-900">Industrial</option>
-                <option value="LAND" className="bg-neutral-900">Land</option>
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-300">Property Address (Optional)</label>
-              <Input
-                name="propertyAddress"
-                placeholder="123 Main St"
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+              <label className="text-sm font-medium text-neutral-300">Property</label>
+              <AsyncCombobox
+                onSearch={handleSearchProperties}
+                value={selectedPropertyId}
+                onValueChange={setSelectedPropertyId}
+                placeholder="Search properties..."
+                name="propertyIds"
               />
             </div>
           </div>

@@ -52,6 +52,7 @@ import {
     createInvitation,
     verifyInvitation,
     acceptInvitation,
+    listInvitations,
     type CreatePropertyPayload,
     type UpdatePropertyPayload,
     type CreateTenantPayload,
@@ -342,4 +343,9 @@ export async function verifyInvitationAction(token: string) {
 
 export async function acceptInvitationAction(token: string, payload: AcceptInvitationPayload) {
     return acceptInvitation(token, payload);
+}
+
+export async function listInvitationsAction() {
+    const token = await getSessionTokenFromCookie();
+    return listInvitations(token!);
 }

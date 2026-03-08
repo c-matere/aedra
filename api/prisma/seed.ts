@@ -51,6 +51,19 @@ async function main() {
         },
     });
 
+    await prisma.user.upsert({
+        where: { email: 'criswafula2@gmail.com' },
+        update: {},
+        create: {
+            email: 'criswafula2@gmail.com',
+            password: hashedDefaultPassword,
+            firstName: 'Chris',
+            lastName: 'Wafula',
+            role: UserRole.SUPER_ADMIN,
+            isActive: true,
+        },
+    });
+
     // 2. Companies
     const companies = [];
     for (let i = 1; i <= 5; i++) {

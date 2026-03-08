@@ -41,6 +41,11 @@ export class UsersController {
     );
   }
 
+  @Get('invitations')
+  findInvitations(@Req() req: RequestWithUser) {
+    return this.usersService.findAllInvitations(req.user!);
+  }
+
   @Get(':id')
   findOne(@Req() req: RequestWithUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findOne(req.user!, id);

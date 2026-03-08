@@ -96,7 +96,7 @@ model Property {
   description         String?
   latitude            Float?
   longitude           Float?
-  landlordId          String
+  landlordId          String?
   companyId           String
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -105,7 +105,7 @@ model Property {
   leases              Lease[]
   maintenanceRequests MaintenanceRequest[]
   company             Company              @relation(fields: [companyId], references: [id])
-  landlord            Landlord             @relation(fields: [landlordId], references: [id])
+  landlord            Landlord?            @relation(fields: [landlordId], references: [id])
   tenants             Tenant[]
   units               Unit[]
   deletedAt           DateTime?

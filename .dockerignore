@@ -1,0 +1,13 @@
+# Root .dockerignore
+**/node_modules
+**/dist
+**/.next
+**/out
+**/.env*
+**/.git
+**/.vscode
+**/coverage
+**/build
+docker-compose.yml
+Dockerfile
+README.md

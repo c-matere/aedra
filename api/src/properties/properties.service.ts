@@ -215,7 +215,8 @@ export class PropertiesService {
     const companyId = await this.resolveCreateCompanyId(actor);
 
     return this.prisma.$transaction(async (tx) => {
-      let landlordId: string;
+      let landlordId: string | undefined;
+      const isSuperAdmin = actor.role === 'SUPER_ADMIN';
 
       if (data.landlord) {
         // Create new landlord
@@ -226,20 +227,6 @@ export class PropertiesService {
           },
         });
         landlordId = newLandlord.id;
-      } else {
-        // Fallback to first existing landlord for this company
-        const existingLandlord = await tx.landlord.findFirst({
-          where: { companyId },
-          select: { id: true },
-          orderBy: { createdAt: 'asc' },
-        });
-
-        if (!existingLandlord) {
-          throw new ForbiddenException(
-            'No landlord exists for this company. Please provide landlord details.',
-          );
-        }
-        landlordId = existingLandlord.id;
       }
 
       // Create Property

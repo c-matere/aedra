@@ -14,6 +14,7 @@ export interface CreateLandlordDto {
   phone?: string;
   idNumber?: string;
   address?: string;
+  propertyIds?: string[];
 }
 
 export interface UpdateLandlordDto {
@@ -110,12 +111,29 @@ export class LandlordsService {
 
   async create(data: CreateLandlordDto, actor: AuthenticatedUser) {
     const companyId = await this.resolveCompanyId(actor);
+    const { propertyIds, ...rest } = data;
 
-    return this.prisma.landlord.create({
-      data: {
-        ...data,
-        companyId,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const landlord = await tx.landlord.create({
+        data: {
+          ...rest,
+          companyId,
+        },
+      });
+
+      if (propertyIds && propertyIds.length > 0) {
+        await tx.property.updateMany({
+          where: {
+            id: { in: propertyIds },
+            companyId, // Security: ensure property belongs to same company
+          },
+          data: {
+            landlordId: landlord.id,
+          },
+        });
+      }
+
+      return landlord;
     });
   }
 

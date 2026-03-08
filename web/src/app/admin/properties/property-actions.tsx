@@ -282,7 +282,7 @@ export function AddPropertyButton({ role }: { role: UserRole | null }) {
                             <UserCircle className="h-4 w-4 text-emerald-400" />
                             <h3 className="text-sm font-semibold text-white uppercase tracking-wider">2. Landlord Identification</h3>
                         </div>
-                        <p className="text-xs text-neutral-400">Provide details to create a new landlord record. Leave blank if you want to assign this property to an existing default landlord.</p>
+                        <p className="text-xs text-neutral-400">Provide details to create a new landlord record. Leave blank if you want to assign a landlord later.</p>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-neutral-300">First Name</label>

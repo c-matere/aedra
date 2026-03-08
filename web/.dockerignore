@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+build
+.env
+.env.local
+.git
+.gitignore
+*.md
+LICENSE
+.github
+.vscode
+docker-compose*
+Dockerfile*
+coverage
+.cache

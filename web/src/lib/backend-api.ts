@@ -309,6 +309,7 @@ export interface CreateLandlordPayload {
   phone?: string;
   idNumber?: string;
   address?: string;
+  propertyIds?: string[];
 }
 
 export interface UpdateLandlordPayload {
@@ -531,6 +532,7 @@ export const TARGET_ENDPOINTS = {
   invite: "/users/invite",
   verifyInvite: "/users/invite/verify",
   acceptInvite: "/users/invite/accept",
+  listInvitations: "/users/invitations",
 } as const;
 
 export function backendBaseUrl(): string {
@@ -1238,4 +1240,10 @@ export async function acceptInvitation(
   payload: AcceptInvitationPayload,
 ): Promise<BackendRequestResult<BackendUserContext>> {
   return backendRequest<BackendUserContext>(`${TARGET_ENDPOINTS.acceptInvite}/${token}`, "", "POST", payload);
+}
+
+export async function listInvitations(
+  token: string,
+): Promise<BackendRequestResult<InvitationRecord[]>> {
+  return backendRequest<InvitationRecord[]>(TARGET_ENDPOINTS.listInvitations, token, "GET");
 }

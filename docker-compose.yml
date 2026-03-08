@@ -19,5 +19,36 @@ services:
       - "6379:6379"
     restart: always
 
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: aedra-api
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/aedra?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - postgres
+      - redis
+    restart: always
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_AEDRA_API_URL=${NEXT_PUBLIC_AEDRA_API_URL}
+    container_name: aedra-web
+    ports:
+      - "3000:3000"
+    environment:
+      - AEDRA_API_URL=http://api:3001
+    depends_on:
+      - api
+    restart: always
+
 volumes:
   pgdata:

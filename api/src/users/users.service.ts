@@ -4,9 +4,8 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { UserRole } from '../auth/roles.enum';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
@@ -88,6 +87,22 @@ export class UsersService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async findAllInvitations(actor: AuthenticatedUser) {
+    const isSuperAdmin = actor.role === UserRole.SUPER_ADMIN;
+
+    const where: Prisma.InvitationWhereInput = {
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+      ...(isSuperAdmin ? {} : { companyId: actor.companyId }),
+    };
+
+    return this.prisma.invitation.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: { company: isSuperAdmin },
+    });
   }
 
   async findOne(actor: AuthenticatedUser, id: string) {

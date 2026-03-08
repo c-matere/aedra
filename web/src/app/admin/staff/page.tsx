@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { listUsers } from "@/lib/backend-api";
+import { listUsers, listInvitations } from "@/lib/backend-api";
 import { getRoleFromCookie, getSessionTokenFromCookie } from "@/lib/cookie-utils";
 import { AddStaffButton, StaffRowActions } from "./staff-actions";
 
@@ -24,6 +24,9 @@ export default async function StaffPage({
   const usersData = usersResult.data;
   const users = usersData?.data ?? [];
   const meta = usersData?.meta;
+
+  const invitationsRes = await listInvitations(sessionToken);
+  const invitations = invitationsRes.data ?? [];
 
   const onSearchAction = async (formData: FormData) => {
     "use server";
@@ -64,6 +67,41 @@ export default async function StaffPage({
         </form>
       </div>
 
+      {invitations.length > 0 && (
+        <Card className="border-amber-500/20 bg-amber-500/5">
+          <CardHeader>
+            <CardTitle className="text-sm font-bold text-amber-400">Pending Invitations</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {invitations.map((invite) => (
+              <div key={invite.id} className="flex items-center justify-between rounded border border-white/10 bg-white/5 p-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white">
+                    {invite.firstName} {invite.lastName}
+                  </p>
+                  <p className="text-xs text-neutral-400 truncate">
+                    {invite.email}
+                  </p>
+                  <div className="mt-1 flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded uppercase bg-amber-500/20 text-amber-400">
+                      {invite.role}
+                    </span>
+                    <span className="inline-flex text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-neutral-400 italic">
+                      Pending acceptance
+                    </span>
+                    {(invite as any).company && (
+                      <span className="inline-flex text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">
+                        {(invite as any).company.name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-sm text-neutral-300">User Directory</CardTitle>
@@ -82,8 +120,8 @@ export default async function StaffPage({
                     </p>
                     <div className="mt-1 flex items-center gap-2 flex-wrap">
                       <span className={`inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${user.role === 'SUPER_ADMIN' ? 'bg-purple-500/20 text-purple-400' :
-                          user.role === 'COMPANY_ADMIN' ? 'bg-blue-500/20 text-blue-400' :
-                            'bg-neutral-500/20 text-neutral-400'
+                        user.role === 'COMPANY_ADMIN' ? 'bg-blue-500/20 text-blue-400' :
+                          'bg-neutral-500/20 text-neutral-400'
                         }`}>
                         {user.role}
                       </span>
