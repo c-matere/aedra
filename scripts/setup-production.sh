@@ -64,6 +64,21 @@ DOMAIN="aedra.nomeet.site"
 NGINX_PATH="/etc/nginx/sites-available/aedra"
 CERT_PATH="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
 
+# 3a. DNS Check - HELP THE USER DEBUG
+echo "🔍 Verifying DNS configuration for $DOMAIN..."
+SERVER_IP=$(curl -s https://ifconfig.me)
+DOMAIN_IP=$(dig +short $DOMAIN | tail -n1)
+
+if [ -z "$DOMAIN_IP" ]; then
+    echo "❌ DNS Error: $DOMAIN does not have an A record. Please point it to $SERVER_IP in your DNS dashboard."
+    exit 1
+fi
+
+if [ "$DOMAIN_IP" != "$SERVER_IP" ]; then
+    echo "⚠️ Warning: $DOMAIN points to $DOMAIN_IP, but this server's public IP is $SERVER_IP."
+    echo "   Ensure your DNS has propagated or check your firewall/load balancer."
+fi
+
 # 3a. Use bootstrap config if SSL cert doesn't exist yet
 if [ ! -f "$CERT_PATH" ]; then
     echo "⚠️ Cert not found. Using bootstrap Nginx config."
