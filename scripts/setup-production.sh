@@ -23,9 +23,9 @@ if ! [ -x "$(command -v docker-compose)" ]; then
 fi
 
 if ! [ -x "$(command -v nginx)" ]; then
-  echo "🌐 Installing Nginx..."
+  echo "🌐 Installing Nginx and DNS tools..."
   sudo apt-get update
-  sudo apt-get install -y nginx certbot python3-certbot-nginx
+  sudo apt-get install -y nginx certbot python3-certbot-nginx dnsutils
 fi
 
 # 2. Environment Variables
@@ -40,7 +40,7 @@ if [ ! -f api/.env ]; then
   cat <<EOF > api/.env
 DATABASE_URL="postgresql://postgres:postgres@postgres:5432/aedra?schema=public"
 AUTH_SESSION_SECRET="$RANDOM_SECRET"
-CORS_ALLOWED_ORIGINS="https://aedra.nomeet.site"
+CORS_ALLOWED_ORIGINS="https://aedra.homeet.site"
 REDIS_HOST="redis"
 REDIS_PORT=6379
 PORT=3001
@@ -53,14 +53,14 @@ if [ ! -f web/.env ]; then
   echo "Creating web/.env..."
   cat <<EOF > web/.env
 AEDRA_API_URL="http://api:3001"
-NEXT_PUBLIC_AEDRA_API_URL="https://aedra.nomeet.site/api"
+NEXT_PUBLIC_AEDRA_API_URL="https://aedra.homeet.site/api"
 NODE_ENV="production"
 EOF
 fi
 
 # 3. Nginx Configuration
 echo "🌐 Configuring Nginx (Bootstrap)..."
-DOMAIN="aedra.nomeet.site"
+DOMAIN="aedra.homeet.site"
 NGINX_PATH="/etc/nginx/sites-available/aedra"
 CERT_PATH="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
 
@@ -105,7 +105,7 @@ sudo systemctl reload nginx
 
 # 5. Build and Start Services
 echo "🏗️ Building and starting Docker services..."
-export NEXT_PUBLIC_AEDRA_API_URL="https://aedra.nomeet.site/api"
+export NEXT_PUBLIC_AEDRA_API_URL="https://aedra.homeet.site/api"
 docker-compose down || true
 docker-compose up --build -d
 
