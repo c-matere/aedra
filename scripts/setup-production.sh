@@ -84,8 +84,13 @@ until [ "`docker inspect -f {{.State.Running}} aedra-api`"=="true" ]; do
 done
 
 # Wait for NestJS and Postgres to fully initialize
-echo "⏳ Waiting for services to initialize..."
-sleep 15
+echo "⏳ Waiting for database to be ready (PostGIS initialization can take ~30s)..."
+until docker exec aedra-postgres pg_isready -U postgres; do
+    echo "   ...still waiting for postgres..."
+    sleep 3
+done
+echo "✅ Database is ready!"
+sleep 5
 
 echo "🏗️ Running migrations and seeding..."
 MAX_RETRIES=5

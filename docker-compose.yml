@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgis/postgis:15-3.3-alpine
+    image: kartoza/postgis:15
     container_name: aedra-postgres
     environment:
       POSTGRES_USER: postgres
