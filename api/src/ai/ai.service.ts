@@ -1,5 +1,5 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
-import { GoogleGenerativeAI, Tool } from '@google/generative-ai';
+import { GoogleGenerativeAI, Tool, SchemaType } from '@google/generative-ai';
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantContext } from '../common/tenant-context';
 import { UserRole, WorkflowType, WorkflowStatus } from '@prisma/client';
@@ -32,9 +32,9 @@ export class AiService {
                         name: 'get_property_details',
                         description: 'Get detailed information about a specific property including units.',
                         parameters: {
-                            type: 'object',
+                            type: SchemaType.OBJECT,
                             properties: {
-                                propertyId: { type: 'string', description: 'The UUID of the property' },
+                                propertyId: { type: SchemaType.STRING, description: 'The UUID of the property' },
                             },
                             required: ['propertyId'],
                         },
@@ -43,14 +43,15 @@ export class AiService {
                         name: 'workflow_initiate',
                         description: 'Start a new stateful property management workflow.',
                         parameters: {
-                            type: 'object',
+                            type: SchemaType.OBJECT,
                             properties: {
                                 type: {
-                                    type: 'string',
+                                    type: SchemaType.STRING,
                                     enum: Object.values(WorkflowType),
+                                    format: 'enum',
                                     description: 'The type of workflow to start'
                                 },
-                                targetId: { type: 'string', description: 'ID of the related entity (e.g. LeaseID)' },
+                                targetId: { type: SchemaType.STRING, description: 'ID of the related entity (e.g. LeaseID)' },
                             },
                             required: ['type'],
                         },
@@ -84,9 +85,9 @@ export class AiService {
         const maxCalls = 5;
         let calls = 0;
 
-        while (response.candidates[0].content.parts.some(p => p.functionCall) && calls < maxCalls) {
+        while (response.candidates![0].content.parts.some((p: any) => p.functionCall) && calls < maxCalls) {
             calls++;
-            const toolCalls = response.candidates[0].content.parts.filter(p => p.functionCall);
+            const toolCalls = response.candidates![0].content.parts.filter((p: any) => p.functionCall);
             const toolResponses = [];
 
             for (const call of toolCalls) {
