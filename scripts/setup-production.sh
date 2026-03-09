@@ -59,51 +59,19 @@ EOF
 fi
 
 # 3. Nginx Configuration
-echo "🌐 Configuring Nginx (Bootstrap)..."
+echo "🌐 Configuring Nginx for Cloudflare Proxy..."
 DOMAIN="aedra.homeet.site"
 NGINX_PATH="/etc/nginx/sites-available/aedra"
-CERT_PATH="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
 
-# 3a. DNS Check - HELP THE USER DEBUG
-echo "🔍 Verifying DNS configuration for $DOMAIN..."
-SERVER_IP=$(curl -s https://ifconfig.me)
-DOMAIN_IP=$(dig +short $DOMAIN | tail -n1)
-
-if [ -z "$DOMAIN_IP" ]; then
-    echo "❌ DNS Error: $DOMAIN does not have an A record. Please point it to $SERVER_IP in your DNS dashboard."
-    exit 1
-fi
-
-if [ "$DOMAIN_IP" != "$SERVER_IP" ]; then
-    echo "⚠️ Warning: $DOMAIN points to $DOMAIN_IP, but this server's public IP is $SERVER_IP."
-    echo "   Ensure your DNS has propagated or check your firewall/load balancer."
-fi
-
-# 3a. Use bootstrap config if SSL cert doesn't exist yet
-if [ ! -f "$CERT_PATH" ]; then
-    echo "⚠️ Cert not found. Using bootstrap Nginx config."
-    sudo cp deploy/nginx/aedra.bootstrap.conf $NGINX_PATH
-else
-    echo "✅ Cert found. Using full Nginx config."
-    sudo cp deploy/nginx/aedra.conf $NGINX_PATH
-fi
-
+# Use Cloudflare-specific config (No local SSL)
+sudo cp deploy/nginx/aedra.cloudflare.conf $NGINX_PATH
 sudo ln -sf $NGINX_PATH /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 
-# Restart Nginx to apply bootstrap
+# Restart Nginx
 sudo systemctl reload nginx || sudo systemctl restart nginx
 
-# 4. SSL Certificate
-echo "🔐 Setting up SSL with Certbot..."
-sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email webmaster@$DOMAIN --expand
-
-# 4a. After certbot, we must use the full config
-echo "🌐 Updating Nginx to full config..."
-sudo cp deploy/nginx/aedra.conf $NGINX_PATH
-sudo systemctl reload nginx
-
-# 5. Build and Start Services
+# 4. Build and Start Services
 echo "🏗️ Building and starting Docker services..."
 export NEXT_PUBLIC_AEDRA_API_URL="https://aedra.homeet.site/api"
 docker-compose down || true
