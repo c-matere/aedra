@@ -536,6 +536,8 @@ export const TARGET_ENDPOINTS = {
   verifyInvite: "/users/invite/verify",
   acceptInvite: "/users/invite/accept",
   listInvitations: "/users/invitations",
+  aiChat: "/ai/chat",
+  listActiveWorkflows: "/ai/workflows/active",
 } as const;
 
 export function backendBaseUrl(): string {
@@ -1249,4 +1251,16 @@ export async function listInvitations(
   token: string,
 ): Promise<BackendRequestResult<InvitationRecord[]>> {
   return backendRequest<InvitationRecord[]>(TARGET_ENDPOINTS.listInvitations, token, "GET");
+}
+export async function aiChat(
+  token: string,
+  payload: { history: any[]; message: string },
+): Promise<BackendRequestResult<{ response: string }>> {
+  return backendRequest<{ response: string }>(TARGET_ENDPOINTS.aiChat, token, "POST", payload);
+}
+
+export async function listActiveWorkflows(
+  token: string,
+): Promise<BackendRequestResult<any[]>> {
+  return backendRequest<any[]>(TARGET_ENDPOINTS.listActiveWorkflows, token, "POST");
 }

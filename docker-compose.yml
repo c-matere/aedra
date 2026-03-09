@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: kartoza/postgis:15
+    image: postgis/postgis:15-3.3
     container_name: aedra-postgres
     environment:
       POSTGRES_USER: postgres
@@ -36,7 +36,7 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_AEDRA_API_URL=${NEXT_PUBLIC_AEDRA_API_URL}
+        - NEXT_PUBLIC_AEDRA_API_URL=${NEXT_PUBLIC_AEDRA_API_URL:-http://localhost:3002}
     container_name: aedra-web
     ports:
       - "3010:3000"

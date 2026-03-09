@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -33,10 +33,13 @@ import { CompaniesModule } from './companies/companies.module';
 import { ReportsModule } from './reports/reports.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
+import { TenantMiddleware } from './common/tenant-middleware';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
     PrismaModule,
+    AiModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
@@ -99,4 +102,8 @@ import { redisStore } from 'cache-manager-redis-yet';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(TenantMiddleware).forRoutes('*');
+  }
+}
