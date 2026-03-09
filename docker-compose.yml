@@ -41,7 +41,7 @@ services:
     ports:
       - "3010:3000"
     environment:
-      - AEDRA_API_URL=http://api:3001
+      - AEDRA_API_URL=http://aedra-api:3001
     depends_on:
       - api
     restart: always

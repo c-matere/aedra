@@ -52,7 +52,7 @@ fi
 if [ ! -f web/.env ]; then
   echo "Creating web/.env..."
   cat <<EOF > web/.env
-AEDRA_API_URL="http://api:3001"
+AEDRA_API_URL="http://aedra-api:3001"
 NEXT_PUBLIC_AEDRA_API_URL="https://aedra.homeet.site/api"
 NODE_ENV="production"
 EOF
