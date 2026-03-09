@@ -59,20 +59,34 @@ EOF
 fi
 
 # 3. Nginx Configuration
-echo "🌐 Configuring Nginx..."
+echo "🌐 Configuring Nginx (Bootstrap)..."
 DOMAIN="aedra.nomeet.site"
 NGINX_PATH="/etc/nginx/sites-available/aedra"
+CERT_PATH="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
 
-sudo cp deploy/nginx/aedra.conf $NGINX_PATH
+# 3a. Use bootstrap config if SSL cert doesn't exist yet
+if [ ! -f "$CERT_PATH" ]; then
+    echo "⚠️ Cert not found. Using bootstrap Nginx config."
+    sudo cp deploy/nginx/aedra.bootstrap.conf $NGINX_PATH
+else
+    echo "✅ Cert found. Using full Nginx config."
+    sudo cp deploy/nginx/aedra.conf $NGINX_PATH
+fi
+
 sudo ln -sf $NGINX_PATH /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 
-# Test Nginx config
-sudo nginx -t
+# Restart Nginx to apply bootstrap
+sudo systemctl reload nginx || sudo systemctl restart nginx
 
 # 4. SSL Certificate
 echo "🔐 Setting up SSL with Certbot..."
-sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email webmaster@$DOMAIN || echo "⚠️ Certbot failed. Ensure your domain points to this IP."
+sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email webmaster@$DOMAIN --expand
+
+# 4a. After certbot, we must use the full config
+echo "🌐 Updating Nginx to full config..."
+sudo cp deploy/nginx/aedra.conf $NGINX_PATH
+sudo systemctl reload nginx
 
 # 5. Build and Start Services
 echo "🏗️ Building and starting Docker services..."
@@ -80,9 +94,18 @@ export NEXT_PUBLIC_AEDRA_API_URL="https://aedra.nomeet.site/api"
 docker-compose down || true
 docker-compose up --build -d
 
-echo "✅ Aedra is now setting up! Please wait a few minutes for the build to complete."
+echo "⏳ Waiting for API to be ready..."
+until [ "`docker inspect -f {{.State.Running}} aedra-api`"=="true" ]; do
+    sleep 2
+done
+
+# Wait for NestJS to actually start
+sleep 5
+
+echo "🏗️ Running migrations and seeding..."
+docker exec aedra-api npx prisma migrate deploy
+docker exec aedra-api npx prisma db seed
+
+echo "✅ Aedra setup completed successfully!"
 echo "🌍 Visit: https://$DOMAIN"
-echo ""
-echo "📝 Note: You might need to run migrations and seed the database once the API is up."
-echo "   docker exec -it aedra-api npx prisma migrate deploy"
-echo "   docker exec -it aedra-api npx prisma db seed"
+
