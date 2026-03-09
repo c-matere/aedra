@@ -20,6 +20,10 @@ import {
     updateLeaseAction,
     updateUnitAction
 } from "@/lib/actions"
+import {
+    CreateInvoicePayload,
+    CreatePaymentPayload
+} from "@/lib/backend-api"
 import { parseForm, parseNumber, parseText, FieldSchema } from "@/lib/form-helpers"
 import type { UserRole } from "@/lib/rbac"
 
@@ -77,7 +81,7 @@ export function AddInvoiceButton({ leaseId, role, onSuccess }: AddActionProps) {
         const res = await createInvoiceAction(role, {
             ...values,
             leaseId,
-        })
+        } as CreateInvoicePayload)
 
         if (res.error) {
             setError(res.error)
@@ -162,7 +166,7 @@ export function AddPaymentButton({ leaseId, role, onSuccess }: AddActionProps) {
         const res = await createPaymentAction(role, {
             ...values,
             leaseId,
-        })
+        } as CreatePaymentPayload)
 
         if (res.error) {
             setError(res.error)
