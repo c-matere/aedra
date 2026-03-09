@@ -92,7 +92,8 @@ done
 echo "✅ Database is ready!"
 sleep 5
 
-echo "🏗️ Running migrations and seeding..."
+# 5. Migrations and Seeding
+echo "🏗️ Running migrations..."
 MAX_RETRIES=5
 RETRY_COUNT=0
 
@@ -106,7 +107,13 @@ until docker exec aedra-api npx prisma migrate deploy; do
     sleep 5
 done
 
-docker exec aedra-api npx prisma db seed
+# Seeding is optional to avoid overwriting production data
+if [ "$ENABLE_SEED" = "true" ]; then
+    echo "🌱 Seeding database..."
+    docker exec aedra-api npx prisma db seed
+else
+    echo "⏭️ Skipping seeding. Set ENABLE_SEED=true to seed the database."
+fi
 
 echo "✅ Aedra setup completed successfully!"
 echo "🌍 Visit: https://$DOMAIN"
