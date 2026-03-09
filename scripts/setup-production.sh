@@ -75,18 +75,31 @@ sudo systemctl reload nginx || sudo systemctl restart nginx
 echo "🏗️ Building and starting Docker services..."
 export NEXT_PUBLIC_AEDRA_API_URL="https://aedra.homeet.site/api"
 docker-compose down || true
-docker-compose up --build -d
+docker-compose up --build --pull always -d
 
 echo "⏳ Waiting for API to be ready..."
 until [ "`docker inspect -f {{.State.Running}} aedra-api`"=="true" ]; do
     sleep 2
 done
 
-# Wait for NestJS to actually start
-sleep 5
+# Wait for NestJS and Postgres to fully initialize
+echo "⏳ Waiting for services to initialize..."
+sleep 15
 
 echo "🏗️ Running migrations and seeding..."
-docker exec aedra-api npx prisma migrate deploy
+MAX_RETRIES=5
+RETRY_COUNT=0
+
+until docker exec aedra-api npx prisma migrate deploy; do
+    RETRY_COUNT=$((RETRY_COUNT+1))
+    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+        echo "❌ Migrations failed after $MAX_RETRIES attempts. Please check container logs: docker logs aedra-postgres"
+        exit 1
+    fi
+    echo "⚠️ Database not ready yet, retrying migrations in 5s ($RETRY_COUNT/$MAX_RETRIES)..."
+    sleep 5
+done
+
 docker exec aedra-api npx prisma db seed
 
 echo "✅ Aedra setup completed successfully!"
