@@ -28,7 +28,7 @@ import { DocumentsService } from './documents.service';
 @Controller('documents')
 @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF)
 export class DocumentsController {
-  constructor(private readonly documentsService: DocumentsService) {}
+  constructor(private readonly documentsService: DocumentsService) { }
 
   @Get()
   findAll(
@@ -71,7 +71,7 @@ export class DocumentsController {
           new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10MB limit
           new FileTypeValidator({
             fileType:
-              /(pdf|jpeg|png|webp|msword|wordprocessingml|excel|spreadsheetml|csv|plain)/,
+              /^(image\/(jpeg|png|webp)|application\/pdf|application\/msword|application\/vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet)|application\/vnd\.ms-excel|text\/csv|text\/plain)$/,
           }),
         ],
       }),
