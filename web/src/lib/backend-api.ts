@@ -331,6 +331,8 @@ export interface CreateUnitPayload {
   propertyId: string;
 }
 
+export type UnitStatus = "VACANT" | "OCCUPIED" | "UNDER_MAINTENANCE" | "VACATING";
+
 export interface UpdateUnitPayload {
   unitNumber?: string;
   floor?: string;
@@ -339,6 +341,7 @@ export interface UpdateUnitPayload {
   sizeSqm?: number;
   rentAmount?: number;
   propertyId?: string;
+  status?: UnitStatus;
 }
 
 export interface CreateExpensePayload {

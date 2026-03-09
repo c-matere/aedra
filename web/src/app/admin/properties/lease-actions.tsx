@@ -22,7 +22,8 @@ import {
 } from "@/lib/actions"
 import {
     CreateInvoicePayload,
-    CreatePaymentPayload
+    CreatePaymentPayload,
+    UpdateUnitPayload
 } from "@/lib/backend-api"
 import { parseForm, parseNumber, parseText, FieldSchema } from "@/lib/form-helpers"
 import type { UserRole } from "@/lib/rbac"
@@ -264,7 +265,7 @@ export function VacationNoticeButton({ leaseId, unitId, role, onSuccess }: AddAc
             setError(res.error)
         } else {
             if (unitId) {
-                const unitRes = await updateUnitAction(role, unitId, { status: 'VACATING' })
+                const unitRes = await updateUnitAction(role, unitId, { status: 'VACATING' } as UpdateUnitPayload)
                 if (unitRes.error) {
                     setError(`Lease updated, but unit status failed: ${unitRes.error}`)
                     setLoading(false)
@@ -330,7 +331,7 @@ export function TerminateLeaseButton({ leaseId, unitId, role, onSuccess }: AddAc
         }
 
         if (unitId) {
-            const unitRes = await updateUnitAction(role, unitId, { status: 'VACANT' })
+            const unitRes = await updateUnitAction(role, unitId, { status: 'VACANT' } as UpdateUnitPayload)
             if (unitRes.error) {
                 alert(`Lease terminated, but failed to mark unit as vacant: ${unitRes.error}`)
             }
