@@ -75,7 +75,8 @@ sudo systemctl reload nginx || sudo systemctl restart nginx
 echo "🏗️ Building and starting Docker services..."
 export NEXT_PUBLIC_AEDRA_API_URL="https://aedra.homeet.site/api"
 docker-compose down || true
-docker-compose up --build --pull always -d
+docker-compose pull
+docker-compose up --build -d
 
 echo "⏳ Waiting for API to be ready..."
 until [ "`docker inspect -f {{.State.Running}} aedra-api`"=="true" ]; do
