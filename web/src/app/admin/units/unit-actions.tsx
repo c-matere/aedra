@@ -121,8 +121,8 @@ export function AddUnitButton({ role, properties }: { role: UserRole | null; pro
             placeholder="Search properties..."
             required
             onSearch={async (q) => {
-              const res = await listPropertiesAction(role, q)
-              return (res.data ?? []).map(p => ({ value: p.id, label: p.name }))
+              const res = await listPropertiesAction(role, { search: q })
+              return (res.data?.data ?? []).map(p => ({ value: p.id, label: p.name }))
             }}
             initialOptions={properties.map(p => ({ value: p.id, label: p.name }))}
           />
@@ -231,8 +231,8 @@ export function UnitRowActions({ role, unit, properties }: { role: UserRole | nu
               placeholder="Search properties..."
               required
               onSearch={async (q) => {
-                const res = await listPropertiesAction(role, q)
-                return (res.data ?? []).map(p => ({ value: p.id, label: p.name }))
+                const res = await listPropertiesAction(role, { search: q })
+                return (res.data?.data ?? []).map(p => ({ value: p.id, label: p.name }))
               }}
               initialOptions={properties.map(p => ({ value: p.id, label: p.name }))}
             />
