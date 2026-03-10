@@ -108,10 +108,10 @@ echo "🏗️ Running migrations..."
 MAX_RETRIES=5
 RETRY_COUNT=0
 
-until $DC exec aedra-api npx prisma migrate deploy; do
+until $DC exec aedra-api npx prisma migrate deploy --schema ./prisma/schema.prisma; do
     RETRY_COUNT=$((RETRY_COUNT+1))
     if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-        echo "❌ Migrations failed after $MAX_RETRIES attempts. Please check container logs: docker logs aedra-postgres"
+        echo "❌ Migrations failed after $MAX_RETRIES attempts. Please check container logs: docker logs aedra-api"
         exit 1
     fi
     echo "⚠️ Database not ready yet, retrying migrations in 5s ($RETRY_COUNT/$MAX_RETRIES)..."
@@ -121,7 +121,7 @@ done
 # Seeding is optional to avoid overwriting production data
 if [ "$ENABLE_SEED" = "true" ]; then
     echo "🌱 Seeding database..."
-    $DC exec aedra-api npx prisma db seed
+    $DC exec aedra-api npx prisma db seed -- --schema ./prisma/schema.prisma
 else
     echo "⏭️ Skipping seeding. Set ENABLE_SEED=true to seed the database."
 fi
