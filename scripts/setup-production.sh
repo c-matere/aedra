@@ -2,6 +2,11 @@
 
 # Aedra Production Setup Script
 # This script sets up the entire application on a fresh Linux server.
+#
+# Image notes:
+#   - Production uses kartoza/postgis (multi-arch, ARM64 compatible)
+#   - Local dev uses postgis/postgis (x86 only)
+#   docker-compose.prod.yml handles the image swap via Docker Compose override.
 
 set -e
 
@@ -74,9 +79,12 @@ sudo systemctl reload nginx || sudo systemctl restart nginx
 # 4. Build and Start Services
 echo "🏗️ Building and starting Docker services..."
 export NEXT_PUBLIC_AEDRA_API_URL="https://aedra.homeet.site/api"
-docker-compose down || true
-docker-compose pull
-docker-compose up --build -d
+
+DC="docker-compose -f docker-compose.yml -f docker-compose.prod.yml"
+
+$DC down || true
+$DC pull
+$DC up --build -d
 
 echo "⏳ Waiting for API to be ready..."
 until [ "`docker inspect -f {{.State.Running}} aedra-api`"=="true" ]; do
@@ -97,7 +105,7 @@ echo "🏗️ Running migrations..."
 MAX_RETRIES=5
 RETRY_COUNT=0
 
-until docker exec aedra-api npx prisma migrate deploy; do
+until $DC exec aedra-api npx prisma migrate deploy; do
     RETRY_COUNT=$((RETRY_COUNT+1))
     if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
         echo "❌ Migrations failed after $MAX_RETRIES attempts. Please check container logs: docker logs aedra-postgres"
@@ -110,7 +118,7 @@ done
 # Seeding is optional to avoid overwriting production data
 if [ "$ENABLE_SEED" = "true" ]; then
     echo "🌱 Seeding database..."
-    docker exec aedra-api npx prisma db seed
+    $DC exec aedra-api npx prisma db seed
 else
     echo "⏭️ Skipping seeding. Set ENABLE_SEED=true to seed the database."
 fi

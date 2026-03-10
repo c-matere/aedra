@@ -65,6 +65,7 @@ model Company {
   users               User[]
   invitations         Invitation[]
   workflows           WorkflowInstance[]
+  incomes             Income[]
 }
 
 /// A landlord / property owner managed by a Company.
@@ -109,6 +110,8 @@ model Property {
   landlord            Landlord?            @relation(fields: [landlordId], references: [id])
   tenants             Tenant[]
   units               Unit[]
+  commissionPercentage Float                @default(0)
+  incomes             Income[]
   deletedAt           DateTime?
 
   @@index([companyId])
@@ -248,6 +251,7 @@ model Payment {
   deletedAt DateTime?
   lease     Lease         @relation(fields: [leaseId], references: [id])
   penalty   Penalty?      @relation(fields: [penaltyId], references: [id])
+  incomes   Income[]
 
   @@index([leaseId])
   @@index([penaltyId])
@@ -440,6 +444,12 @@ enum ExpenseCategory {
   LEGAL
   CLEANING
   SECURITY
+  OFFICE_RENT
+  INTERNET
+  SALARY
+  MARKETING
+  OFFICE_SUPPLIES
+  COMMISSION_AGENT_FEE
   OTHER
 }
 
@@ -578,4 +588,33 @@ enum WorkflowStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+/// A record of income for the managing company (e.g. commissions, fees).
+model Income {
+  id          String         @id @default(uuid())
+  amount      Float
+  category    IncomeCategory @default(COMMISSION)
+  date        DateTime       @default(now())
+  description String?
+  companyId   String
+  propertyId  String?
+  paymentId   String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+  company     Company        @relation(fields: [companyId], references: [id])
+  property    Property?      @relation(fields: [propertyId], references: [id])
+  payment     Payment?       @relation(fields: [paymentId], references: [id])
+
+  @@index([companyId])
+  @@index([propertyId])
+  @@index([category])
+  @@index([deletedAt])
+}
+
+enum IncomeCategory {
+  COMMISSION
+  MANAGEMENT_FEE
+  OTHER
 }

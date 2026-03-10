@@ -13,6 +13,7 @@ export interface CreatePropertyDto {
   address?: string;
   propertyType?: PropertyType;
   description?: string;
+  commissionPercentage?: number;
   landlord?: {
     firstName: string;
     lastName: string;
@@ -33,6 +34,7 @@ export interface UpdatePropertyDto {
   address?: string;
   propertyType?: PropertyType;
   description?: string;
+  commissionPercentage?: number;
 }
 
 @Injectable()
@@ -97,6 +99,7 @@ export class PropertiesService {
           address: true,
           propertyType: true,
           description: true,
+          commissionPercentage: true,
           units: {
             select: {
               status: true,
@@ -153,6 +156,7 @@ export class PropertiesService {
         address: true,
         propertyType: true,
         description: true,
+        commissionPercentage: true,
         companyId: true,
         landlord: {
           select: {
@@ -236,6 +240,7 @@ export class PropertiesService {
           address: data.address,
           propertyType: data.propertyType,
           description: data.description,
+          commissionPercentage: data.commissionPercentage ?? 0,
           companyId,
           landlordId,
         },
@@ -245,6 +250,7 @@ export class PropertiesService {
           address: true,
           propertyType: true,
           description: true,
+          commissionPercentage: true,
         },
       });
 
@@ -302,6 +308,7 @@ export class PropertiesService {
         address: true,
         propertyType: true,
         description: true,
+        commissionPercentage: true,
       },
     });
   }

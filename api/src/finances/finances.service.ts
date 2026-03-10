@@ -1,0 +1,101 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { AuthenticatedUser } from '../auth/authenticated-user.interface';
+import { IncomeCategory, ExpenseCategory } from '@prisma/client';
+
+@Injectable()
+export class FinancesService {
+    private readonly logger = new Logger(FinancesService.name);
+
+    constructor(private readonly prisma: PrismaService) { }
+
+    async getOfficeSummary(actor: AuthenticatedUser) {
+        const companyId = actor.companyId;
+        if (!companyId) return { income: 0, expenses: 0, net: 0 };
+
+        const [incomes, expenses] = await Promise.all([
+            this.prisma.income.aggregate({
+                where: { companyId, deletedAt: null },
+                _sum: { amount: true },
+            }),
+            this.prisma.expense.aggregate({
+                where: {
+                    companyId,
+                    propertyId: null, // Only office-level expenses
+                    deletedAt: null
+                },
+                _sum: { amount: true },
+            }),
+        ]);
+
+        const incomeTotal = incomes._sum.amount || 0;
+        const expenseTotal = expenses._sum.amount || 0;
+
+        return {
+            income: incomeTotal,
+            expenses: expenseTotal,
+            net: incomeTotal - expenseTotal,
+        };
+    }
+
+    async recordCommission(paymentId: string) {
+        try {
+            const payment = await this.prisma.payment.findUnique({
+                where: { id: paymentId },
+                include: {
+                    lease: {
+                        include: {
+                            property: true,
+                            tenant: true,
+                        },
+                    },
+                },
+            });
+
+            if (!payment || !payment.lease.property.commissionPercentage) {
+                return;
+            }
+
+            const commissionAmount = (payment.amount * payment.lease.property.commissionPercentage) / 100;
+
+            if (commissionAmount <= 0) return;
+
+            await this.prisma.income.create({
+                data: {
+                    amount: commissionAmount,
+                    category: IncomeCategory.COMMISSION,
+                    companyId: payment.lease.tenant.companyId!,
+                    propertyId: payment.lease.propertyId,
+                    paymentId: payment.id,
+                    description: `Commission for ${payment.type} payment from ${payment.lease.tenant.firstName} ${payment.lease.tenant.lastName} - Property: ${payment.lease.property.name}`,
+                    date: payment.paidAt || new Date(),
+                },
+            });
+
+            this.logger.log(`Recorded commission of ${commissionAmount} for payment ${paymentId}`);
+        } catch (error) {
+            this.logger.error(`Failed to record commission for payment ${paymentId}: ${error.message}`);
+        }
+    }
+
+    async findAllIncome(actor: AuthenticatedUser) {
+        return this.prisma.income.findMany({
+            where: { companyId: actor.companyId || undefined, deletedAt: null },
+            orderBy: { date: 'desc' },
+            include: {
+                property: { select: { name: true } },
+            },
+        });
+    }
+
+    async findAllOfficeExpenses(actor: AuthenticatedUser) {
+        return this.prisma.expense.findMany({
+            where: {
+                companyId: actor.companyId || undefined,
+                propertyId: null,
+                deletedAt: null
+            },
+            orderBy: { date: 'desc' },
+        });
+    }
+}

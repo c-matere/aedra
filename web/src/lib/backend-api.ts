@@ -266,6 +266,7 @@ export interface CreatePropertyPayload {
   address?: string;
   propertyType?: string;
   description?: string;
+  commissionPercentage?: number;
   landlord?: {
     firstName: string;
     lastName: string;
@@ -286,6 +287,7 @@ export interface UpdatePropertyPayload {
   address?: string;
   propertyType?: string;
   description?: string;
+  commissionPercentage?: number;
 }
 
 export interface CreateTenantPayload {
@@ -538,6 +540,9 @@ export const TARGET_ENDPOINTS = {
   listInvitations: "/users/invitations",
   aiChat: "/ai/chat",
   listActiveWorkflows: "/ai/workflows/active",
+  officeSummary: "/finances/office/summary",
+  officeIncome: "/finances/office/income",
+  officeExpenses: "/finances/office/expenses",
 } as const;
 
 export function backendBaseUrl(): string {
@@ -1263,4 +1268,39 @@ export async function listActiveWorkflows(
   token: string,
 ): Promise<BackendRequestResult<any[]>> {
   return backendRequest<any[]>(TARGET_ENDPOINTS.listActiveWorkflows, token, "POST");
+}
+
+// Office Finances
+export interface IncomeRecord {
+  id: string;
+  amount: number;
+  category: "COMMISSION" | "MANAGEMENT_FEE" | "OTHER";
+  date: string;
+  description?: string;
+  propertyId?: string;
+  property?: { name: string };
+}
+
+export interface OfficeSummary {
+  income: number;
+  expenses: number;
+  net: number;
+}
+
+export async function getOfficeSummary(
+  token: string,
+): Promise<BackendRequestResult<OfficeSummary>> {
+  return backendGet<OfficeSummary>(TARGET_ENDPOINTS.officeSummary, token);
+}
+
+export async function listOfficeIncome(
+  token: string,
+): Promise<BackendRequestResult<IncomeRecord[]>> {
+  return backendGet<IncomeRecord[]>(TARGET_ENDPOINTS.officeIncome, token);
+}
+
+export async function listOfficeExpenses(
+  token: string,
+): Promise<BackendRequestResult<ExpenseRecord[]>> {
+  return backendGet<ExpenseRecord[]>(TARGET_ENDPOINTS.officeExpenses, token);
 }

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PaymentMethod, PaymentType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { FinancesService } from '../finances/finances.service';
 import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
 
 export interface CreatePaymentDto {
@@ -30,7 +31,10 @@ export interface UpdatePaymentDto {
 
 @Injectable()
 export class PaymentsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly financesService: FinancesService,
+  ) { }
 
   async findAll(
     actor: AuthenticatedUser,
@@ -174,7 +178,7 @@ export class PaymentsService {
       notes: data.notes,
     };
 
-    return this.prisma.payment.create({
+    const payment = await this.prisma.payment.create({
       data: createData,
       include: {
         lease: {
@@ -192,6 +196,16 @@ export class PaymentsService {
         },
       },
     });
+
+    // Automatically record commission for rent payments
+    if (payment.type === PaymentType.RENT) {
+      this.financesService.recordCommission(payment.id).catch(err => {
+        // Log error but don't fail the payment creation
+        console.error('Failed to record commission:', err);
+      });
+    }
+
+    return payment;
   }
 
   async update(id: string, data: UpdatePaymentDto, actor: AuthenticatedUser) {

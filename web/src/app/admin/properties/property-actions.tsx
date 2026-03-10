@@ -23,13 +23,14 @@ import {
     deletePropertyAction,
 } from "@/lib/actions"
 import type { UserRole } from "@/lib/rbac"
-import { FieldSchema, parseForm, parseText } from "@/lib/form-helpers"
+import { FieldSchema, parseForm, parseText, parseFloatValue } from "@/lib/form-helpers"
 
 type CreatePropertyFormValues = {
     name: string
     address?: string
     propertyType?: string
     description?: string
+    commissionPercentage?: number
     landlordFirstName?: string
     landlordLastName?: string
     landlordEmail?: string
@@ -41,6 +42,7 @@ type UpdatePropertyFormValues = {
     address?: string
     propertyType?: string
     description?: string
+    commissionPercentage?: number
 }
 
 const propertyCreateFieldSchema: FieldSchema[] = [
@@ -61,6 +63,10 @@ const propertyCreateFieldSchema: FieldSchema[] = [
     {
         name: "description",
         parser: parseText,
+    },
+    {
+        name: "commissionPercentage",
+        parser: parseFloatValue,
     },
     {
         name: "landlordFirstName",
@@ -98,6 +104,10 @@ const propertyUpdateFieldSchema: FieldSchema[] = [
     {
         name: "description",
         parser: parseText,
+    },
+    {
+        name: "commissionPercentage",
+        parser: parseFloatValue,
     },
 ]
 
@@ -139,6 +149,7 @@ export function AddPropertyButton({ role }: { role: UserRole | null }) {
             address,
             propertyType,
             description,
+            commissionPercentage,
             landlordFirstName,
             landlordLastName,
             landlordEmail,
@@ -156,6 +167,7 @@ export function AddPropertyButton({ role }: { role: UserRole | null }) {
             address,
             propertyType: propertyType || "RESIDENTIAL",
             description,
+            commissionPercentage: commissionPercentage || 0,
         }
 
         if (landlordFirstName && landlordLastName) {
@@ -272,6 +284,11 @@ export function AddPropertyButton({ role }: { role: UserRole | null }) {
                             <div className="space-y-2 col-span-2">
                                 <label className="text-sm font-medium text-neutral-300">Description</label>
                                 <textarea name="description" rows={2} className="flex w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500" placeholder="Optional notes about the property..." />
+                            </div>
+                            <div className="space-y-2 col-span-2 sm:col-span-1">
+                                <label className="text-sm font-medium text-neutral-300">Commission Percentage (%)</label>
+                                <Input type="number" step="0.01" name="commissionPercentage" placeholder="e.g. 10" className="bg-white/5 border-white/10 text-white" />
+                                <p className="text-[10px] text-neutral-500">How much the office earns from rent collections.</p>
                             </div>
                         </div>
                     </div>
@@ -393,7 +410,7 @@ export function PropertyRowActions({ role, property }: { role: UserRole | null; 
             return
         }
 
-        const { name, address, propertyType, description } = values
+        const { name, address, propertyType, description, commissionPercentage } = values
 
         if (!name) {
             setError("Property name is required.")
@@ -401,7 +418,7 @@ export function PropertyRowActions({ role, property }: { role: UserRole | null; 
             return
         }
 
-        const res = await updatePropertyAction(role, property.id, { name, address, propertyType, description })
+        const res = await updatePropertyAction(role, property.id, { name, address, propertyType, description, commissionPercentage })
         if (res.error) {
             setError(res.error)
         } else {
@@ -528,6 +545,16 @@ export function PropertyRowActions({ role, property }: { role: UserRole | null; 
                                 defaultValue={property.description || ""}
                                 className="flex w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                                 placeholder="Optional notes about the property..."
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-neutral-300">Commission Percentage (%)</label>
+                            <Input
+                                type="number"
+                                step="0.01"
+                                name="commissionPercentage"
+                                defaultValue={property.commissionPercentage ?? 0}
+                                className="bg-white/5 border-white/10 text-white placeholder:text-neutral-500"
                             />
                         </div>
                         <div className="pt-6">

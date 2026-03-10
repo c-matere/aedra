@@ -35,6 +35,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
 import { TenantMiddleware } from './common/tenant-middleware';
 import { AiModule } from './ai/ai.module';
+import { FinancesModule } from './finances/finances.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { AiModule } from './ai/ai.module';
     DocumentsModule,
     CompaniesModule,
     ReportsModule,
+    FinancesModule,
   ],
   controllers: [
     AppController,

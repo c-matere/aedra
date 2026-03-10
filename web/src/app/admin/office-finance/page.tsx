@@ -1,10 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  listExpenses,
-  listLeases,
-  listPayments,
+  getOfficeSummary,
+  listOfficeIncome,
+  listOfficeExpenses,
 } from "@/lib/backend-api";
-import { getRoleFromCookie, getSessionTokenFromCookie } from "@/lib/cookie-utils";
+import { getSessionTokenFromCookie } from "@/lib/cookie-utils";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-KE", {
@@ -19,163 +19,143 @@ function numeric(value: number | undefined) {
 }
 
 export default async function OfficeFinancePage() {
-  const role = await getRoleFromCookie();
   const token = await getSessionTokenFromCookie();
   const sessionToken = token || "";
-  const [paymentsResult, expensesResult, leasesResult] = await Promise.all([
-    listPayments(sessionToken),
-    listExpenses(sessionToken),
-    listLeases(sessionToken),
+
+  const [summaryResult, incomeResult, expensesResult] = await Promise.all([
+    getOfficeSummary(sessionToken),
+    listOfficeIncome(sessionToken),
+    listOfficeExpenses(sessionToken),
   ]);
 
-  const payments = paymentsResult.data?.data ?? [];
-  const expenses = expensesResult.data?.data ?? [];
-  const leases = leasesResult.data?.data ?? [];
-
-  const totalCollections = payments.reduce(
-    (sum, payment) => sum + numeric(payment.amount),
-    0,
-  );
-  const totalExpenses = expenses.reduce(
-    (sum, expense) => sum + numeric(expense.amount),
-    0,
-  );
-  const netCashflow = totalCollections - totalExpenses;
-
-  const rentCollections = payments
-    .filter((payment) => payment.type === "RENT")
-    .reduce((sum, payment) => sum + numeric(payment.amount), 0);
-
-  const activeLeases = leases.filter((lease) => lease.status === "ACTIVE").length;
-  const pendingLeases = leases.filter((lease) => lease.status === "PENDING").length;
+  const summary = summaryResult.data ?? { income: 0, expenses: 0, net: 0 };
+  const incomeList = incomeResult.data ?? [];
+  const expensesList = expensesResult.data ?? [];
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Office Finance</h1>
-        <p className="text-sm text-neutral-300">Live cashflow, collections, and lease exposure.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Office Finance</h1>
+          <p className="text-sm text-neutral-300">Company income (commissions) and operational expenses.</p>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-neutral-300">Total Collections</CardTitle>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="bg-neutral-900 border-white/10 shadow-lg">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-emerald-400">Total Income</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold text-emerald-400">
-            {formatCurrency(totalCollections)}
+          <CardContent>
+            <div className="text-3xl font-bold text-white">{formatCurrency(summary.income)}</div>
+            <p className="text-xs text-neutral-500 mt-1">Commissions & management fees</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-neutral-300">Total Expenses</CardTitle>
+        <Card className="bg-neutral-900 border-white/10 shadow-lg">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-rose-400">Total Office Expenses</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold text-red-400">
-            {formatCurrency(totalExpenses)}
+          <CardContent>
+            <div className="text-3xl font-bold text-white">{formatCurrency(summary.expenses)}</div>
+            <p className="text-xs text-neutral-500 mt-1">Salaries, rent, utilities, etc.</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-neutral-300">Net Cashflow</CardTitle>
+        <Card className="bg-neutral-900 border-white/10 shadow-lg">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-sky-400">Net Office Profit</CardTitle>
           </CardHeader>
-          <CardContent
-            className={`text-2xl font-semibold ${netCashflow >= 0 ? "text-white" : "text-red-300"}`}
-          >
-            {formatCurrency(netCashflow)}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-neutral-300">Rent Collected</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold text-white">
-            {formatCurrency(rentCollections)}
+          <CardContent>
+            <div className={`text-3xl font-bold ${summary.net >= 0 ? "text-white" : "text-rose-300"}`}>
+              {formatCurrency(summary.net)}
+            </div>
+            <p className="text-xs text-neutral-500 mt-1">Operational residue</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
+        <Card className="bg-neutral-900 border-white/10">
           <CardHeader>
-            <CardTitle className="text-sm text-neutral-300">Recent Payments</CardTitle>
+            <CardTitle className="text-sm text-neutral-300">Income Stream (Recent)</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {payments.length > 0 ? (
-              payments.slice(0, 8).map((payment) => (
+          <CardContent className="space-y-3">
+            {incomeList.length > 0 ? (
+              incomeList.slice(0, 10).map((income) => (
                 <div
-                  key={payment.id}
-                  className="flex items-center justify-between rounded border border-white/10 bg-white/5 p-2"
+                  key={income.id}
+                  className="flex items-center justify-between rounded-lg border border-white/5 bg-white/5 p-3 hover:bg-white/10 transition-colors"
                 >
-                  <div>
-                    <p className="text-sm text-white">{payment.reference || payment.id}</p>
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium text-white line-clamp-1">{income.description || income.category}</p>
                     <p className="text-xs text-neutral-400">
-                      {payment.type} • {payment.method}
+                      {income.property?.name ? `${income.property.name} • ` : ""}{new Date(income.date).toLocaleDateString()}
                     </p>
                   </div>
-                  <p className="text-sm font-medium text-white">
-                    {formatCurrency(numeric(payment.amount))}
+                  <p className="text-sm font-bold text-emerald-400">
+                    +{formatCurrency(numeric(income.amount))}
                   </p>
                 </div>
               ))
             ) : (
-              <p className="text-sm text-neutral-400">
-                {paymentsResult.error || "No payments found."}
+              <p className="text-sm text-neutral-400 py-4 text-center">
+                {incomeResult.error || "No office income recorded yet."}
               </p>
             )}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-neutral-900 border-white/10">
           <CardHeader>
-            <CardTitle className="text-sm text-neutral-300">Recent Expenses</CardTitle>
+            <CardTitle className="text-sm text-neutral-300">Office Expenses (Recent)</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {expenses.length > 0 ? (
-              expenses.slice(0, 8).map((expense) => (
+          <CardContent className="space-y-3">
+            {expensesList.length > 0 ? (
+              expensesList.slice(0, 10).map((expense) => (
                 <div
                   key={expense.id}
-                  className="flex items-center justify-between rounded border border-white/10 bg-white/5 p-2"
+                  className="flex items-center justify-between rounded-lg border border-white/5 bg-white/5 p-3 hover:bg-white/10 transition-colors"
                 >
-                  <div>
-                    <p className="text-sm text-white">{expense.description}</p>
-                    <p className="text-xs text-neutral-400">{expense.category || "GENERAL"}</p>
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium text-white">{expense.description}</p>
+                    <p className="text-xs text-neutral-400">
+                      {expense.category} • {new Date(expense.date || expense.id).toLocaleDateString()}
+                    </p>
                   </div>
-                  <p className="text-sm font-medium text-red-300">
-                    {formatCurrency(numeric(expense.amount))}
+                  <p className="text-sm font-bold text-rose-300">
+                    -{formatCurrency(numeric(expense.amount))}
                   </p>
                 </div>
               ))
             ) : (
-              <p className="text-sm text-neutral-400">
-                {expensesResult.error || "No expenses found."}
+              <p className="text-sm text-neutral-400 py-4 text-center">
+                {expensesResult.error || "No office expenses found."}
               </p>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <Card>
+      <Card className="bg-neutral-900 border-white/10">
         <CardHeader>
-          <CardTitle className="text-sm text-neutral-300">Lease Exposure</CardTitle>
+          <CardTitle className="text-sm text-neutral-300">Financial Summary Details</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm text-neutral-200 sm:grid-cols-2">
-          <div className="rounded border border-white/10 bg-white/5 p-3">
-            Active leases: <span className="font-semibold text-white">{activeLeases}</span>
+          <div className="rounded-lg border border-white/10 bg-white/5 p-4">
+            <div className="text-neutral-500 mb-1">Total Income Records</div>
+            <div className="text-xl font-semibold text-white">{incomeList.length}</div>
           </div>
-          <div className="rounded border border-white/10 bg-white/5 p-3">
-            Pending leases: <span className="font-semibold text-white">{pendingLeases}</span>
+          <div className="rounded-lg border border-white/10 bg-white/5 p-4">
+            <div className="text-neutral-500 mb-1">Total Expense Records</div>
+            <div className="text-xl font-semibold text-white">{expensesList.length}</div>
           </div>
-          <div className="rounded border border-white/10 bg-white/5 p-3 sm:col-span-2">
-            API status:{" "}
-            {paymentsResult.error || expensesResult.error || leasesResult.error ? (
-              <span className="font-semibold text-red-300">
-                {paymentsResult.error || expensesResult.error || leasesResult.error}
-              </span>
-            ) : (
-              <span className="font-semibold text-emerald-400">Connected</span>
-            )}
+          <div className="rounded-lg border border-white/10 bg-white/5 p-4 sm:col-span-2">
+            <div className="text-neutral-500 mb-1">Status</div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span className="text-emerald-400 font-medium">Real-time tracking enabled</span>
+            </div>
           </div>
         </CardContent>
       </Card>

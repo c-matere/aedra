@@ -23,6 +23,7 @@ import type { UserRole } from "@/lib/rbac"
 const EXPENSE_CATEGORIES = [
   "MAINTENANCE", "REPAIR", "UTILITY", "INSURANCE", "TAX",
   "MANAGEMENT_FEE", "LEGAL", "CLEANING", "SECURITY", "OTHER",
+  "OFFICE_RENT", "INTERNET", "SALARY", "MARKETING", "OFFICE_SUPPLIES", "COMMISSION_AGENT_FEE",
 ]
 
 type ExpenseFormValues = {

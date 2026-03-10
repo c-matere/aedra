@@ -54,6 +54,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     'Expense',
     'Penalty',
     'WorkflowInstance',
+    'Income',
   ];
 
   private initExtendedClient() {
