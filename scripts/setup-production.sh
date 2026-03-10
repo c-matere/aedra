@@ -93,12 +93,15 @@ done
 
 # Wait for NestJS and Postgres to fully initialize
 echo "⏳ Waiting for database to be ready (PostGIS initialization can take ~30s)..."
-until docker exec aedra-postgres pg_isready -U postgres; do
+# Use -h localhost to force TCP connection check and avoid Peer authentication issues in the container
+until docker exec aedra-postgres pg_isready -h localhost -U postgres; do
     echo "   ...still waiting for postgres..."
     sleep 3
 done
 echo "✅ Database is ready!"
-sleep 5
+# Kartoza image often needs a bit more time after pg_isready to finish internal setup (extensions, etc.)
+echo "⏳ Waiting an additional 15s for final PostGIS setup..."
+sleep 15
 
 # 5. Migrations and Seeding
 echo "🏗️ Running migrations..."
