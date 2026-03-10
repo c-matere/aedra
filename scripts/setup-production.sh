@@ -107,19 +107,16 @@ sleep 15
 echo "🏗️ Running migrations..."
 # Directly run the migration and if it fails, let the script stop so we see the error.
 # We also pass the DATABASE_URL explicitly from the container env for extra certainty.
-$DC exec aedra-api sh -c 'DATABASE_URL=$DATABASE_URL npx prisma migrate deploy --schema ./prisma/schema.prisma'
+$DC exec -T aedra-api sh -c 'DATABASE_URL=$DATABASE_URL npx prisma migrate deploy --schema ./prisma/schema.prisma'
 echo "✅ Migrations completed!"
-
-# Seeding is optional to avoid overwriting production data
 
 # Seeding is optional to avoid overwriting production data
 if [ "$ENABLE_SEED" = "true" ]; then
     echo "🌱 Seeding database..."
-    $DC exec aedra-api npx prisma db seed -- --schema ./prisma/schema.prisma
+    $DC exec -T aedra-api npx prisma db seed -- --schema ./prisma/schema.prisma
 else
     echo "⏭️ Skipping seeding. Set ENABLE_SEED=true to seed the database."
 fi
 
 echo "✅ Aedra setup completed successfully!"
-echo "🌍 Visit: https://$DOMAIN"
 

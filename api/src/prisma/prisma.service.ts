@@ -74,17 +74,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
             }
             return query(args);
           },
-          async findUnique({ model, args, query }) {
-            if (base.softDeleteModels.includes(model)) {
-              // Convert findUnique to findFirst to allow filtering by deletedAt
-              return (this as any).findFirst({
-                where: { ...(args as any).where, deletedAt: null },
-                select: (args as any).select,
-                include: (args as any).include,
-              });
-            }
-            return query(args);
-          },
           async delete({ model, args, query }) {
             if (base.softDeleteModels.includes(model)) {
               return (this as any).update({
