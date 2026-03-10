@@ -103,20 +103,12 @@ echo "✅ Database is ready!"
 echo "⏳ Waiting an additional 15s for final PostGIS setup..."
 sleep 15
 
-# 5. Migrations and Seeding
-echo "🏗️ Running migrations..."
-# Directly run the migration and if it fails, let the script stop so we see the error.
-# We also pass the DATABASE_URL explicitly from the container env for extra certainty.
-$DC exec -T aedra-api sh -c 'DATABASE_URL=$DATABASE_URL npx prisma migrate deploy --schema ./prisma/schema.prisma'
-echo "✅ Migrations completed!"
-
-# Seeding is optional to avoid overwriting production data
-if [ "$ENABLE_SEED" = "true" ]; then
-    echo "🌱 Seeding database..."
-    $DC exec -T aedra-api npx prisma db seed -- --schema ./prisma/schema.prisma
-else
-    echo "⏭️ Skipping seeding. Set ENABLE_SEED=true to seed the database."
-fi
+# 5. Wait for API to fully start (includes migrations)
+echo "⏳ Waiting for API to come online (includes auto-migrations)..."
+until curl -sf http://localhost:3002/ > /dev/null 2>&1; do
+    echo "   ...waiting for API..."
+    sleep 3
+done
 
 echo "✅ Aedra setup completed successfully!"
-
+echo "🌍 Visit: https://$DOMAIN"
