@@ -105,18 +105,12 @@ sleep 15
 
 # 5. Migrations and Seeding
 echo "🏗️ Running migrations..."
-MAX_RETRIES=5
-RETRY_COUNT=0
+# Directly run the migration and if it fails, let the script stop so we see the error.
+# We also pass the DATABASE_URL explicitly from the container env for extra certainty.
+$DC exec aedra-api sh -c 'DATABASE_URL=$DATABASE_URL npx prisma migrate deploy --schema ./prisma/schema.prisma'
+echo "✅ Migrations completed!"
 
-until $DC exec aedra-api npx prisma migrate deploy --schema ./prisma/schema.prisma; do
-    RETRY_COUNT=$((RETRY_COUNT+1))
-    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-        echo "❌ Migrations failed after $MAX_RETRIES attempts. Please check container logs: docker logs aedra-api"
-        exit 1
-    fi
-    echo "⚠️ Database not ready yet, retrying migrations in 5s ($RETRY_COUNT/$MAX_RETRIES)..."
-    sleep 5
-done
+# Seeding is optional to avoid overwriting production data
 
 # Seeding is optional to avoid overwriting production data
 if [ "$ENABLE_SEED" = "true" ]; then

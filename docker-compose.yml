@@ -22,10 +22,12 @@ services:
     container_name: aedra-api
     ports:
       - "3002:3001"
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/aedra?schema=public
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+    env_file:
+      - ./api/.env
+    # environment:
+    #   - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/aedra?schema=public
+    #   - REDIS_HOST=redis
+    #   - REDIS_PORT=6379
     depends_on:
       - postgres
       - redis
