@@ -71,6 +71,7 @@ export interface PropertyRecord {
   latitude?: number;
   longitude?: number;
   description?: string;
+  commissionPercentage?: number;
   landlord?: {
     id: string;
     firstName: string;
@@ -145,6 +146,7 @@ export interface ExpenseRecord {
   description: string;
   amount: number;
   category?: string;
+  date?: string;
   vendor?: string;
   reference?: string;
   notes?: string;
