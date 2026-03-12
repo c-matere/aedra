@@ -98,4 +98,52 @@ export class FinancesService {
             orderBy: { date: 'desc' },
         });
     }
+
+    async createIncome(actor: AuthenticatedUser, data: {
+        amount: number;
+        category: IncomeCategory;
+        date: Date;
+        description?: string;
+        propertyId?: string;
+        companyId?: string;
+    }) {
+        const companyId = data.companyId || actor.companyId;
+
+        if (!companyId) {
+            throw new Error('Company ID is required to record income.');
+        }
+
+        return this.prisma.income.create({
+            data: {
+                ...data,
+                companyId: companyId,
+            },
+        });
+    }
+
+    async createOfficeExpense(actor: AuthenticatedUser, data: {
+        amount: number;
+        category: ExpenseCategory;
+        date: Date;
+        description: string;
+        vendor?: string;
+        reference?: string;
+        notes?: string;
+        companyId?: string;
+    }) {
+        const companyId = data.companyId || actor.companyId;
+
+        if (!companyId) {
+            throw new Error('Company ID is required to record office expense.');
+        }
+
+        return this.prisma.expense.create({
+            data: {
+                ...data,
+                companyId: companyId,
+                propertyId: null, // Explicitly office-level
+                unitId: null,
+            },
+        });
+    }
 }

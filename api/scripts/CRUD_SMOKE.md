@@ -10,14 +10,14 @@ npm run smoke:crud
 
 ## Environment
 
-- `AEDRA_API_URL` (optional, default: `http://localhost:3001`)
+- `AEDRA_API_URL` (optional, default: `http://localhost:4001`)
 - `SMOKE_EMAIL` (optional, default: `admin@pwanimanagement.co.ke`)
 - `SMOKE_PASSWORD` (optional, default: `Aedra@2026`)
 
 Example:
 
 ```bash
-AEDRA_API_URL=http://localhost:3001 \
+AEDRA_API_URL=http://localhost:4001 \
 SMOKE_EMAIL=admin@pwanimanagement.co.ke \
 SMOKE_PASSWORD='Aedra@2026' \
 npm run smoke:crud

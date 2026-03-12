@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const API_BASE_URL = process.env.AEDRA_API_URL || process.env.SMOKE_API_URL || "http://localhost:3001";
+const API_BASE_URL = process.env.AEDRA_API_URL || process.env.SMOKE_API_URL || "http://localhost:4001";
 const EMAIL = process.env.SMOKE_EMAIL || "admin@pwanimanagement.co.ke";
 const PASSWORD = process.env.SMOKE_PASSWORD || "Aedra@2026";
 

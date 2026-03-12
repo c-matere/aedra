@@ -27,7 +27,7 @@ COPY --from=builder /app/start.sh ./start.sh
 RUN chmod +x ./start.sh
 
 # Expose the API port
-EXPOSE 3001
+EXPOSE 4001
 
 # Run migrations then start the app
 CMD ["sh", "./start.sh"]

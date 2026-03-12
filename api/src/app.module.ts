@@ -53,7 +53,7 @@ import { FinancesModule } from './finances/finances.module';
         store: await redisStore({
           socket: {
             host: process.env.REDIS_HOST || 'localhost',
-            port: parseInt(process.env.REDIS_PORT || '6379'),
+            port: parseInt(process.env.REDIS_PORT || '4379'),
           },
         }),
       }),

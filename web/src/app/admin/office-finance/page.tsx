@@ -4,7 +4,8 @@ import {
   listOfficeIncome,
   listOfficeExpenses,
 } from "@/lib/backend-api";
-import { getSessionTokenFromCookie } from "@/lib/cookie-utils";
+import { getSessionTokenFromCookie, getRoleFromCookie } from "@/lib/cookie-utils";
+import { OfficeFinanceActions } from "./office-finance-actions";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-KE", {
@@ -20,6 +21,7 @@ function numeric(value: number | undefined) {
 
 export default async function OfficeFinancePage() {
   const token = await getSessionTokenFromCookie();
+  const role = await getRoleFromCookie();
   const sessionToken = token || "";
 
   const [summaryResult, incomeResult, expensesResult] = await Promise.all([
@@ -39,6 +41,7 @@ export default async function OfficeFinancePage() {
           <h1 className="text-2xl font-bold text-white">Office Finance</h1>
           <p className="text-sm text-neutral-300">Company income (commissions) and operational expenses.</p>
         </div>
+        <OfficeFinanceActions role={role} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

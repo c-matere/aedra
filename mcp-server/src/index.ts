@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { PrismaClient, UserRole, User, WorkflowType, WorkflowStatus } from "@prisma/client";
+import { PrismaClient, UserRole, User, WorkflowType, WorkflowStatus, UnitStatus } from "@prisma/client";
 import { z } from "zod";
 import "dotenv/config";
 import crypto from "crypto";
@@ -26,6 +26,10 @@ class SecurityService {
   static validateToken(token: string, expectedAction: string, currentCompanyId?: string): any {
     const entry = this.pendingConfirmations.get(token);
     if (!entry) throw new Error("Invalid or expired confirmation token.");
+    if (Date.now() > entry.expiry) {
+      this.pendingConfirmations.delete(token);
+      throw new Error("Invalid or expired confirmation token.");
+    }
     if (entry.action !== expectedAction) throw new Error("Token mismatch.");
     if (entry.companyId && currentCompanyId && entry.companyId !== currentCompanyId) {
       throw new Error("Unauthorized: Confirmation attempted from incorrect company context.");
@@ -125,6 +129,18 @@ const WORKFLOW_REGISTRY: Record<string, { name: string, description: string, tra
       { from: WorkflowStatus.AWAITING_INPUT, to: WorkflowStatus.AWAITING_CONFIRMATION, action: "Signature Received" },
       { from: WorkflowStatus.AWAITING_CONFIRMATION, to: WorkflowStatus.ACTIVE, action: "Payment Verified" },
       { from: WorkflowStatus.ACTIVE, to: WorkflowStatus.COMPLETED, action: "Keys Handed Over" },
+    ]
+  },
+  [WorkflowType.LEASE_RENEWAL]: {
+    name: "Lease Renewal",
+    description: "Extend or renegotiate an existing lease.",
+    transitions: [
+      { from: WorkflowStatus.PENDING, to: WorkflowStatus.ACTIVE, action: "Start Renewal" },
+      { from: WorkflowStatus.ACTIVE, to: WorkflowStatus.AWAITING_INPUT, action: "Send Renewal Offer" },
+      { from: WorkflowStatus.AWAITING_INPUT, to: WorkflowStatus.AWAITING_CONFIRMATION, action: "Await Tenant Decision" },
+      { from: WorkflowStatus.AWAITING_CONFIRMATION, to: WorkflowStatus.ACTIVE, action: "Tenant Accepted" },
+      { from: WorkflowStatus.ACTIVE, to: WorkflowStatus.COMPLETED, action: "Renewal Executed" },
+      { from: WorkflowStatus.ACTIVE, to: WorkflowStatus.FAILED, action: "Tenant Declined" },
     ]
   }
 };
@@ -313,13 +329,102 @@ server.tool("list_vacant_units", "Inventory check for vacancy.", { actorId: z.st
 });
 
 /**
+ * MAINTENANCE REQUESTS (CRUD-LITE)
+ */
+server.tool(
+  "record_maintenance_request",
+  "Create a maintenance ticket for a property/unit.",
+  {
+    actorId: z.string(),
+    propertyId: z.string(),
+    unitId: z.string().optional(),
+    title: z.string(),
+    description: z.string().optional(),
+    priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).default("MEDIUM"),
+    category: z.enum(["PLUMBING", "ELECTRICAL", "STRUCTURAL", "PAINTING", "APPLIANCE", "PEST_CONTROL", "HVAC", "ROOFING", "FLOORING", "GENERAL", "OTHER"]).default("GENERAL"),
+    estimatedCost: z.number().optional(),
+  },
+  async ({ actorId, propertyId, unitId, title, description, priority, category, estimatedCost }) => {
+    try {
+      const u = await SecurityService.authorize(actorId, ["COMPANY_STAFF", "COMPANY_ADMIN", "SUPER_ADMIN"], "record_maintenance_request", "CAN_MANAGE_MAINTENANCE");
+      const scope = SecurityService.getScope(u);
+      const prop = await prisma.property.findFirst({ where: { id: propertyId, ...scope, deletedAt: null } });
+      if (!prop) throw new Error("Property not found or restricted.");
+      if (unitId) {
+        const unit = await prisma.unit.findFirst({ where: { id: unitId, property: scope, deletedAt: null } });
+        if (!unit) throw new Error("Unit not found or restricted.");
+      }
+      const req = await prisma.maintenanceRequest.create({
+        data: {
+          title,
+          description,
+          priority,
+          category,
+          companyId: prop.companyId,
+          propertyId,
+          unitId: unitId || null,
+          estimatedCost,
+          status: "REPORTED"
+        }
+      });
+      await SecurityService.logAudit(u, "record_maintenance_request", "SUCCESS", { requestId: req.id }, req.id);
+      return { content: [{ type: "text", text: `Maintenance request logged: ${req.id}` }] };
+    } catch (e: any) { return { content: [{ type: "text", text: e.message }], isError: true }; }
+  }
+);
+
+server.tool(
+  "list_maintenance_requests",
+  "List maintenance tickets with optional filters.",
+  {
+    actorId: z.string(),
+    status: z.enum(["REPORTED", "ACKNOWLEDGED", "IN_PROGRESS", "ON_HOLD", "COMPLETED", "CANCELLED"]).optional(),
+    priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
+    propertyId: z.string().optional(),
+    limit: z.number().default(50),
+  },
+  async ({ actorId, status, priority, propertyId, limit }) => {
+    try {
+      const u = await SecurityService.authorize(actorId, ["COMPANY_STAFF", "COMPANY_ADMIN", "SUPER_ADMIN"], "list_maintenance_requests");
+      const scope = SecurityService.getScope(u);
+      const reqs = await prisma.maintenanceRequest.findMany({
+        where: {
+          ...scope,
+          deletedAt: null,
+          status: status || undefined,
+          priority: priority || undefined,
+          propertyId: propertyId || undefined,
+        },
+        orderBy: { reportedAt: "desc" },
+        take: limit
+      });
+      return { content: [{ type: "text", text: JSON.stringify(reqs, null, 2) }] };
+    } catch (e: any) { return { content: [{ type: "text", text: e.message }], isError: true }; }
+  }
+);
+
+/**
  * CRM & LEASING (SCOPED + PERMISSION)
  */
-server.tool("search_tenants", "Search tenants by name.", { actorId: z.string(), query: z.string() }, async ({ actorId, query }) => {
+server.tool("search_tenants", "Search tenants by name, email, or phone.", { actorId: z.string(), query: z.string() }, async ({ actorId, query }) => {
   try {
     const u = await SecurityService.authorize(actorId, ["COMPANY_STAFF", "COMPANY_ADMIN", "SUPER_ADMIN"], "search_tenants");
+    const terms = (query || '').trim().split(/\s+/).filter(Boolean);
+    const andConditions = terms.map((term: string) => ({
+      OR: [
+        { firstName: { contains: term, mode: "insensitive" } },
+        { lastName: { contains: term, mode: "insensitive" } },
+        { email: { contains: term, mode: "insensitive" } },
+        { phone: { contains: term, mode: "insensitive" } },
+      ]
+    }));
+
     const t = await prisma.tenant.findMany({
-      where: { ...SecurityService.getScope(u), deletedAt: null, OR: [{ firstName: { contains: query } }, { lastName: { contains: query } }] }
+      where: {
+        ...SecurityService.getScope(u),
+        deletedAt: null,
+        AND: andConditions,
+      }
     });
     return { content: [{ type: "text", text: JSON.stringify(t, null, 2) }] };
   } catch (e: any) { return { content: [{ type: "text", text: e.message }], isError: true }; }
@@ -336,19 +441,48 @@ server.tool("onboard_tenant", "Add new tenant.", { actorId: z.string(), firstNam
   } catch (e: any) { return { content: [{ type: "text", text: e.message }], isError: true }; }
 });
 
-server.tool("create_lease", "Create rental agreement.", { actorId: z.string(), tenantId: z.string(), unitId: z.string(), rent: z.number() }, async ({ actorId, tenantId, unitId, rent }) => {
+server.tool("create_lease", "Create rental agreement.", {
+  actorId: z.string(),
+  tenantId: z.string(),
+  unitId: z.string(),
+  rent: z.number(),
+  startDate: z.string().describe("ISO date: YYYY-MM-DD"),
+  endDate: z.string().describe("ISO date: YYYY-MM-DD"),
+  deposit: z.number().optional()
+}, async ({ actorId, tenantId, unitId, rent, startDate, endDate, deposit }) => {
   try {
     const u = await SecurityService.authorize(actorId, ["COMPANY_ADMIN", "SUPER_ADMIN"], "create_lease", "CAN_MANAGE_LEASES");
     const scope = SecurityService.getScope(u);
+
     const [t, unit] = await Promise.all([
       prisma.tenant.findFirst({ where: { id: tenantId, ...scope } }),
-      prisma.unit.findFirst({ where: { id: unitId, property: scope } })
+      prisma.unit.findFirst({ where: { id: unitId, property: scope, deletedAt: null } })
     ]);
     if (!t || !unit) throw new Error("Restricted context: Tenant/Unit unavailable.");
-    const l = await prisma.lease.create({
-      data: { tenantId, unitId, propertyId: unit.propertyId, rentAmount: rent, startDate: new Date(), endDate: new Date(), status: "PENDING" }
-    });
-    return { content: [{ type: "text", text: `Lease created: ${l.id}` }] };
+    if (unit.status !== UnitStatus.VACANT) throw new Error(`Unit ${unit.id} is not vacant.`);
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) throw new Error("Invalid dates supplied.");
+    if (end <= start) throw new Error("End date must be after start date.");
+
+    const [lease] = await prisma.$transaction([
+      prisma.lease.create({
+        data: {
+          tenantId,
+          unitId,
+          propertyId: unit.propertyId,
+          rentAmount: rent,
+          deposit,
+          startDate: start,
+          endDate: end,
+          status: "PENDING"
+        }
+      }),
+      prisma.unit.update({ where: { id: unitId }, data: { status: UnitStatus.OCCUPIED } })
+    ]);
+
+    return { content: [{ type: "text", text: `Lease created: ${lease.id} (start ${startDate}, end ${endDate})` }] };
   } catch (e: any) { return { content: [{ type: "text", text: e.message }], isError: true }; }
 });
 
@@ -367,6 +501,30 @@ server.tool("assign_maintenance", "Dispatch work order.", { actorId: z.string(),
     return { content: [{ type: "text", text: "Assigned." }] };
   } catch (e: any) { return { content: [{ type: "text", text: e.message }], isError: true }; }
 });
+
+/**
+ * INVENTORY
+ */
+server.tool(
+  "update_unit_status",
+  "Change unit availability or maintenance state.",
+  {
+    actorId: z.string(),
+    unitId: z.string(),
+    status: z.nativeEnum(UnitStatus),
+  },
+  async ({ actorId, unitId, status }) => {
+    try {
+      const u = await SecurityService.authorize(actorId, ["COMPANY_ADMIN", "SUPER_ADMIN"], "update_unit_status", "CAN_MANAGE_MAINTENANCE");
+      const scope = SecurityService.getScope(u);
+      const unit = await prisma.unit.findFirst({ where: { id: unitId, property: scope, deletedAt: null } });
+      if (!unit) throw new Error("Unit not found or restricted.");
+      await prisma.unit.update({ where: { id: unitId }, data: { status } });
+      await SecurityService.logAudit(u, "update_unit_status", "SUCCESS", { unitId, status }, unitId);
+      return { content: [{ type: "text", text: `Unit ${unitId} status set to ${status}.` }] };
+    } catch (e: any) { return { content: [{ type: "text", text: e.message }], isError: true }; }
+  }
+);
 
 /**
  * SENSITIVE (GUARDRAILED)
@@ -411,6 +569,28 @@ server.tool(
       if (!lease) throw new Error("Lease not found or access restricted.");
       const pay = await prisma.payment.create({ data: { leaseId, amount, method, type, reference, paidAt: new Date() } });
       await SecurityService.logAudit(u, "record_payment", "SUCCESS", { paymentId: pay.id }, leaseId);
+      return { content: [{ type: "text", text: `Payment ${pay.id} recorded (${amount} via ${method}).` }] };
+    } catch (e: any) { return { content: [{ type: "text", text: e.message }], isError: true }; }
+  }
+);
+
+server.tool(
+  "record_payment_basic",
+  "Lightweight payment logger (alias of record_payment).",
+  {
+    actorId: z.string(),
+    leaseId: z.string(),
+    amount: z.number(),
+    method: z.enum(["MPESA", "BANK_TRANSFER", "CASH", "CHEQUE", "CARD", "OTHER"]).default("MPESA"),
+    reference: z.string().optional(),
+  },
+  async ({ actorId, leaseId, amount, method, reference }) => {
+    try {
+      const u = await SecurityService.authorize(actorId, ["COMPANY_ADMIN", "SUPER_ADMIN"], "record_payment_basic", "CAN_MANAGE_FINANCE");
+      const lease = await prisma.lease.findFirst({ where: { id: leaseId, property: SecurityService.getScope(u) } });
+      if (!lease) throw new Error("Lease not found or access restricted.");
+      const pay = await prisma.payment.create({ data: { leaseId, amount, method, type: "RENT", reference, paidAt: new Date() } });
+      await SecurityService.logAudit(u, "record_payment_basic", "SUCCESS", { paymentId: pay.id }, leaseId);
       return { content: [{ type: "text", text: `Payment ${pay.id} recorded (${amount} via ${method}).` }] };
     } catch (e: any) { return { content: [{ type: "text", text: e.message }], isError: true }; }
   }

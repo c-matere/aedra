@@ -30,12 +30,13 @@ model User {
   lastName               String
   phone                  String?
   role                   UserRole             @default(COMPANY_STAFF)
-  permissions            String[]             @default([])
   isActive               Boolean              @default(true)
   companyId              String?
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
   deletedAt              DateTime?
+  permissions            String[]             @default([])
+  chatHistories          ChatHistory[]
   maintenanceAssignments MaintenanceRequest[]
   company                Company?             @relation(fields: [companyId], references: [id])
 
@@ -56,16 +57,17 @@ model Company {
   isActive            Boolean              @default(true)
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+  chatHistories       ChatHistory[]
   documents           Document[]
   expenses            Expense[]
+  incomes             Income[]
+  invitations         Invitation[]
   landlords           Landlord[]
   maintenanceRequests MaintenanceRequest[]
   properties          Property[]
   tenants             Tenant[]
   users               User[]
-  invitations         Invitation[]
   workflows           WorkflowInstance[]
-  incomes             Income[]
 }
 
 /// A landlord / property owner managed by a Company.
@@ -81,8 +83,8 @@ model Landlord {
   companyId  String
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
-  company    Company    @relation(fields: [companyId], references: [id])
   deletedAt  DateTime?
+  company    Company    @relation(fields: [companyId], references: [id])
   properties Property[]
 
   @@index([companyId])
@@ -91,28 +93,28 @@ model Landlord {
 
 /// A property (building, plot, estate) managed by a Company on behalf of a Landlord.
 model Property {
-  id                  String               @id @default(uuid())
-  name                String
-  address             String?
-  propertyType        PropertyType         @default(RESIDENTIAL)
-  description         String?
-  latitude            Float?
-  longitude           Float?
-  landlordId          String?
-  companyId           String
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  documents           Document[]
-  expenses            Expense[]
-  leases              Lease[]
-  maintenanceRequests MaintenanceRequest[]
-  company             Company              @relation(fields: [companyId], references: [id])
-  landlord            Landlord?            @relation(fields: [landlordId], references: [id])
-  tenants             Tenant[]
-  units               Unit[]
+  id                   String               @id @default(uuid())
+  name                 String
+  address              String?
+  propertyType         PropertyType         @default(RESIDENTIAL)
+  description          String?
+  latitude             Float?
+  longitude            Float?
+  landlordId           String?
+  companyId            String
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  deletedAt            DateTime?
   commissionPercentage Float                @default(0)
-  incomes             Income[]
-  deletedAt           DateTime?
+  documents            Document[]
+  expenses             Expense[]
+  incomes              Income[]
+  leases               Lease[]
+  maintenanceRequests  MaintenanceRequest[]
+  company              Company              @relation(fields: [companyId], references: [id])
+  landlord             Landlord?            @relation(fields: [landlordId], references: [id])
+  tenants              Tenant[]
+  units                Unit[]
 
   @@index([companyId])
   @@index([landlordId])
@@ -132,12 +134,12 @@ model Unit {
   propertyId          String
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+  deletedAt           DateTime?
   documents           Document[]
   expenses            Expense[]
   leases              Lease[]
   maintenanceRequests MaintenanceRequest[]
   property            Property             @relation(fields: [propertyId], references: [id])
-  deletedAt           DateTime?
 
   @@index([propertyId])
   @@index([status])
@@ -249,9 +251,9 @@ model Payment {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
   deletedAt DateTime?
+  incomes   Income[]
   lease     Lease         @relation(fields: [leaseId], references: [id])
   penalty   Penalty?      @relation(fields: [penaltyId], references: [id])
-  incomes   Income[]
 
   @@index([leaseId])
   @@index([penaltyId])
@@ -261,17 +263,17 @@ model Payment {
 
 /// An invoice issued against a lease for standard billing purposes.
 model Invoice {
-  id          String   @id @default(uuid())
+  id          String      @id @default(uuid())
   amount      Float
   description String
-  type        InvoiceType @default(RENT)
   dueDate     DateTime
   status      String      @default("PENDING")
   leaseId     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  type        InvoiceType @default(RENT)
   deletedAt   DateTime?
-  lease       Lease    @relation(fields: [leaseId], references: [id])
+  lease       Lease       @relation(fields: [leaseId], references: [id])
 
   @@index([leaseId])
   @@index([status])
@@ -358,18 +360,18 @@ model Penalty {
 }
 
 model Invitation {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   email     String
-  firstName String?
-  lastName  String?
-  role      UserRole @default(COMPANY_STAFF)
-  token     String   @unique
+  role      UserRole  @default(COMPANY_STAFF)
+  token     String    @unique
   companyId String?
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  company   Company? @relation(fields: [companyId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  firstName String?
+  lastName  String?
+  company   Company?  @relation(fields: [companyId], references: [id])
 
   @@index([companyId])
   @@index([token])
@@ -399,6 +401,90 @@ model AuditLog {
   @@index([outcome])
   @@index([entity])
   @@index([actorId])
+}
+
+model WorkflowInstance {
+  id        String         @id @default(uuid())
+  type      WorkflowType
+  status    WorkflowStatus @default(PENDING)
+  companyId String
+  targetId  String?
+  metadata  Json?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  deletedAt DateTime?
+  company   Company        @relation(fields: [companyId], references: [id])
+  steps     WorkflowStep[]
+
+  @@index([companyId])
+  @@index([type])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model WorkflowStep {
+  id                 String           @id @default(uuid())
+  workflowInstanceId String
+  action             String
+  fromStatus         WorkflowStatus
+  toStatus           WorkflowStatus
+  actorId            String?
+  metadata           Json?
+  timestamp          DateTime         @default(now())
+  workflowInstance   WorkflowInstance @relation(fields: [workflowInstanceId], references: [id])
+
+  @@index([workflowInstanceId])
+}
+
+/// A record of income for the managing company (e.g. commissions, fees).
+model Income {
+  id          String         @id @default(uuid())
+  amount      Float
+  category    IncomeCategory @default(COMMISSION)
+  date        DateTime       @default(now())
+  description String?
+  companyId   String
+  propertyId  String?
+  paymentId   String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+  company     Company        @relation(fields: [companyId], references: [id])
+  payment     Payment?       @relation(fields: [paymentId], references: [id])
+  property    Property?      @relation(fields: [propertyId], references: [id])
+
+  @@index([companyId])
+  @@index([propertyId])
+  @@index([category])
+  @@index([deletedAt])
+}
+
+model ChatHistory {
+  id        String        @id @default(uuid())
+  title     String?
+  userId    String
+  companyId String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  deletedAt DateTime?
+  company   Company?      @relation(fields: [companyId], references: [id])
+  user      User          @relation(fields: [userId], references: [id])
+  messages  ChatMessage[]
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([deletedAt])
+}
+
+model ChatMessage {
+  id            String      @id @default(uuid())
+  chatHistoryId String
+  role          String
+  content       String
+  createdAt     DateTime    @default(now())
+  chatHistory   ChatHistory @relation(fields: [chatHistoryId], references: [id])
+
+  @@index([chatHistoryId])
 }
 
 /// Global user roles across the platform
@@ -444,13 +530,13 @@ enum ExpenseCategory {
   LEGAL
   CLEANING
   SECURITY
+  OTHER
   OFFICE_RENT
   INTERNET
   SALARY
   MARKETING
   OFFICE_SUPPLIES
   COMMISSION_AGENT_FEE
-  OTHER
 }
 
 /// Type of penalty
@@ -540,39 +626,6 @@ enum MaintenanceCategory {
   OTHER
 }
 
-model WorkflowInstance {
-  id          String         @id @default(uuid())
-  type        WorkflowType
-  status      WorkflowStatus @default(PENDING)
-  companyId   String
-  targetId    String? // e.g. LeaseID, UnitID
-  metadata    Json?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  deletedAt   DateTime?
-  steps       WorkflowStep[]
-  company     Company        @relation(fields: [companyId], references: [id])
-
-  @@index([companyId])
-  @@index([type])
-  @@index([status])
-  @@index([deletedAt])
-}
-
-model WorkflowStep {
-  id                 String           @id @default(uuid())
-  workflowInstanceId String
-  action             String
-  fromStatus         WorkflowStatus
-  toStatus           WorkflowStatus
-  actorId            String?
-  metadata           Json?
-  timestamp          DateTime         @default(now())
-  workflowInstance   WorkflowInstance @relation(fields: [workflowInstanceId], references: [id])
-
-  @@index([workflowInstanceId])
-}
-
 enum WorkflowType {
   RENT_COLLECTION
   MAINTENANCE_LIFECYCLE
@@ -588,29 +641,6 @@ enum WorkflowStatus {
   COMPLETED
   FAILED
   CANCELLED
-}
-
-/// A record of income for the managing company (e.g. commissions, fees).
-model Income {
-  id          String         @id @default(uuid())
-  amount      Float
-  category    IncomeCategory @default(COMMISSION)
-  date        DateTime       @default(now())
-  description String?
-  companyId   String
-  propertyId  String?
-  paymentId   String?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  deletedAt   DateTime?
-  company     Company        @relation(fields: [companyId], references: [id])
-  property    Property?      @relation(fields: [propertyId], references: [id])
-  payment     Payment?       @relation(fields: [paymentId], references: [id])
-
-  @@index([companyId])
-  @@index([propertyId])
-  @@index([category])
-  @@index([deletedAt])
 }
 
 enum IncomeCategory {

@@ -13,9 +13,9 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { history, message } = body;
+        const { history, message, chatId } = body;
 
-        const result = await aiChat(sessionCookie, { history, message });
+        const result = await aiChat(sessionCookie, { history, message, chatId });
 
         if (result.error) {
             return NextResponse.json({ error: result.error }, { status: result.status });

@@ -5,17 +5,18 @@ This MCP server transforms an AI model into a digital staff member for the Aedra
 ## 🛠 Capabilities
 
 ### 👁 Sight (Analysis & Search)
-*   **Analytics**: `system_summary` (Occupancy, active leases, maintenance bottlenecks).
-*   **Asset Management**: `list_properties`, `get_property_details`, `list_vacant_units`.
-*   **Search**: `search_tenants` (By name, email, or phone).
-*   **Finance**: `list_expenses` (Filter by property or category).
-*   **Operations**: `list_maintenance_requests` (Filter by priority/status), `list_staff` (Find team members).
+* **Analytics**: `system_summary` (Occupancy, active leases, maintenance bottlenecks).
+* **Asset Management**: `list_properties`, `get_property_details`, `list_vacant_units`.
+* **Search**: `search_tenants` (name/email/phone).
+* **Finance**: `list_expenses`, `list_invoices`, `view_audit_logs`.
+* **Operations**: `list_staff`, `list_landlords`, `list_maintenance_requests`, `workflow_get_state`, `list_active_workflows`.
 
 ### 🦾 Limbs (Operational Actions)
-*   **Maintenance**: `record_maintenance_request`, `assign_maintenance`, `resolve_maintenance`.
-*   **Leasing**: `onboard_tenant`, `create_lease`, `update_lease_status`.
-*   **Finance**: `record_payment_basic` (Log M-PESA/Cash/Bank entries).
-*   **Inventory**: `update_unit_status` (Toggle vacancy/maintenance).
+* **Workflows**: `workflow_initiate`, `workflow_submit_event`.
+* **Maintenance**: `record_maintenance_request`, `assign_maintenance`, `resolve_maintenance`.
+* **Leasing**: `onboard_tenant`, `create_lease`, `terminate_lease`.
+* **Finance**: `record_payment`, `record_payment_basic`, `generate_invoice`, `issue_penalty`.
+* **Inventory**: `update_unit_status`.
 
 ## 🚀 Setup
 

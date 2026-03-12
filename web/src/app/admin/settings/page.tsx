@@ -77,7 +77,7 @@ export default async function SettingsPage() {
             title: "API & Integrations",
             description: "Manage backend API connections and third-party integrations.",
             items: [
-                { label: "API Base URL", value: "http://localhost:3001" },
+                { label: "API Base URL", value: "http://localhost:4001" },
                 { label: "M-Pesa Integration", value: "Sandbox (Daraja API)" },
                 { label: "SMS Provider", value: "Africa's Talking" },
                 { label: "Map Provider", value: "Mapbox GL" },

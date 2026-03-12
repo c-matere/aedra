@@ -8,6 +8,7 @@ import { tenantContext } from '../common/tenant-context';
 export class PrismaService extends PrismaClient implements OnModuleInit {
   private readonly logger = new Logger(PrismaService.name);
   private _extended: any;
+  private readonly txOptions: { maxWait: number; timeout: number };
 
   constructor() {
     const connectionString = process.env.DATABASE_URL;
@@ -17,9 +18,19 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       );
     }
 
-    const pool = new Pool({ connectionString });
+    const pool = new Pool({
+      connectionString,
+      max: Number(process.env.DATABASE_POOL_MAX ?? 20),
+      idleTimeoutMillis: Number(process.env.DATABASE_POOL_IDLE_MS ?? 10_000),
+    });
     const adapter = new PrismaPg(pool);
     super({ adapter });
+
+    this.txOptions = {
+      maxWait: Number(process.env.PRISMA_TX_MAX_WAIT_MS ?? 10_000),
+      timeout: Number(process.env.PRISMA_TX_TIMEOUT_MS ?? 20_000),
+    };
+
 
     // Initialize the extended client
     this._extended = this.initExtendedClient();
@@ -99,8 +110,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         $allModels: {
           async $allOperations({ model, operation, args, query }) {
             const context = tenantContext.getStore();
-            // Bypass RLS if no context is found (seeds, startup, etc) or for certain operations
-            if (!context) {
+            // Bypass RLS if no context is found (seeds, startup, etc) or for certain system operations
+            if (!context || model === 'AuditLog') {
               return query(args);
             }
 
@@ -116,7 +127,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
               // We transform model name (e.g. 'AuditLog') to camelCase ('auditLog') to match Prisma properties.
               const modelProp = model.charAt(0).toLowerCase() + model.slice(1);
               return (tx as any)[modelProp][operation](args);
-            });
+            }, this.txOptions);
           },
         },
       },

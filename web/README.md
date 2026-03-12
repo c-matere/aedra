@@ -17,10 +17,10 @@ bun dev
 If your API runs on a different port, create `.env.local` and set:
 
 ```bash
-AEDRA_API_URL=http://localhost:3001
+AEDRA_API_URL=http://localhost:4001
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:4000](http://localhost:4000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

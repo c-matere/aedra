@@ -9,7 +9,7 @@ describe('AppController (e2e)', () => {
 
   beforeAll(async () => {
     process.env.DATABASE_URL =
-      'postgresql://postgres:postgres@localhost:5432/aedra?schema=public';
+      'postgresql://postgres:postgres@localhost:4543/aedra?schema=public';
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();

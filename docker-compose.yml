@@ -2,6 +2,9 @@ services:
   postgres:
     image: postgis/postgis:15-3.3
     container_name: aedra-postgres
+    command: ["postgres", "-c", "port=4543"]
+    ports:
+      - "4543:4543"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -13,6 +16,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: aedra-redis
+    command: ["redis-server", "--port", "4379"]
+    ports:
+      - "4379:4379"
     restart: always
 
   api:
@@ -21,13 +27,14 @@ services:
       dockerfile: Dockerfile
     container_name: aedra-api
     ports:
-      - "3002:3001"
+      - "4001:4001"
     env_file:
       - ./api/.env
-    # environment:
-    #   - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/aedra?schema=public
-    #   - REDIS_HOST=redis
-    #   - REDIS_PORT=6379
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:4543/aedra?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=4379
+      - PORT=4001
     depends_on:
       - postgres
       - redis
@@ -38,12 +45,12 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_AEDRA_API_URL=${NEXT_PUBLIC_AEDRA_API_URL:-http://localhost:3002}
+        - NEXT_PUBLIC_AEDRA_API_URL=${NEXT_PUBLIC_AEDRA_API_URL:-http://localhost:4001}
     container_name: aedra-web
     ports:
-      - "3010:3000"
+      - "4000:4000"
     environment:
-      - AEDRA_API_URL=http://aedra-api:3001
+      - AEDRA_API_URL=http://aedra-api:4001
     depends_on:
       - api
     restart: always

@@ -43,12 +43,12 @@ RANDOM_SECRET=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 32 ; echo '')
 if [ ! -f api/.env ]; then
   echo "Creating api/.env..."
   cat <<EOF > api/.env
-DATABASE_URL="postgresql://postgres:postgres@postgres:5432/aedra?schema=public"
+DATABASE_URL="postgresql://postgres:postgres@postgres:4543/aedra?schema=public"
 AUTH_SESSION_SECRET="$RANDOM_SECRET"
 CORS_ALLOWED_ORIGINS="https://aedra.homeet.site"
 REDIS_HOST="redis"
-REDIS_PORT=6379
-PORT=3001
+REDIS_PORT=4379
+PORT=4001
 NODE_ENV="production"
 GEMINI_API_KEY="$GEMINI_API_KEY"
 EOF
@@ -58,7 +58,7 @@ fi
 if [ ! -f web/.env ]; then
   echo "Creating web/.env..."
   cat <<EOF > web/.env
-AEDRA_API_URL="http://aedra-api:3001"
+AEDRA_API_URL="http://aedra-api:4001"
 NEXT_PUBLIC_AEDRA_API_URL="https://aedra.homeet.site/api"
 NODE_ENV="production"
 EOF
@@ -95,7 +95,7 @@ done
 # Wait for NestJS and Postgres to fully initialize
 echo "⏳ Waiting for database to be ready (PostGIS initialization can take ~30s)..."
 # Use -h localhost to force TCP connection check and avoid Peer authentication issues in the container
-until docker exec aedra-postgres pg_isready -h localhost -U postgres; do
+until docker exec aedra-postgres pg_isready -h localhost -p 4543 -U postgres; do
     echo "   ...still waiting for postgres..."
     sleep 3
 done
@@ -106,7 +106,7 @@ sleep 15
 
 # 5. Wait for API to fully start (includes migrations)
 echo "⏳ Waiting for API to come online (includes auto-migrations)..."
-until curl -sf http://localhost:3002/ > /dev/null 2>&1; do
+until curl -sf http://localhost:4001/ > /dev/null 2>&1; do
     echo "   ...waiting for API..."
     sleep 3
 done

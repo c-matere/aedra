@@ -6,7 +6,7 @@ describe('PrismaService', () => {
 
   beforeAll(() => {
     process.env.DATABASE_URL =
-      'postgresql://postgres:postgres@localhost:5432/test?schema=public';
+      'postgresql://postgres:postgres@localhost:4543/test?schema=public';
   });
 
   beforeEach(async () => {

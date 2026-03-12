@@ -545,13 +545,14 @@ export const TARGET_ENDPOINTS = {
   officeSummary: "/finances/office/summary",
   officeIncome: "/finances/office/income",
   officeExpenses: "/finances/office/expenses",
+  chatSessions: "/ai/chat/sessions",
 } as const;
 
 export function backendBaseUrl(): string {
   const raw =
     process.env.AEDRA_API_URL ??
     process.env.NEXT_PUBLIC_AEDRA_API_URL ??
-    "http://localhost:3001";
+    "http://localhost:4001";
 
   return raw.endsWith("/") ? raw.slice(0, -1) : raw;
 }
@@ -586,10 +587,23 @@ async function backendRequest<T>(
     });
 
     if (!response.ok) {
+      let errorMessage = `Backend request failed (${response.status})`;
+      try {
+        const errorBody = await response.json();
+        if (typeof errorBody?.message === "string") {
+          errorMessage = errorBody.message;
+        } else if (Array.isArray(errorBody?.message)) {
+          errorMessage = errorBody.message.join("; ");
+        } else if (typeof errorBody?.error === "string") {
+          errorMessage = errorBody.error;
+        }
+      } catch {
+        // Ignore JSON parse errors and fall back to generic message.
+      }
       return {
         data: null,
         status: response.status,
-        error: `Backend request failed (${response.status})`,
+        error: errorMessage,
       };
     }
 
@@ -1261,9 +1275,29 @@ export async function listInvitations(
 }
 export async function aiChat(
   token: string,
-  payload: { history: any[]; message: string },
-): Promise<BackendRequestResult<{ response: string }>> {
-  return backendRequest<{ response: string }>(TARGET_ENDPOINTS.aiChat, token, "POST", payload);
+  payload: { history: any[]; message: string; chatId?: string },
+): Promise<BackendRequestResult<{ response: string; chatId: string }>> {
+  return backendRequest<{ response: string; chatId: string }>(TARGET_ENDPOINTS.aiChat, token, "POST", payload);
+}
+
+export async function listChatSessions(
+  token: string,
+): Promise<BackendRequestResult<any[]>> {
+  return backendRequest<any[]>(TARGET_ENDPOINTS.chatSessions, token, "POST");
+}
+
+export async function getChatSession(
+  token: string,
+  id: string,
+): Promise<BackendRequestResult<any>> {
+  return backendRequest<any>(`${TARGET_ENDPOINTS.chatSessions}/${id}`, token, "POST");
+}
+
+export async function deleteChatSession(
+  token: string,
+  id: string,
+): Promise<BackendRequestResult<null>> {
+  return backendRequest<null>(`${TARGET_ENDPOINTS.chatSessions}/${id}/delete`, token, "POST");
 }
 
 export async function listActiveWorkflows(
@@ -1305,4 +1339,32 @@ export async function listOfficeExpenses(
   token: string,
 ): Promise<BackendRequestResult<ExpenseRecord[]>> {
   return backendGet<ExpenseRecord[]>(TARGET_ENDPOINTS.officeExpenses, token);
+}
+
+export async function createOfficeIncome(
+  token: string,
+  payload: {
+    amount: number;
+    category: IncomeCategory;
+    date: string;
+    description?: string;
+    propertyId?: string;
+  }
+): Promise<BackendRequestResult<IncomeRecord>> {
+  return backendRequest<IncomeRecord>(`${TARGET_ENDPOINTS.officeIncome}`, token, "POST", payload);
+}
+
+export async function createOfficeExpense(
+  token: string,
+  payload: {
+    amount: number;
+    category: ExpenseCategory;
+    date: string;
+    description: string;
+    vendor?: string;
+    reference?: string;
+    notes?: string;
+  }
+): Promise<BackendRequestResult<ExpenseRecord>> {
+  return backendRequest<ExpenseRecord>(`${TARGET_ENDPOINTS.officeExpenses}`, token, "POST", payload);
 }

@@ -150,8 +150,8 @@ export default async function AdminLayout({
                 </aside>
 
                 {/* Main Content Area */}
-                <main className="flex-1 overflow-y-auto px-6 py-8 md:pl-70 md:pr-10 z-10 w-full ml-0 md:ml-64">
-                    <div className="mx-auto max-w-6xl">
+                <main className="flex-1 overflow-y-auto px-6 py-8 md:px-10 z-10 w-full ml-0 md:ml-64">
+                    <div className="mx-auto max-w-7xl">
                         {children}
                     </div>
                 </main>

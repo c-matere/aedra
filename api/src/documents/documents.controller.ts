@@ -85,7 +85,7 @@ export class DocumentsController {
 
     // Return the relative URL of the uploaded file
     return {
-      fileUrl: `${process.env.API_URL || 'http://localhost:3001'}/documents/files/${file.filename}`,
+      fileUrl: `${process.env.API_URL || 'http://localhost:4001'}/documents/files/${file.filename}`,
     };
   }
 

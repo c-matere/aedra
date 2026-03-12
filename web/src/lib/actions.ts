@@ -53,6 +53,8 @@ import {
     verifyInvitation,
     acceptInvitation,
     listInvitations,
+    createOfficeIncome,
+    createOfficeExpense,
     type CreatePropertyPayload,
     type UpdatePropertyPayload,
     type CreateTenantPayload,
@@ -348,4 +350,28 @@ export async function acceptInvitationAction(token: string, payload: AcceptInvit
 export async function listInvitationsAction() {
     const token = await getSessionTokenFromCookie();
     return listInvitations(token!);
+}
+
+export async function createOfficeIncomeAction(payload: {
+    amount: number;
+    category: "COMMISSION" | "MANAGEMENT_FEE" | "OTHER";
+    date: string;
+    description?: string;
+    propertyId?: string;
+}) {
+    const token = await getSessionTokenFromCookie();
+    return createOfficeIncome(token!, payload);
+}
+
+export async function createOfficeExpenseAction(payload: {
+    amount: number;
+    category: any;
+    date: string;
+    description: string;
+    vendor?: string;
+    reference?: string;
+    notes?: string;
+}) {
+    const token = await getSessionTokenFromCookie();
+    return createOfficeExpense(token!, payload);
 }
