@@ -67,7 +67,7 @@ export function OfficeFinanceActions({ role }: { role: UserRole | null }) {
         }
 
         const res = await createOfficeIncomeAction({
-            ...values,
+            ...values as any,
             propertyId: propertyId || undefined,
         })
 
@@ -95,7 +95,7 @@ export function OfficeFinanceActions({ role }: { role: UserRole | null }) {
             return
         }
 
-        const res = await createOfficeExpenseAction(values)
+        const res = await createOfficeExpenseAction(values as any)
 
         if (res.error) {
             setError(res.error)
