@@ -2,9 +2,9 @@ services:
   postgres:
     image: postgis/postgis:15-3.3
     container_name: aedra-postgres
-    command: ["postgres", "-c", "port=4543"]
+    command: ["postgres"]
     ports:
-      - "4543:4543"
+      - "4543:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -16,9 +16,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: aedra-redis
-    command: ["redis-server", "--port", "4379"]
+    command: ["redis-server"]
     ports:
-      - "4379:4379"
+      - "4379:6379"
     restart: always
 
   api:
@@ -31,9 +31,9 @@ services:
     env_file:
       - ./api/.env
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:4543/aedra?schema=public
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/aedra?schema=public
       - REDIS_HOST=redis
-      - REDIS_PORT=4379
+      - REDIS_PORT=6379
       - PORT=4001
     depends_on:
       - postgres
