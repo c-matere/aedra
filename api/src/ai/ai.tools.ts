@@ -160,8 +160,8 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
                 type: SchemaType.OBJECT,
                 properties: {
                     leaseId: { type: SchemaType.STRING, description: 'Filter by lease UUID' },
-                    dateFrom: { type: SchemaType.STRING, description: 'ISO date string (inclusive)' },
-                    dateTo: { type: SchemaType.STRING, description: 'ISO date string (inclusive)' },
+                    dateFrom: { type: SchemaType.STRING, description: 'ISO date string (inclusive). Defaults to start of current month if omitted.' },
+                    dateTo: { type: SchemaType.STRING, description: 'ISO date string (inclusive). Defaults to now if omitted.' },
                     limit: { type: SchemaType.NUMBER, description: 'Max results (default 20)' },
                 },
             },
@@ -186,8 +186,8 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
                 properties: {
                     propertyId: { type: SchemaType.STRING, description: 'Filter by property UUID' },
                     unitId: { type: SchemaType.STRING, description: 'Filter by unit UUID' },
-                    dateFrom: { type: SchemaType.STRING, description: 'ISO date string (inclusive)' },
-                    dateTo: { type: SchemaType.STRING, description: 'ISO date string (inclusive)' },
+                    dateFrom: { type: SchemaType.STRING, description: 'ISO date string (inclusive). Defaults to start of current month if omitted.' },
+                    dateTo: { type: SchemaType.STRING, description: 'ISO date string (inclusive). Defaults to now if omitted.' },
                     limit: { type: SchemaType.NUMBER, description: 'Max results (default 20)' },
                 },
             },
@@ -250,12 +250,12 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
         },
         {
             name: 'get_company_summary',
-            description: 'Get a high-level company summary including occupancy and financial totals.',
+            description: 'Get a high-level company summary including occupancy and financial totals. If dates are omitted, defaults to current month.',
             parameters: {
                 type: SchemaType.OBJECT,
                 properties: {
-                    dateFrom: { type: SchemaType.STRING, description: 'ISO date string (inclusive)' },
-                    dateTo: { type: SchemaType.STRING, description: 'ISO date string (inclusive)' },
+                    dateFrom: { type: SchemaType.STRING, description: 'ISO date string (inclusive). Defaults to start of current month.' },
+                    dateTo: { type: SchemaType.STRING, description: 'ISO date string (inclusive). Defaults to now.' },
                 },
             },
         },
@@ -561,12 +561,12 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
     const reportTools = [
         {
             name: 'get_financial_report',
-            description: 'Get financial totals and breakdowns by property, category, or month.',
+            description: 'Get financial totals and breakdowns. Defaults to current month if dates are omitted.',
             parameters: {
                 type: SchemaType.OBJECT,
                 properties: {
-                    dateFrom: { type: SchemaType.STRING, description: 'ISO date string (inclusive)' },
-                    dateTo: { type: SchemaType.STRING, description: 'ISO date string (inclusive)' },
+                    dateFrom: { type: SchemaType.STRING, description: 'ISO date string (inclusive). Defaults to start of current month.' },
+                    dateTo: { type: SchemaType.STRING, description: 'ISO date string (inclusive). Defaults to now.' },
                     groupBy: { type: SchemaType.STRING, description: 'property | category | month | none' },
                     include: { type: SchemaType.STRING, description: 'payments | expenses | invoices | all' },
                     limit: { type: SchemaType.NUMBER, description: 'Row cap for breakdowns (default 5000)' },
@@ -576,14 +576,14 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
         },
         {
             name: 'generate_report_file',
-            description: 'Generate a downloadable PDF or CSV financial report.',
+            description: 'Generate a downloadable PDF or CSV financial report. Default to PDF and current month if parameters are unspecified.',
             parameters: {
                 type: SchemaType.OBJECT,
                 properties: {
                     reportType: { type: SchemaType.STRING, description: 'Summary | Revenue | Occupancy | Financial' },
-                    dateFrom: { type: SchemaType.STRING, description: 'ISO date string (inclusive)' },
-                    dateTo: { type: SchemaType.STRING, description: 'ISO date string (inclusive)' },
-                    format: { type: SchemaType.STRING, description: 'pdf | csv', enum: ['pdf', 'csv'] },
+                    dateFrom: { type: SchemaType.STRING, description: 'ISO date string (inclusive). Defaults to start of current month.' },
+                    dateTo: { type: SchemaType.STRING, description: 'ISO date string (inclusive). Defaults to now.' },
+                    format: { type: SchemaType.STRING, description: 'pdf | csv (default pdf)', enum: ['pdf', 'csv'] },
                 },
                 required: ['reportType', 'format'],
             },

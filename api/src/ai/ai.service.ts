@@ -46,15 +46,15 @@ export class AiService {
     private historyLimit = 16;
     private readonly systemInstruction = [
         '# Aedra AI Operational Protocol - STRICTOR ADHERENCE REQUIRED',
-        '1. **CONFIRM KEYWORD**: You MUST include the literal word "confirm" in EVERY SINGLE response while gathering info for any creation/recording (invoices, maintenance, landlords, etc.). No exceptions.',
+        '1. **CONFIRM KEYWORD**: You MUST include the literal word "confirm" in responses ONLY while gathering info for data creation/recording (invoices, maintenance, landlords, etc.). DO NOT require "confirm" for simple data retrieval or report generation.',
         '2. **MAINTENANCE AUTO-MAP**: If user mentions "leak", "sink", "pipe", or "drain", you MUST automatically set category="PLUMBING" and NOT ask for it. Call the tool immediately once you have priority and confirmation.',
         '3. **RETAIN & REPEAT**: ALWAYS repeat names (e.g. "Sarah Ali") and key values (e.g. "1500", "HIGH") in every reply.',
         '4. **IMMEDIATE EXECUTION**: If user says "confirmed" or "yes", CALL the tool (confirm=true) IMMEDIATELY.',
         '5. **SUCCESS PHRASES**: After create_maintenance_request, you MUST say "successfully created maintenance request". After workflow_initiate, you MUST say "workflow initiated" and "ACTIVE".',
         '6. **NEW CAPABILITIES**: You CAN now create Properties, Landlords, and Staff members using provided tools.',
         '7. **SECURITY GUARD**: You are strictly FORBIDDEN from editing or modifying any users with the "COMPANY_ADMIN" role. If asked, politely refuse.',
-        '8. **WORKSPACE**: If company ID is missing, search autonomously, select_company, then fulfill the original request.',
-        '9. **REPORTING**: You can now generate PDF and CSV reports using generate_report_file. Always provide the URL returned.',
+        '8. **WORKSPACE**: Once a company is selected, DO NOT ask for the company name or ID again. You are in that context.',
+        '9. **PROACTIVITY & DEFAULTS**: For reports and data listing, be proactive. If dates are omitted, use the current month. If format is omitted, use PDF. Only ask for parameters if the user\'s intent is truly ambiguous.',
         '10. **FILES**: You can now read and process uploaded files. If a user refers to an attachment, analyze its contents using your multimodal capabilities.',
         'Concise, action-first (max 3 sentences). State tool being called.'
     ].join('\n');
@@ -189,21 +189,25 @@ export class AiService {
         let response: any;
         try {
             let modelMessage = message;
-            if (!effectiveCompanyId) {
+            if (effectiveCompanyId) {
+                let resolvedCompanyName = companyName;
+                if (!resolvedCompanyName) {
+                    const company = await this.prisma.company.findUnique({ where: { id: effectiveCompanyId }, select: { name: true } });
+                    resolvedCompanyName = company?.name || 'Unknown Company';
+                }
+
+                modelMessage = `[SYSTEM CONTEXT] CURRENT WORKSPACE: ${resolvedCompanyName} (ID: ${effectiveCompanyId})
+- You are already in the correct workspace. NEVER ask for the company name or ID.
+- Access property, tenant, and financial data directly.
+- Use sensible defaults for report dates (current month) if not specified.
+
+User: ${message}`;
+            } else {
                 modelMessage = `[SYSTEM CONTEXT] No company workspace is currently selected. 
 - You MUST resolve the company context before accessing property data.
 - Use 'search_tenants' or 'search_properties' with relevant clues from the user (names, addresses) to find the company ID.
 - Once you identify the company ID, call 'select_company({ companyId: "..." })' AUTOMATICALLY. 
-- DO NOT ask for permission to select if you have found the ID; just call it and then fulfill the user's original request (e.g., creating a maintenance request).
-- Re-list companies with 'list_companies' or 'search_companies' if you need to find an ID for a specific name provided by the user.
-
-User: ${message}`;
-            } else {
-                modelMessage = `[SYSTEM CONTEXT] Optional info about available workflows if the user asks:
-- RENT_COLLECTION: Automated tracking of rent due, late fees, and reminders.
-- MAINTENANCE_LIFECYCLE: End-to-end tracking of a repair ticket from vendor assignment to completion.
-- LEASE_RENEWAL: Process for notifying tenants of expiring leases and capturing renewal documents.
-- TENANT_ONBOARDING: Checklist and document collection for a new tenant moving in.
+- DO NOT ask for permission to select if you have found the ID; just call it and then fulfill the user's original request.
 
 User: ${message}`;
             }
@@ -388,7 +392,7 @@ User: ${message}`;
         return collapsedHistory;
     }
     private async getFinancialReportData(args: any, context: any) {
-        const { start, end } = this.getDateRange(args, 90);
+        const { start, end } = this.getDateRange(args, 30); // Default to last 30 days if nothing specified
         const groupBy = (args?.groupBy || 'none').toLowerCase();
         const include = (args?.include || 'all').toLowerCase();
         if (!ALLOWED_REPORT_GROUP_BY.includes(groupBy)) {
