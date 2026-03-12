@@ -619,17 +619,17 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
 
     return {
         read: genAI.getGenerativeModel({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.0-flash',
             tools: buildTools([...coreReadTools, ...workflowTools]) as any,
             systemInstruction,
         }),
         write: genAI.getGenerativeModel({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.0-flash',
             tools: buildTools([...coreReadTools, ...coreWriteTools, ...workflowTools]) as any,
             systemInstruction,
         }),
         report: genAI.getGenerativeModel({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.0-flash',
             tools: buildTools([...coreReadTools, ...reportTools, ...workflowTools]) as any,
             systemInstruction,
         }),
