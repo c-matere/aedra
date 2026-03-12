@@ -1307,10 +1307,30 @@ export async function listActiveWorkflows(
 }
 
 // Office Finances
+export type IncomeCategory = "COMMISSION" | "MANAGEMENT_FEE" | "OTHER";
+
+export type ExpenseCategory =
+  | "MAINTENANCE"
+  | "REPAIR"
+  | "UTILITY"
+  | "INSURANCE"
+  | "TAX"
+  | "MANAGEMENT_FEE"
+  | "LEGAL"
+  | "CLEANING"
+  | "SECURITY"
+  | "OFFICE_RENT"
+  | "INTERNET"
+  | "SALARY"
+  | "MARKETING"
+  | "OFFICE_SUPPLIES"
+  | "COMMISSION_AGENT_FEE"
+  | "OTHER";
+
 export interface IncomeRecord {
   id: string;
   amount: number;
-  category: "COMMISSION" | "MANAGEMENT_FEE" | "OTHER";
+  category: IncomeCategory;
   date: string;
   description?: string;
   propertyId?: string;
