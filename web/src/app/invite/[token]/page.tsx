@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { verifyInvitationAction, acceptInvitationAction } from "@/lib/actions"
 import type { InvitationRecord } from "@/lib/backend-api"
 
-export default function InvitePage({ params }: { params: { token: string } }) {
+export default function InvitePage({ params }: { params: Promise<{ token: string }> }) {
     const router = useRouter()
     const [token, setToken] = useState<string>("")
     const [invitation, setInvitation] = useState<InvitationRecord | null>(null)

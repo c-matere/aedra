@@ -6,7 +6,7 @@ import { AUTH_SESSION_COOKIE } from "@/lib/rbac";
 
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const sessionCookie = (await cookies()).get(AUTH_SESSION_COOKIE)?.value;
@@ -30,7 +30,7 @@ export async function POST(
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const sessionCookie = (await cookies()).get(AUTH_SESSION_COOKIE)?.value;
