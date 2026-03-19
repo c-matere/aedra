@@ -1,0 +1,69 @@
+import { Controller, Post, Body, Logger } from '@nestjs/common';
+import { MpesaService, MpesaWebhookDto } from './mpesa.service';
+
+@Controller('payments/mpesa')
+export class MpesaController {
+  private readonly logger = new Logger(MpesaController.name);
+
+  constructor(private readonly mpesaService: MpesaService) {}
+
+  /**
+   * C2B Validation URL (Daraja)
+   * Daraja will POST here to ask if the transaction is valid.
+   */
+  @Post('validate')
+  async validateOperation(@Body() body: any) {
+    this.logger.log(`M-Pesa Validation Request: ${JSON.stringify(body)}`);
+    // Rule: We accept all at the validation stage for now, 
+    // real logic happens in confirmation.
+    return {
+      ResultCode: 0,
+      ResultDesc: 'Accepted',
+    };
+  }
+
+  /**
+   * C2B Confirmation URL (Daraja)
+   * Daraja will POST here when the transaction is completed.
+   */
+  @Post('confirm')
+  async confirmOperation(@Body() body: MpesaWebhookDto) {
+    return this.mpesaService.handleC2BWebhook(body);
+  }
+
+  /**
+   * STK Push Callback URL (Daraja/LNM)
+   */
+  @Post('callback')
+  async handleCallback(@Body() body: any) {
+    this.logger.log(`M-Pesa STK Callback: ${JSON.stringify(body)}`);
+    
+    // STK push has a different structure (Body.stkCallback)
+    const callbackData = body?.Body?.stkCallback;
+    if (!callbackData) return { ResultCode: 1, ResultDesc: 'Invalid Payload' };
+
+    if (callbackData.ResultCode !== 0) {
+      this.logger.warn(`STK Push Failed: ${callbackData.ResultDesc}`);
+      return { ResultCode: 0, ResultDesc: 'Acknowledged Failure' };
+    }
+
+    // Extract item values from MetaData
+    const items = callbackData.CallbackMetadata?.Item || [];
+    const getVal = (name: string) => items.find((i: any) => i.Name === name)?.Value;
+
+    const webhookDto: MpesaWebhookDto = {
+      TransID: getVal('MpesaReceiptNumber'),
+      TransAmount: String(getVal('Amount')),
+      MSISDN: String(getVal('PhoneNumber')),
+      TransTime: String(new Date().toISOString()), // Callback doesn't have raw TransTime usually
+      BillRefNumber: 'STK_PUSH', // reference?
+    };
+
+    if (!webhookDto.TransID || !webhookDto.TransAmount) {
+        this.logger.error('Incomplete STK callback metadata');
+        return { ResultCode: 1, ResultDesc: 'Incomplete Metadata' };
+    }
+
+    return this.mpesaService.handleC2BWebhook(webhookDto);
+  }
+}

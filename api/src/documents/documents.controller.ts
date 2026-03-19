@@ -24,6 +24,7 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../auth/roles.enum';
 import type { RequestWithUser } from '../auth/request-with-user.interface';
 import { DocumentsService } from './documents.service';
+import { Public } from '../auth/public.decorator';
 
 @Controller('documents')
 @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF)
@@ -90,7 +91,7 @@ export class DocumentsController {
   }
 
   @Get('files/:filename')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF)
+  @Public()
   serveFile(@Param('filename') filename: string, @Res() res: Response) {
     return res.sendFile(filename, { root: join(process.cwd(), 'uploads') });
   }

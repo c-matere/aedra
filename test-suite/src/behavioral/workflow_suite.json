@@ -1,0 +1,1492 @@
+[
+  {
+    "workflow_id": "wf_onboard_001",
+    "actor": "SUPER_ADMIN",
+    "goal": "Onboard Aedra Realty, add tenants Mary Atieno/John Mwangi, and generate report.",
+    "requests": [
+      {
+        "message": "Create company admin for Aedra Realty called Peter Otieno."
+      },
+      {
+        "message": "Create new tenants: Mary Atieno, John Mwangi under Aedra Realty."
+      },
+      {
+        "message": "Assign units E5 and D10 to Mary Atieno and John Mwangi respectively."
+      },
+      {
+        "message": "Update rent for unit E5 to 35000 and unit D10 to 22000."
+      },
+      {
+        "message": "Generate monthly rent report for Aedra Realty."
+      },
+      {
+        "message": "Notify Mary Atieno and John Mwangi about their new rent amounts via WhatsApp."
+      }
+    ],
+    "expected_outcome": {
+      "company_admin_created": true,
+      "tenants_created": true,
+      "units_assigned": true,
+      "rent_updated": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_audit_001",
+    "actor": "SUPER_ADMIN",
+    "goal": "Investigate deletion of Fatuma Ali by Fatuma Ali and restore data.",
+    "requests": [
+      {
+        "message": "Show audit logs for user Fatuma Ali from last week."
+      },
+      {
+        "message": "Filter logs for any delete operations in Lakeside Realty."
+      },
+      {
+        "message": "Identify who deleted the record for tenant Fatuma Ali."
+      },
+      {
+        "message": "Recreate the deleted tenant record for Fatuma Ali under Lakeside Realty."
+      },
+      {
+        "message": "Log a security incident regarding unauthorized deletion by Fatuma Ali."
+      },
+      {
+        "message": "Send a summary of this investigation to the global security mailbox."
+      }
+    ],
+    "expected_outcome": {
+      "logs_reviewed": true,
+      "culprit_identified": true,
+      "data_restored": true,
+      "incident_logged": true
+    }
+  },
+  {
+    "workflow_id": "wf_bulk_001",
+    "actor": "SUPER_ADMIN",
+    "goal": "Bulk import and setup properties for Aedra Realty.",
+    "requests": [
+      {
+        "message": "Import properties for Aedra Realty from properties_batch.csv."
+      },
+      {
+        "message": "List all units that were created without a landlord assigned."
+      },
+      {
+        "message": "Bulk assign Peter Otieno as the company admin for all new units in Aedra Realty."
+      },
+      {
+        "message": "Generate a portfolio summary for Aedra Realty showing total unit count."
+      },
+      {
+        "message": "Alert me if any property in Aedra Realty has more than 5 vacant units."
+      }
+    ],
+    "expected_outcome": {
+      "properties_imported": true,
+      "admin_assigned": true,
+      "summary_generated": true,
+      "alert_rule_created": true
+    }
+  },
+  {
+    "workflow_id": "wf_compliance_001",
+    "actor": "SUPER_ADMIN",
+    "goal": "Monitor payment compliance and take action on laggards.",
+    "requests": [
+      {
+        "message": "Show me all companies with more than 10% unpaid tenants this month."
+      },
+      {
+        "message": "List specific overdue tenants for the top 3 offending companies."
+      },
+      {
+        "message": "Freeze account access for Homeet Ltd due to compliance failure."
+      },
+      {
+        "message": "Generate a global compliance report for all property groups."
+      },
+      {
+        "message": "Schedule a follow-up alert for Monday to check payment status again."
+      }
+    ],
+    "expected_outcome": {
+      "risk_identified": true,
+      "action_taken": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_recovery_001",
+    "actor": "SUPER_ADMIN",
+    "goal": "Recover failed transaction TXN196388 and notify user.",
+    "requests": [
+      {
+        "message": "Identify all failed M-Pesa transactions for today."
+      },
+      {
+        "message": "Check status of transaction TXN196388 specifically."
+      },
+      {
+        "message": "Reverse the failed payment TXN196388 and credit the tenant's wallet."
+      },
+      {
+        "message": "Notify the affected tenant about the reversal for TXN196388."
+      },
+      {
+        "message": "Generate a system health report focusing on payment gateway stability."
+      },
+      {
+        "message": "Escalate the gateway timeout issues to the dev team."
+      }
+    ],
+    "expected_outcome": {
+      "failure_identified": true,
+      "reversal_complete": true,
+      "tenant_notified": true,
+      "system_escalated": true
+    }
+  },
+  {
+    "workflow_id": "wf_onboard_002",
+    "actor": "SUPER_ADMIN",
+    "goal": "Onboard Aedra Realty, add tenants John Mwangi/Kibet Kiprop, and generate report.",
+    "requests": [
+      {
+        "message": "Create company admin for Aedra Realty called Sarah Otieno."
+      },
+      {
+        "message": "Create new tenants: John Mwangi, Kibet Kiprop under Aedra Realty."
+      },
+      {
+        "message": "Assign units C4 and D10 to John Mwangi and Kibet Kiprop respectively."
+      },
+      {
+        "message": "Update rent for unit C4 to 30000 and unit D10 to 20000."
+      },
+      {
+        "message": "Generate monthly rent report for Aedra Realty."
+      },
+      {
+        "message": "Notify John Mwangi and Kibet Kiprop about their new rent amounts via WhatsApp."
+      }
+    ],
+    "expected_outcome": {
+      "company_admin_created": true,
+      "tenants_created": true,
+      "units_assigned": true,
+      "rent_updated": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_audit_002",
+    "actor": "SUPER_ADMIN",
+    "goal": "Investigate deletion of Fatuma Ali by Peter Otieno and restore data.",
+    "requests": [
+      {
+        "message": "Show audit logs for user Peter Otieno from last week."
+      },
+      {
+        "message": "Filter logs for any delete operations in Nyota Properties."
+      },
+      {
+        "message": "Identify who deleted the record for tenant Fatuma Ali."
+      },
+      {
+        "message": "Recreate the deleted tenant record for Fatuma Ali under Nyota Properties."
+      },
+      {
+        "message": "Log a security incident regarding unauthorized deletion by Peter Otieno."
+      },
+      {
+        "message": "Send a summary of this investigation to the global security mailbox."
+      }
+    ],
+    "expected_outcome": {
+      "logs_reviewed": true,
+      "culprit_identified": true,
+      "data_restored": true,
+      "incident_logged": true
+    }
+  },
+  {
+    "workflow_id": "wf_bulk_002",
+    "actor": "SUPER_ADMIN",
+    "goal": "Bulk import and setup properties for Sunrise Estates.",
+    "requests": [
+      {
+        "message": "Import properties for Sunrise Estates from properties_batch.csv."
+      },
+      {
+        "message": "List all units that were created without a landlord assigned."
+      },
+      {
+        "message": "Bulk assign Sarah Otieno as the company admin for all new units in Sunrise Estates."
+      },
+      {
+        "message": "Generate a portfolio summary for Sunrise Estates showing total unit count."
+      },
+      {
+        "message": "Alert me if any property in Sunrise Estates has more than 5 vacant units."
+      }
+    ],
+    "expected_outcome": {
+      "properties_imported": true,
+      "admin_assigned": true,
+      "summary_generated": true,
+      "alert_rule_created": true
+    }
+  },
+  {
+    "workflow_id": "wf_compliance_002",
+    "actor": "SUPER_ADMIN",
+    "goal": "Monitor payment compliance and take action on laggards.",
+    "requests": [
+      {
+        "message": "Show me all companies with more than 10% unpaid tenants this month."
+      },
+      {
+        "message": "List specific overdue tenants for the top 3 offending companies."
+      },
+      {
+        "message": "Freeze account access for Nyota Properties due to compliance failure."
+      },
+      {
+        "message": "Generate a global compliance report for all property groups."
+      },
+      {
+        "message": "Schedule a follow-up alert for Monday to check payment status again."
+      }
+    ],
+    "expected_outcome": {
+      "risk_identified": true,
+      "action_taken": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_recovery_002",
+    "actor": "SUPER_ADMIN",
+    "goal": "Recover failed transaction TXN258245 and notify user.",
+    "requests": [
+      {
+        "message": "Identify all failed M-Pesa transactions for today."
+      },
+      {
+        "message": "Check status of transaction TXN258245 specifically."
+      },
+      {
+        "message": "Reverse the failed payment TXN258245 and credit the tenant's wallet."
+      },
+      {
+        "message": "Notify the affected tenant about the reversal for TXN258245."
+      },
+      {
+        "message": "Generate a system health report focusing on payment gateway stability."
+      },
+      {
+        "message": "Escalate the gateway timeout issues to the dev team."
+      }
+    ],
+    "expected_outcome": {
+      "failure_identified": true,
+      "reversal_complete": true,
+      "tenant_notified": true,
+      "system_escalated": true
+    }
+  },
+  {
+    "workflow_id": "wf_onboard_003",
+    "actor": "SUPER_ADMIN",
+    "goal": "Onboard Lakeside Realty, add tenants John Mwangi/Mary Atieno, and generate report.",
+    "requests": [
+      {
+        "message": "Create company admin for Lakeside Realty called Peter Otieno."
+      },
+      {
+        "message": "Create new tenants: John Mwangi, Mary Atieno under Lakeside Realty."
+      },
+      {
+        "message": "Assign units E5 and A1 to John Mwangi and Mary Atieno respectively."
+      },
+      {
+        "message": "Update rent for unit E5 to 30000 and unit A1 to 22000."
+      },
+      {
+        "message": "Generate monthly rent report for Lakeside Realty."
+      },
+      {
+        "message": "Notify John Mwangi and Mary Atieno about their new rent amounts via WhatsApp."
+      }
+    ],
+    "expected_outcome": {
+      "company_admin_created": true,
+      "tenants_created": true,
+      "units_assigned": true,
+      "rent_updated": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_audit_003",
+    "actor": "SUPER_ADMIN",
+    "goal": "Investigate deletion of John Mwangi by Fatuma Ali and restore data.",
+    "requests": [
+      {
+        "message": "Show audit logs for user Fatuma Ali from last week."
+      },
+      {
+        "message": "Filter logs for any delete operations in Lakeside Realty."
+      },
+      {
+        "message": "Identify who deleted the record for tenant John Mwangi."
+      },
+      {
+        "message": "Recreate the deleted tenant record for John Mwangi under Lakeside Realty."
+      },
+      {
+        "message": "Log a security incident regarding unauthorized deletion by Fatuma Ali."
+      },
+      {
+        "message": "Send a summary of this investigation to the global security mailbox."
+      }
+    ],
+    "expected_outcome": {
+      "logs_reviewed": true,
+      "culprit_identified": true,
+      "data_restored": true,
+      "incident_logged": true
+    }
+  },
+  {
+    "workflow_id": "wf_bulk_003",
+    "actor": "SUPER_ADMIN",
+    "goal": "Bulk import and setup properties for Homeet Ltd.",
+    "requests": [
+      {
+        "message": "Import properties for Homeet Ltd from properties_batch.csv."
+      },
+      {
+        "message": "List all units that were created without a landlord assigned."
+      },
+      {
+        "message": "Bulk assign Grace Wambui as the company admin for all new units in Homeet Ltd."
+      },
+      {
+        "message": "Generate a portfolio summary for Homeet Ltd showing total unit count."
+      },
+      {
+        "message": "Alert me if any property in Homeet Ltd has more than 5 vacant units."
+      }
+    ],
+    "expected_outcome": {
+      "properties_imported": true,
+      "admin_assigned": true,
+      "summary_generated": true,
+      "alert_rule_created": true
+    }
+  },
+  {
+    "workflow_id": "wf_compliance_003",
+    "actor": "SUPER_ADMIN",
+    "goal": "Monitor payment compliance and take action on laggards.",
+    "requests": [
+      {
+        "message": "Show me all companies with more than 10% unpaid tenants this month."
+      },
+      {
+        "message": "List specific overdue tenants for the top 3 offending companies."
+      },
+      {
+        "message": "Freeze account access for Nyota Properties due to compliance failure."
+      },
+      {
+        "message": "Generate a global compliance report for all property groups."
+      },
+      {
+        "message": "Schedule a follow-up alert for Monday to check payment status again."
+      }
+    ],
+    "expected_outcome": {
+      "risk_identified": true,
+      "action_taken": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_recovery_003",
+    "actor": "SUPER_ADMIN",
+    "goal": "Recover failed transaction TXN168967 and notify user.",
+    "requests": [
+      {
+        "message": "Identify all failed M-Pesa transactions for today."
+      },
+      {
+        "message": "Check status of transaction TXN168967 specifically."
+      },
+      {
+        "message": "Reverse the failed payment TXN168967 and credit the tenant's wallet."
+      },
+      {
+        "message": "Notify the affected tenant about the reversal for TXN168967."
+      },
+      {
+        "message": "Generate a system health report focusing on payment gateway stability."
+      },
+      {
+        "message": "Escalate the gateway timeout issues to the dev team."
+      }
+    ],
+    "expected_outcome": {
+      "failure_identified": true,
+      "reversal_complete": true,
+      "tenant_notified": true,
+      "system_escalated": true
+    }
+  },
+  {
+    "workflow_id": "wf_onboard_004",
+    "actor": "SUPER_ADMIN",
+    "goal": "Onboard Lakeside Realty, add tenants Kibet Kiprop/Mary Atieno, and generate report.",
+    "requests": [
+      {
+        "message": "Create company admin for Lakeside Realty called Samuel Kamau."
+      },
+      {
+        "message": "Create new tenants: Kibet Kiprop, Mary Atieno under Lakeside Realty."
+      },
+      {
+        "message": "Assign units F2 and G7 to Kibet Kiprop and Mary Atieno respectively."
+      },
+      {
+        "message": "Update rent for unit F2 to 30000 and unit G7 to 20000."
+      },
+      {
+        "message": "Generate monthly rent report for Lakeside Realty."
+      },
+      {
+        "message": "Notify Kibet Kiprop and Mary Atieno about their new rent amounts via WhatsApp."
+      }
+    ],
+    "expected_outcome": {
+      "company_admin_created": true,
+      "tenants_created": true,
+      "units_assigned": true,
+      "rent_updated": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_audit_004",
+    "actor": "SUPER_ADMIN",
+    "goal": "Investigate deletion of David Njuguna by Peter Otieno and restore data.",
+    "requests": [
+      {
+        "message": "Show audit logs for user Peter Otieno from last week."
+      },
+      {
+        "message": "Filter logs for any delete operations in Aedra Realty."
+      },
+      {
+        "message": "Identify who deleted the record for tenant David Njuguna."
+      },
+      {
+        "message": "Recreate the deleted tenant record for David Njuguna under Aedra Realty."
+      },
+      {
+        "message": "Log a security incident regarding unauthorized deletion by Peter Otieno."
+      },
+      {
+        "message": "Send a summary of this investigation to the global security mailbox."
+      }
+    ],
+    "expected_outcome": {
+      "logs_reviewed": true,
+      "culprit_identified": true,
+      "data_restored": true,
+      "incident_logged": true
+    }
+  },
+  {
+    "workflow_id": "wf_bulk_004",
+    "actor": "SUPER_ADMIN",
+    "goal": "Bulk import and setup properties for Lakeside Realty.",
+    "requests": [
+      {
+        "message": "Import properties for Lakeside Realty from properties_batch.csv."
+      },
+      {
+        "message": "List all units that were created without a landlord assigned."
+      },
+      {
+        "message": "Bulk assign Sarah Otieno as the company admin for all new units in Lakeside Realty."
+      },
+      {
+        "message": "Generate a portfolio summary for Lakeside Realty showing total unit count."
+      },
+      {
+        "message": "Alert me if any property in Lakeside Realty has more than 5 vacant units."
+      }
+    ],
+    "expected_outcome": {
+      "properties_imported": true,
+      "admin_assigned": true,
+      "summary_generated": true,
+      "alert_rule_created": true
+    }
+  },
+  {
+    "workflow_id": "wf_compliance_004",
+    "actor": "SUPER_ADMIN",
+    "goal": "Monitor payment compliance and take action on laggards.",
+    "requests": [
+      {
+        "message": "Show me all companies with more than 10% unpaid tenants this month."
+      },
+      {
+        "message": "List specific overdue tenants for the top 3 offending companies."
+      },
+      {
+        "message": "Freeze account access for Lakeside Realty due to compliance failure."
+      },
+      {
+        "message": "Generate a global compliance report for all property groups."
+      },
+      {
+        "message": "Schedule a follow-up alert for Monday to check payment status again."
+      }
+    ],
+    "expected_outcome": {
+      "risk_identified": true,
+      "action_taken": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_recovery_004",
+    "actor": "SUPER_ADMIN",
+    "goal": "Recover failed transaction TXN518005 and notify user.",
+    "requests": [
+      {
+        "message": "Identify all failed M-Pesa transactions for today."
+      },
+      {
+        "message": "Check status of transaction TXN518005 specifically."
+      },
+      {
+        "message": "Reverse the failed payment TXN518005 and credit the tenant's wallet."
+      },
+      {
+        "message": "Notify the affected tenant about the reversal for TXN518005."
+      },
+      {
+        "message": "Generate a system health report focusing on payment gateway stability."
+      },
+      {
+        "message": "Escalate the gateway timeout issues to the dev team."
+      }
+    ],
+    "expected_outcome": {
+      "failure_identified": true,
+      "reversal_complete": true,
+      "tenant_notified": true,
+      "system_escalated": true
+    }
+  },
+  {
+    "workflow_id": "wf_onboard_005",
+    "actor": "SUPER_ADMIN",
+    "goal": "Onboard Homeet Ltd, add tenants John Mwangi/Kibet Kiprop, and generate report.",
+    "requests": [
+      {
+        "message": "Create company admin for Homeet Ltd called Sarah Otieno."
+      },
+      {
+        "message": "Create new tenants: John Mwangi, Kibet Kiprop under Homeet Ltd."
+      },
+      {
+        "message": "Assign units C4 and B12 to John Mwangi and Kibet Kiprop respectively."
+      },
+      {
+        "message": "Update rent for unit C4 to 35000 and unit B12 to 28000."
+      },
+      {
+        "message": "Generate monthly rent report for Homeet Ltd."
+      },
+      {
+        "message": "Notify John Mwangi and Kibet Kiprop about their new rent amounts via WhatsApp."
+      }
+    ],
+    "expected_outcome": {
+      "company_admin_created": true,
+      "tenants_created": true,
+      "units_assigned": true,
+      "rent_updated": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_audit_005",
+    "actor": "SUPER_ADMIN",
+    "goal": "Investigate deletion of Fatuma Ali by Samuel Kamau and restore data.",
+    "requests": [
+      {
+        "message": "Show audit logs for user Samuel Kamau from last week."
+      },
+      {
+        "message": "Filter logs for any delete operations in Lakeside Realty."
+      },
+      {
+        "message": "Identify who deleted the record for tenant Fatuma Ali."
+      },
+      {
+        "message": "Recreate the deleted tenant record for Fatuma Ali under Lakeside Realty."
+      },
+      {
+        "message": "Log a security incident regarding unauthorized deletion by Samuel Kamau."
+      },
+      {
+        "message": "Send a summary of this investigation to the global security mailbox."
+      }
+    ],
+    "expected_outcome": {
+      "logs_reviewed": true,
+      "culprit_identified": true,
+      "data_restored": true,
+      "incident_logged": true
+    }
+  },
+  {
+    "workflow_id": "wf_bulk_005",
+    "actor": "SUPER_ADMIN",
+    "goal": "Bulk import and setup properties for Sunrise Estates.",
+    "requests": [
+      {
+        "message": "Import properties for Sunrise Estates from properties_batch.csv."
+      },
+      {
+        "message": "List all units that were created without a landlord assigned."
+      },
+      {
+        "message": "Bulk assign Sarah Otieno as the company admin for all new units in Sunrise Estates."
+      },
+      {
+        "message": "Generate a portfolio summary for Sunrise Estates showing total unit count."
+      },
+      {
+        "message": "Alert me if any property in Sunrise Estates has more than 5 vacant units."
+      }
+    ],
+    "expected_outcome": {
+      "properties_imported": true,
+      "admin_assigned": true,
+      "summary_generated": true,
+      "alert_rule_created": true
+    }
+  },
+  {
+    "workflow_id": "wf_compliance_005",
+    "actor": "SUPER_ADMIN",
+    "goal": "Monitor payment compliance and take action on laggards.",
+    "requests": [
+      {
+        "message": "Show me all companies with more than 10% unpaid tenants this month."
+      },
+      {
+        "message": "List specific overdue tenants for the top 3 offending companies."
+      },
+      {
+        "message": "Freeze account access for Sunrise Estates due to compliance failure."
+      },
+      {
+        "message": "Generate a global compliance report for all property groups."
+      },
+      {
+        "message": "Schedule a follow-up alert for Monday to check payment status again."
+      }
+    ],
+    "expected_outcome": {
+      "risk_identified": true,
+      "action_taken": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_recovery_005",
+    "actor": "SUPER_ADMIN",
+    "goal": "Recover failed transaction TXN187986 and notify user.",
+    "requests": [
+      {
+        "message": "Identify all failed M-Pesa transactions for today."
+      },
+      {
+        "message": "Check status of transaction TXN187986 specifically."
+      },
+      {
+        "message": "Reverse the failed payment TXN187986 and credit the tenant's wallet."
+      },
+      {
+        "message": "Notify the affected tenant about the reversal for TXN187986."
+      },
+      {
+        "message": "Generate a system health report focusing on payment gateway stability."
+      },
+      {
+        "message": "Escalate the gateway timeout issues to the dev team."
+      }
+    ],
+    "expected_outcome": {
+      "failure_identified": true,
+      "reversal_complete": true,
+      "tenant_notified": true,
+      "system_escalated": true
+    }
+  },
+  {
+    "workflow_id": "wf_onboard_006",
+    "actor": "SUPER_ADMIN",
+    "goal": "Onboard Aedra Realty, add tenants Kibet Kiprop/David Njuguna, and generate report.",
+    "requests": [
+      {
+        "message": "Create company admin for Aedra Realty called Samuel Kamau."
+      },
+      {
+        "message": "Create new tenants: Kibet Kiprop, David Njuguna under Aedra Realty."
+      },
+      {
+        "message": "Assign units A1 and E5 to Kibet Kiprop and David Njuguna respectively."
+      },
+      {
+        "message": "Update rent for unit A1 to 25000 and unit E5 to 22000."
+      },
+      {
+        "message": "Generate monthly rent report for Aedra Realty."
+      },
+      {
+        "message": "Notify Kibet Kiprop and David Njuguna about their new rent amounts via WhatsApp."
+      }
+    ],
+    "expected_outcome": {
+      "company_admin_created": true,
+      "tenants_created": true,
+      "units_assigned": true,
+      "rent_updated": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_audit_006",
+    "actor": "SUPER_ADMIN",
+    "goal": "Investigate deletion of Mary Atieno by Grace Wambui and restore data.",
+    "requests": [
+      {
+        "message": "Show audit logs for user Grace Wambui from last week."
+      },
+      {
+        "message": "Filter logs for any delete operations in Homeet Ltd."
+      },
+      {
+        "message": "Identify who deleted the record for tenant Mary Atieno."
+      },
+      {
+        "message": "Recreate the deleted tenant record for Mary Atieno under Homeet Ltd."
+      },
+      {
+        "message": "Log a security incident regarding unauthorized deletion by Grace Wambui."
+      },
+      {
+        "message": "Send a summary of this investigation to the global security mailbox."
+      }
+    ],
+    "expected_outcome": {
+      "logs_reviewed": true,
+      "culprit_identified": true,
+      "data_restored": true,
+      "incident_logged": true
+    }
+  },
+  {
+    "workflow_id": "wf_bulk_006",
+    "actor": "SUPER_ADMIN",
+    "goal": "Bulk import and setup properties for Aedra Realty.",
+    "requests": [
+      {
+        "message": "Import properties for Aedra Realty from properties_batch.csv."
+      },
+      {
+        "message": "List all units that were created without a landlord assigned."
+      },
+      {
+        "message": "Bulk assign Grace Wambui as the company admin for all new units in Aedra Realty."
+      },
+      {
+        "message": "Generate a portfolio summary for Aedra Realty showing total unit count."
+      },
+      {
+        "message": "Alert me if any property in Aedra Realty has more than 5 vacant units."
+      }
+    ],
+    "expected_outcome": {
+      "properties_imported": true,
+      "admin_assigned": true,
+      "summary_generated": true,
+      "alert_rule_created": true
+    }
+  },
+  {
+    "workflow_id": "wf_compliance_006",
+    "actor": "SUPER_ADMIN",
+    "goal": "Monitor payment compliance and take action on laggards.",
+    "requests": [
+      {
+        "message": "Show me all companies with more than 10% unpaid tenants this month."
+      },
+      {
+        "message": "List specific overdue tenants for the top 3 offending companies."
+      },
+      {
+        "message": "Freeze account access for Nyota Properties due to compliance failure."
+      },
+      {
+        "message": "Generate a global compliance report for all property groups."
+      },
+      {
+        "message": "Schedule a follow-up alert for Monday to check payment status again."
+      }
+    ],
+    "expected_outcome": {
+      "risk_identified": true,
+      "action_taken": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_recovery_006",
+    "actor": "SUPER_ADMIN",
+    "goal": "Recover failed transaction TXN938141 and notify user.",
+    "requests": [
+      {
+        "message": "Identify all failed M-Pesa transactions for today."
+      },
+      {
+        "message": "Check status of transaction TXN938141 specifically."
+      },
+      {
+        "message": "Reverse the failed payment TXN938141 and credit the tenant's wallet."
+      },
+      {
+        "message": "Notify the affected tenant about the reversal for TXN938141."
+      },
+      {
+        "message": "Generate a system health report focusing on payment gateway stability."
+      },
+      {
+        "message": "Escalate the gateway timeout issues to the dev team."
+      }
+    ],
+    "expected_outcome": {
+      "failure_identified": true,
+      "reversal_complete": true,
+      "tenant_notified": true,
+      "system_escalated": true
+    }
+  },
+  {
+    "workflow_id": "wf_onboard_007",
+    "actor": "SUPER_ADMIN",
+    "goal": "Onboard Lakeside Realty, add tenants David Njuguna/Fatuma Ali, and generate report.",
+    "requests": [
+      {
+        "message": "Create company admin for Lakeside Realty called Peter Otieno."
+      },
+      {
+        "message": "Create new tenants: David Njuguna, Fatuma Ali under Lakeside Realty."
+      },
+      {
+        "message": "Assign units D10 and B12 to David Njuguna and Fatuma Ali respectively."
+      },
+      {
+        "message": "Update rent for unit D10 to 35000 and unit B12 to 28000."
+      },
+      {
+        "message": "Generate monthly rent report for Lakeside Realty."
+      },
+      {
+        "message": "Notify David Njuguna and Fatuma Ali about their new rent amounts via WhatsApp."
+      }
+    ],
+    "expected_outcome": {
+      "company_admin_created": true,
+      "tenants_created": true,
+      "units_assigned": true,
+      "rent_updated": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_audit_007",
+    "actor": "SUPER_ADMIN",
+    "goal": "Investigate deletion of Kibet Kiprop by Fatuma Ali and restore data.",
+    "requests": [
+      {
+        "message": "Show audit logs for user Fatuma Ali from last week."
+      },
+      {
+        "message": "Filter logs for any delete operations in Lakeside Realty."
+      },
+      {
+        "message": "Identify who deleted the record for tenant Kibet Kiprop."
+      },
+      {
+        "message": "Recreate the deleted tenant record for Kibet Kiprop under Lakeside Realty."
+      },
+      {
+        "message": "Log a security incident regarding unauthorized deletion by Fatuma Ali."
+      },
+      {
+        "message": "Send a summary of this investigation to the global security mailbox."
+      }
+    ],
+    "expected_outcome": {
+      "logs_reviewed": true,
+      "culprit_identified": true,
+      "data_restored": true,
+      "incident_logged": true
+    }
+  },
+  {
+    "workflow_id": "wf_bulk_007",
+    "actor": "SUPER_ADMIN",
+    "goal": "Bulk import and setup properties for Sunrise Estates.",
+    "requests": [
+      {
+        "message": "Import properties for Sunrise Estates from properties_batch.csv."
+      },
+      {
+        "message": "List all units that were created without a landlord assigned."
+      },
+      {
+        "message": "Bulk assign Samuel Kamau as the company admin for all new units in Sunrise Estates."
+      },
+      {
+        "message": "Generate a portfolio summary for Sunrise Estates showing total unit count."
+      },
+      {
+        "message": "Alert me if any property in Sunrise Estates has more than 5 vacant units."
+      }
+    ],
+    "expected_outcome": {
+      "properties_imported": true,
+      "admin_assigned": true,
+      "summary_generated": true,
+      "alert_rule_created": true
+    }
+  },
+  {
+    "workflow_id": "wf_compliance_007",
+    "actor": "SUPER_ADMIN",
+    "goal": "Monitor payment compliance and take action on laggards.",
+    "requests": [
+      {
+        "message": "Show me all companies with more than 10% unpaid tenants this month."
+      },
+      {
+        "message": "List specific overdue tenants for the top 3 offending companies."
+      },
+      {
+        "message": "Freeze account access for Aedra Realty due to compliance failure."
+      },
+      {
+        "message": "Generate a global compliance report for all property groups."
+      },
+      {
+        "message": "Schedule a follow-up alert for Monday to check payment status again."
+      }
+    ],
+    "expected_outcome": {
+      "risk_identified": true,
+      "action_taken": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_recovery_007",
+    "actor": "SUPER_ADMIN",
+    "goal": "Recover failed transaction TXN451766 and notify user.",
+    "requests": [
+      {
+        "message": "Identify all failed M-Pesa transactions for today."
+      },
+      {
+        "message": "Check status of transaction TXN451766 specifically."
+      },
+      {
+        "message": "Reverse the failed payment TXN451766 and credit the tenant's wallet."
+      },
+      {
+        "message": "Notify the affected tenant about the reversal for TXN451766."
+      },
+      {
+        "message": "Generate a system health report focusing on payment gateway stability."
+      },
+      {
+        "message": "Escalate the gateway timeout issues to the dev team."
+      }
+    ],
+    "expected_outcome": {
+      "failure_identified": true,
+      "reversal_complete": true,
+      "tenant_notified": true,
+      "system_escalated": true
+    }
+  },
+  {
+    "workflow_id": "wf_onboard_008",
+    "actor": "SUPER_ADMIN",
+    "goal": "Onboard Nyota Properties, add tenants Fatuma Ali/John Mwangi, and generate report.",
+    "requests": [
+      {
+        "message": "Create company admin for Nyota Properties called Peter Otieno."
+      },
+      {
+        "message": "Create new tenants: Fatuma Ali, John Mwangi under Nyota Properties."
+      },
+      {
+        "message": "Assign units E5 and G7 to Fatuma Ali and John Mwangi respectively."
+      },
+      {
+        "message": "Update rent for unit E5 to 30000 and unit G7 to 20000."
+      },
+      {
+        "message": "Generate monthly rent report for Nyota Properties."
+      },
+      {
+        "message": "Notify Fatuma Ali and John Mwangi about their new rent amounts via WhatsApp."
+      }
+    ],
+    "expected_outcome": {
+      "company_admin_created": true,
+      "tenants_created": true,
+      "units_assigned": true,
+      "rent_updated": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_audit_008",
+    "actor": "SUPER_ADMIN",
+    "goal": "Investigate deletion of Fatuma Ali by Samuel Kamau and restore data.",
+    "requests": [
+      {
+        "message": "Show audit logs for user Samuel Kamau from last week."
+      },
+      {
+        "message": "Filter logs for any delete operations in Homeet Ltd."
+      },
+      {
+        "message": "Identify who deleted the record for tenant Fatuma Ali."
+      },
+      {
+        "message": "Recreate the deleted tenant record for Fatuma Ali under Homeet Ltd."
+      },
+      {
+        "message": "Log a security incident regarding unauthorized deletion by Samuel Kamau."
+      },
+      {
+        "message": "Send a summary of this investigation to the global security mailbox."
+      }
+    ],
+    "expected_outcome": {
+      "logs_reviewed": true,
+      "culprit_identified": true,
+      "data_restored": true,
+      "incident_logged": true
+    }
+  },
+  {
+    "workflow_id": "wf_bulk_008",
+    "actor": "SUPER_ADMIN",
+    "goal": "Bulk import and setup properties for Sunrise Estates.",
+    "requests": [
+      {
+        "message": "Import properties for Sunrise Estates from properties_batch.csv."
+      },
+      {
+        "message": "List all units that were created without a landlord assigned."
+      },
+      {
+        "message": "Bulk assign Sarah Otieno as the company admin for all new units in Sunrise Estates."
+      },
+      {
+        "message": "Generate a portfolio summary for Sunrise Estates showing total unit count."
+      },
+      {
+        "message": "Alert me if any property in Sunrise Estates has more than 5 vacant units."
+      }
+    ],
+    "expected_outcome": {
+      "properties_imported": true,
+      "admin_assigned": true,
+      "summary_generated": true,
+      "alert_rule_created": true
+    }
+  },
+  {
+    "workflow_id": "wf_compliance_008",
+    "actor": "SUPER_ADMIN",
+    "goal": "Monitor payment compliance and take action on laggards.",
+    "requests": [
+      {
+        "message": "Show me all companies with more than 10% unpaid tenants this month."
+      },
+      {
+        "message": "List specific overdue tenants for the top 3 offending companies."
+      },
+      {
+        "message": "Freeze account access for Aedra Realty due to compliance failure."
+      },
+      {
+        "message": "Generate a global compliance report for all property groups."
+      },
+      {
+        "message": "Schedule a follow-up alert for Monday to check payment status again."
+      }
+    ],
+    "expected_outcome": {
+      "risk_identified": true,
+      "action_taken": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_recovery_008",
+    "actor": "SUPER_ADMIN",
+    "goal": "Recover failed transaction TXN234056 and notify user.",
+    "requests": [
+      {
+        "message": "Identify all failed M-Pesa transactions for today."
+      },
+      {
+        "message": "Check status of transaction TXN234056 specifically."
+      },
+      {
+        "message": "Reverse the failed payment TXN234056 and credit the tenant's wallet."
+      },
+      {
+        "message": "Notify the affected tenant about the reversal for TXN234056."
+      },
+      {
+        "message": "Generate a system health report focusing on payment gateway stability."
+      },
+      {
+        "message": "Escalate the gateway timeout issues to the dev team."
+      }
+    ],
+    "expected_outcome": {
+      "failure_identified": true,
+      "reversal_complete": true,
+      "tenant_notified": true,
+      "system_escalated": true
+    }
+  },
+  {
+    "workflow_id": "wf_onboard_009",
+    "actor": "SUPER_ADMIN",
+    "goal": "Onboard Lakeside Realty, add tenants Mary Atieno/Fatuma Ali, and generate report.",
+    "requests": [
+      {
+        "message": "Create company admin for Lakeside Realty called Peter Otieno."
+      },
+      {
+        "message": "Create new tenants: Mary Atieno, Fatuma Ali under Lakeside Realty."
+      },
+      {
+        "message": "Assign units B12 and G7 to Mary Atieno and Fatuma Ali respectively."
+      },
+      {
+        "message": "Update rent for unit B12 to 35000 and unit G7 to 28000."
+      },
+      {
+        "message": "Generate monthly rent report for Lakeside Realty."
+      },
+      {
+        "message": "Notify Mary Atieno and Fatuma Ali about their new rent amounts via WhatsApp."
+      }
+    ],
+    "expected_outcome": {
+      "company_admin_created": true,
+      "tenants_created": true,
+      "units_assigned": true,
+      "rent_updated": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_audit_009",
+    "actor": "SUPER_ADMIN",
+    "goal": "Investigate deletion of John Mwangi by Sarah Otieno and restore data.",
+    "requests": [
+      {
+        "message": "Show audit logs for user Sarah Otieno from last week."
+      },
+      {
+        "message": "Filter logs for any delete operations in Sunrise Estates."
+      },
+      {
+        "message": "Identify who deleted the record for tenant John Mwangi."
+      },
+      {
+        "message": "Recreate the deleted tenant record for John Mwangi under Sunrise Estates."
+      },
+      {
+        "message": "Log a security incident regarding unauthorized deletion by Sarah Otieno."
+      },
+      {
+        "message": "Send a summary of this investigation to the global security mailbox."
+      }
+    ],
+    "expected_outcome": {
+      "logs_reviewed": true,
+      "culprit_identified": true,
+      "data_restored": true,
+      "incident_logged": true
+    }
+  },
+  {
+    "workflow_id": "wf_bulk_009",
+    "actor": "SUPER_ADMIN",
+    "goal": "Bulk import and setup properties for Homeet Ltd.",
+    "requests": [
+      {
+        "message": "Import properties for Homeet Ltd from properties_batch.csv."
+      },
+      {
+        "message": "List all units that were created without a landlord assigned."
+      },
+      {
+        "message": "Bulk assign Samuel Kamau as the company admin for all new units in Homeet Ltd."
+      },
+      {
+        "message": "Generate a portfolio summary for Homeet Ltd showing total unit count."
+      },
+      {
+        "message": "Alert me if any property in Homeet Ltd has more than 5 vacant units."
+      }
+    ],
+    "expected_outcome": {
+      "properties_imported": true,
+      "admin_assigned": true,
+      "summary_generated": true,
+      "alert_rule_created": true
+    }
+  },
+  {
+    "workflow_id": "wf_compliance_009",
+    "actor": "SUPER_ADMIN",
+    "goal": "Monitor payment compliance and take action on laggards.",
+    "requests": [
+      {
+        "message": "Show me all companies with more than 10% unpaid tenants this month."
+      },
+      {
+        "message": "List specific overdue tenants for the top 3 offending companies."
+      },
+      {
+        "message": "Freeze account access for Lakeside Realty due to compliance failure."
+      },
+      {
+        "message": "Generate a global compliance report for all property groups."
+      },
+      {
+        "message": "Schedule a follow-up alert for Monday to check payment status again."
+      }
+    ],
+    "expected_outcome": {
+      "risk_identified": true,
+      "action_taken": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_recovery_009",
+    "actor": "SUPER_ADMIN",
+    "goal": "Recover failed transaction TXN609910 and notify user.",
+    "requests": [
+      {
+        "message": "Identify all failed M-Pesa transactions for today."
+      },
+      {
+        "message": "Check status of transaction TXN609910 specifically."
+      },
+      {
+        "message": "Reverse the failed payment TXN609910 and credit the tenant's wallet."
+      },
+      {
+        "message": "Notify the affected tenant about the reversal for TXN609910."
+      },
+      {
+        "message": "Generate a system health report focusing on payment gateway stability."
+      },
+      {
+        "message": "Escalate the gateway timeout issues to the dev team."
+      }
+    ],
+    "expected_outcome": {
+      "failure_identified": true,
+      "reversal_complete": true,
+      "tenant_notified": true,
+      "system_escalated": true
+    }
+  },
+  {
+    "workflow_id": "wf_onboard_010",
+    "actor": "SUPER_ADMIN",
+    "goal": "Onboard Aedra Realty, add tenants Mary Atieno/Kibet Kiprop, and generate report.",
+    "requests": [
+      {
+        "message": "Create company admin for Aedra Realty called Samuel Kamau."
+      },
+      {
+        "message": "Create new tenants: Mary Atieno, Kibet Kiprop under Aedra Realty."
+      },
+      {
+        "message": "Assign units A1 and D10 to Mary Atieno and Kibet Kiprop respectively."
+      },
+      {
+        "message": "Update rent for unit A1 to 25000 and unit D10 to 28000."
+      },
+      {
+        "message": "Generate monthly rent report for Aedra Realty."
+      },
+      {
+        "message": "Notify Mary Atieno and Kibet Kiprop about their new rent amounts via WhatsApp."
+      }
+    ],
+    "expected_outcome": {
+      "company_admin_created": true,
+      "tenants_created": true,
+      "units_assigned": true,
+      "rent_updated": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_audit_010",
+    "actor": "SUPER_ADMIN",
+    "goal": "Investigate deletion of Kibet Kiprop by Peter Otieno and restore data.",
+    "requests": [
+      {
+        "message": "Show audit logs for user Peter Otieno from last week."
+      },
+      {
+        "message": "Filter logs for any delete operations in Aedra Realty."
+      },
+      {
+        "message": "Identify who deleted the record for tenant Kibet Kiprop."
+      },
+      {
+        "message": "Recreate the deleted tenant record for Kibet Kiprop under Aedra Realty."
+      },
+      {
+        "message": "Log a security incident regarding unauthorized deletion by Peter Otieno."
+      },
+      {
+        "message": "Send a summary of this investigation to the global security mailbox."
+      }
+    ],
+    "expected_outcome": {
+      "logs_reviewed": true,
+      "culprit_identified": true,
+      "data_restored": true,
+      "incident_logged": true
+    }
+  },
+  {
+    "workflow_id": "wf_bulk_010",
+    "actor": "SUPER_ADMIN",
+    "goal": "Bulk import and setup properties for Sunrise Estates.",
+    "requests": [
+      {
+        "message": "Import properties for Sunrise Estates from properties_batch.csv."
+      },
+      {
+        "message": "List all units that were created without a landlord assigned."
+      },
+      {
+        "message": "Bulk assign Fatuma Ali as the company admin for all new units in Sunrise Estates."
+      },
+      {
+        "message": "Generate a portfolio summary for Sunrise Estates showing total unit count."
+      },
+      {
+        "message": "Alert me if any property in Sunrise Estates has more than 5 vacant units."
+      }
+    ],
+    "expected_outcome": {
+      "properties_imported": true,
+      "admin_assigned": true,
+      "summary_generated": true,
+      "alert_rule_created": true
+    }
+  },
+  {
+    "workflow_id": "wf_compliance_010",
+    "actor": "SUPER_ADMIN",
+    "goal": "Monitor payment compliance and take action on laggards.",
+    "requests": [
+      {
+        "message": "Show me all companies with more than 10% unpaid tenants this month."
+      },
+      {
+        "message": "List specific overdue tenants for the top 3 offending companies."
+      },
+      {
+        "message": "Freeze account access for Homeet Ltd due to compliance failure."
+      },
+      {
+        "message": "Generate a global compliance report for all property groups."
+      },
+      {
+        "message": "Schedule a follow-up alert for Monday to check payment status again."
+      }
+    ],
+    "expected_outcome": {
+      "risk_identified": true,
+      "action_taken": true,
+      "report_generated": true
+    }
+  },
+  {
+    "workflow_id": "wf_recovery_010",
+    "actor": "SUPER_ADMIN",
+    "goal": "Recover failed transaction TXN841190 and notify user.",
+    "requests": [
+      {
+        "message": "Identify all failed M-Pesa transactions for today."
+      },
+      {
+        "message": "Check status of transaction TXN841190 specifically."
+      },
+      {
+        "message": "Reverse the failed payment TXN841190 and credit the tenant's wallet."
+      },
+      {
+        "message": "Notify the affected tenant about the reversal for TXN841190."
+      },
+      {
+        "message": "Generate a system health report focusing on payment gateway stability."
+      },
+      {
+        "message": "Escalate the gateway timeout issues to the dev team."
+      }
+    ],
+    "expected_outcome": {
+      "failure_identified": true,
+      "reversal_complete": true,
+      "tenant_notified": true,
+      "system_escalated": true
+    }
+  }
+]

@@ -12,6 +12,11 @@ export interface UpdateCompanyDto {
   phone?: string;
   address?: string;
   logo?: string;
+  waAccessToken?: string;
+  waVerifyToken?: string;
+  waPhoneNumberId?: string;
+  waBusinessAccountId?: string;
+  waOwnerPhone?: string;
 }
 
 @Injectable()

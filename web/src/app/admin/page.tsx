@@ -7,6 +7,8 @@ import {
     listProperties,
     listTenants,
     fetchReportRevenue,
+    fetchReportSummary,
+    fetchReportOccupancy,
 } from "@/lib/backend-api"
 import { getRoleFromCookie, getSessionTokenFromCookie } from "@/lib/cookie-utils"
 
@@ -18,17 +20,43 @@ export default async function AdminDashboard() {
     const meResult = await fetchMe(sessionToken)
     const propertiesResult = await listProperties(sessionToken)
     const tenantsResult = await listTenants(sessionToken)
+    const summaryResult = await fetchReportSummary(sessionToken)
+    const occupancyResult = await fetchReportOccupancy(sessionToken)
     const revenueResult = await fetchReportRevenue(sessionToken)
 
     const resolvedRole = meResult.data?.user.role
     const backendOnline = meResult.error === null
-    const unpaidBalance = revenueResult.data?.unpaidBalance || 0
+    const unpaidBalanceRaw = revenueResult.data?.unpaidBalance ?? 0
+    const unpaidBalance = Math.abs(unpaidBalanceRaw)
 
     const properties = propertiesResult.data?.data ?? []
     const tenants = tenantsResult.data?.data ?? []
+    const summary = summaryResult.data
+    const occupancy = occupancyResult.data
 
-    const totalUnits = properties.reduce((s, p) => s + (p.totalUnits ?? 0), 0)
-    const totalOccupied = properties.reduce((s, p) => s + (p.occupiedUnits ?? 0), 0)
+    const totalPropertiesFromSummary = summary?.properties ?? 0
+    const totalTenantsFromSummary = summary?.tenants ?? 0
+
+    const totalUnitsFromSummary = summary?.units ?? 0
+    const totalUnitsFromOccupancy = occupancy
+        ? (occupancy.OCCUPIED ?? 0) + (occupancy.VACANT ?? 0) + (occupancy.UNDER_MAINTENANCE ?? 0)
+        : 0
+    const totalUnitsFromProps = properties.reduce((s, p) => s + (p.totalUnits ?? 0), 0)
+    const totalUnits = totalUnitsFromSummary || totalUnitsFromOccupancy || totalUnitsFromProps
+
+    const totalOccupiedFromOccupancy = occupancy?.OCCUPIED ?? 0
+    const totalOccupiedFromProps = properties.reduce((s, p) => s + (p.occupiedUnits ?? 0), 0)
+    const totalOccupied = totalOccupiedFromOccupancy || totalOccupiedFromProps
+
+    const totalProperties =
+        totalPropertiesFromSummary ||
+        propertiesResult.data?.meta?.total ||
+        properties.length
+
+    const totalTenants =
+        totalTenantsFromSummary ||
+        tenantsResult.data?.meta?.total ||
+        tenants.length
 
     return (
         <div className="flex flex-col gap-6 pb-10">
@@ -64,7 +92,7 @@ export default async function AdminDashboard() {
                         <Building2 className="h-4 w-4 text-neutral-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-white">{properties.length}</div>
+                        <div className="text-2xl font-bold text-white">{totalProperties}</div>
                         <p className="text-xs text-neutral-400 mt-1">across Mombasa County</p>
                     </CardContent>
                 </Card>
@@ -75,7 +103,7 @@ export default async function AdminDashboard() {
                         <Users className="h-4 w-4 text-neutral-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-white">{tenants.length}</div>
+                        <div className="text-2xl font-bold text-white">{totalTenants}</div>
                         <p className="text-xs text-neutral-400 mt-1">across all properties</p>
                     </CardContent>
                 </Card>

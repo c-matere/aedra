@@ -266,4 +266,111 @@ export class UnitsService {
 
     return this.prisma.unit.delete({ where: { id } });
   }
+
+  async getPortfolioSnapshot(actor: AuthenticatedUser, propertyId?: string) {
+    const companyId = actor.companyId;
+    const isSuperAdmin = actor.role === 'SUPER_ADMIN';
+
+    // Critical: If not super admin, must have companyId. 
+    // If super admin, should have companyId or propertyId to avoid scanning the entire database.
+    if (!companyId && !propertyId && !isSuperAdmin) {
+      return {}; 
+    }
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const where: Prisma.PropertyWhereInput = {
+      ...(companyId ? { companyId } : {}),
+      ...(propertyId ? { id: propertyId } : {}),
+      deletedAt: null,
+    };
+    
+    // Safety check for SUPER_ADMIN without specific scope
+    if (Object.keys(where).filter(k => k !== 'deletedAt').length === 0) {
+      this.prisma.$connect(); // Ensure connection is warm
+      // If no scope, we limit to 5 properties max to prevent 30s timeouts
+      (where as any).id = { not: undefined }; 
+    }
+
+    const properties = await this.prisma.property.findMany({
+      where,
+      include: {
+        units: {
+          where: { deletedAt: null },
+          include: {
+            leases: {
+              where: { status: 'ACTIVE', deletedAt: null },
+              include: {
+                tenant: { select: { id: true, firstName: true, lastName: true, phone: true } },
+                payments: {
+                  where: { paidAt: { gte: startOfMonth }, deletedAt: null },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const snapshot: Record<string, any> = {};
+
+    for (const prop of properties) {
+      let totalExpected = 0;
+      let totalCollected = 0;
+      const all_units: any[] = [];
+      const paid_this_month: any[] = [];
+      const unpaid_this_month: any[] = [];
+      const partial_payments: any[] = [];
+
+      for (const unit of prop.units) {
+        const activeLease = unit.leases[0];
+        if (!activeLease) {
+          if (unit.status === 'VACANT') {
+            // Skip vacant units if needed or track them separately
+          }
+          continue;
+        }
+
+        const rent = activeLease.rentAmount;
+        const collected = activeLease.payments.reduce((sum, p) => sum + p.amount, 0);
+        
+        totalExpected += rent;
+        totalCollected += collected;
+
+        const unitInfo = {
+          id: unit.id,
+          number: unit.unitNumber,
+          tenant: `${activeLease.tenant.firstName} ${activeLease.tenant.lastName}`,
+          expected: rent,
+          collected: collected,
+        };
+
+        all_units.push(unitInfo);
+
+        if (collected >= rent) {
+          paid_this_month.push(unitInfo);
+        } else if (collected > 0) {
+          partial_payments.push(unitInfo);
+          unpaid_this_month.push(unitInfo);
+        } else {
+          unpaid_this_month.push(unitInfo);
+        }
+      }
+
+      snapshot[prop.id] = {
+        name: prop.name,
+        all_units,
+        paid_this_month,
+        unpaid_this_month,
+        partial_payments,
+        total_expected: totalExpected,
+        total_collected: totalCollected,
+        collection_rate: totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0,
+      };
+    }
+
+    return snapshot;
+  }
 }

@@ -23,6 +23,7 @@ export class TenantMiddleware implements NestMiddleware {
             userId: session.userId,
             companyId: session.companyId,
             isSuperAdmin: session.role === UserRole.SUPER_ADMIN,
+            role: session.role as UserRole,
         };
 
         tenantContext.run(data, () => {

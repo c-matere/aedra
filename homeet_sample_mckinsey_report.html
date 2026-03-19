@@ -1,0 +1,366 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  .wrap{padding:1.5rem 0;max-width:900px;font-family:'Outfit',sans-serif}
+  .cover{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;margin-bottom:1.25rem}
+  .cover-top{background:#0f1923;padding:2rem 2rem 1.5rem;color:#fff}
+  .cover-eyebrow{font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#637285;margin-bottom:0.6rem;font-family:'DM Mono',monospace}
+  .cover-title{font-family:'DM Serif Display',serif;font-size:30px;font-weight:400;line-height:1.15;margin-bottom:0.4rem}
+  .cover-sub{font-size:12px;color:#8a9ab0;font-family:'DM Mono',monospace;letter-spacing:0.04em}
+  .cover-metrics{display:grid;grid-template-columns:repeat(4,1fr);background:var(--color-background-secondary)}
+  .m-box{padding:1rem 1.25rem;border-right:0.5px solid var(--color-border-tertiary)}
+  .m-box:last-child{border-right:none}
+  .m-lbl{font-size:10px;color:var(--color-text-secondary);font-weight:400;margin-bottom:5px;letter-spacing:0.05em;text-transform:uppercase;font-family:'DM Mono',monospace}
+  .m-val{font-size:24px;font-weight:500;color:var(--color-text-primary);line-height:1}
+  .m-delta{font-size:11px;margin-top:4px;font-family:'DM Mono',monospace}
+  .up{color:#1d9e75}.dn{color:#d85a30}.neutral{color:var(--color-text-secondary)}
+  .section{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.25rem;margin-bottom:1rem}
+  .s-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:0.5px solid var(--color-border-tertiary)}
+  .s-title{font-size:10px;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-text-secondary);font-family:'DM Mono',monospace}
+  .badge{font-size:10px;padding:3px 8px;border-radius:4px;font-family:'DM Mono',monospace;letter-spacing:0.04em}
+  .b-green{background:#eaf3de;color:#3b6d11}
+  .b-amber{background:#faeeda;color:#854f0b}
+  .b-red{background:#fcebeb;color:#a32d2d}
+  .b-blue{background:#e6f1fb;color:#185fa5}
+  .exec-box{background:var(--color-background-secondary);border-left:3px solid #0f1923;padding:1rem 1.25rem;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;font-size:14px;line-height:1.85;color:var(--color-text-primary)}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+  .chart-label{font-size:10px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.07em;color:var(--color-text-secondary);margin-bottom:8px}
+  .chart-wrap{position:relative;width:100%}
+  .narrative{font-size:13.5px;line-height:1.8;color:var(--color-text-primary);margin-bottom:1rem}
+  .heat-wrap{overflow-x:auto}
+  .heat-table{width:100%;border-collapse:collapse;font-size:11px;font-family:'DM Mono',monospace}
+  .heat-table th{font-size:10px;color:var(--color-text-secondary);font-weight:400;padding:6px 8px;text-align:center;letter-spacing:0.06em;border-bottom:0.5px solid var(--color-border-tertiary)}
+  .heat-table th:first-child{text-align:left}
+  .heat-table td{padding:5px 8px;text-align:center;border-bottom:0.5px solid var(--color-border-tertiary)}
+  .heat-table td:first-child{text-align:left;color:var(--color-text-primary);font-size:12px}
+  .heat-table tr:last-child td{border-bottom:none}
+  .hc-g{background:#eaf3de;color:#3b6d11;border-radius:3px;padding:2px 6px;display:inline-block}
+  .hc-a{background:#faeeda;color:#854f0b;border-radius:3px;padding:2px 6px;display:inline-block}
+  .hc-r{background:#fcebeb;color:#a32d2d;border-radius:3px;padding:2px 6px;display:inline-block}
+  .risk-list{list-style:none}
+  .risk-item{display:flex;gap:10px;padding:11px 0;border-bottom:0.5px solid var(--color-border-tertiary);align-items:flex-start}
+  .risk-item:last-child{border-bottom:none}
+  .rdot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
+  .rdot.red{background:#e24b4a}.rdot.amber{background:#ef9f27}.rdot.green{background:#639922}
+  .r-label{font-size:10px;font-family:'DM Mono',monospace;color:var(--color-text-secondary);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.05em}
+  .r-body{font-size:13px;line-height:1.65;color:var(--color-text-primary)}
+  .rec-list{list-style:none}
+  .rec-item{display:flex;gap:14px;padding:11px 0;border-bottom:0.5px solid var(--color-border-tertiary);align-items:flex-start}
+  .rec-item:last-child{border-bottom:none}
+  .rec-num{font-size:10px;font-family:'DM Mono',monospace;color:var(--color-text-secondary);min-width:18px;margin-top:3px}
+  .rec-body{font-size:13px;line-height:1.65;color:var(--color-text-primary)}
+  .pattern-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:1rem 1.25rem;margin-bottom:10px;font-size:13px;line-height:1.75;color:var(--color-text-primary)}
+  .pattern-card .p-tag{font-size:10px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--color-text-secondary);margin-bottom:6px}
+  .roi-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);overflow:hidden;margin-top:1rem}
+  .roi-cell{padding:0.9rem 1rem;text-align:center;border-right:0.5px solid var(--color-border-tertiary)}
+  .roi-cell:last-child{border-right:none}
+  .roi-lbl{font-size:10px;font-family:'DM Mono',monospace;color:var(--color-text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em}
+  .roi-val{font-size:18px;font-weight:500;color:var(--color-text-primary)}
+  .footer{font-size:10px;color:var(--color-text-secondary);font-family:'DM Mono',monospace;text-align:center;padding:1.25rem 0 0;border-top:0.5px solid var(--color-border-tertiary);margin-top:0.5rem;letter-spacing:0.04em}
+  .legend{display:flex;gap:14px;margin-bottom:10px;flex-wrap:wrap}
+  .leg-item{display:flex;align-items:center;gap:5px;font-size:11px;font-family:'DM Mono',monospace;color:var(--color-text-secondary)}
+  .leg-sq{width:10px;height:10px;border-radius:2px}
+  .waterfall-bar{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+  .wf-row{display:flex;align-items:center;gap:8px;font-size:12px;font-family:'DM Mono',monospace}
+  .wf-lbl{min-width:110px;color:var(--color-text-secondary);font-size:11px}
+  .wf-bar{height:22px;border-radius:3px;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:500;white-space:nowrap;min-width:40px}
+  .wf-val{color:var(--color-text-secondary);font-size:11px;margin-left:6px}
+</style>
+
+<div class="wrap">
+
+  <!-- COVER -->
+  <div class="cover">
+    <div class="cover-top">
+      <div class="cover-eyebrow">Homeet Intelligence · Monthly Portfolio Report</div>
+      <div class="cover-title">Bahari Ridge Holdings</div>
+      <div class="cover-sub">March 2026 · Managed by Zawadi Mwangi · Prepared by Homeet AI</div>
+    </div>
+    <div class="cover-metrics">
+      <div class="m-box">
+        <div class="m-lbl">Occupancy</div>
+        <div class="m-val">92%</div>
+        <div class="m-delta up">↑ 4pts vs Feb</div>
+      </div>
+      <div class="m-box">
+        <div class="m-lbl">Collection rate</div>
+        <div class="m-val">94%</div>
+        <div class="m-delta up">↑ Best in 6 months</div>
+      </div>
+      <div class="m-box">
+        <div class="m-lbl">Outstanding</div>
+        <div class="m-val">KES 155K</div>
+        <div class="m-delta dn">3 tenants overdue</div>
+      </div>
+      <div class="m-box">
+        <div class="m-lbl">Open issues</div>
+        <div class="m-val">2</div>
+        <div class="m-delta neutral">5 resolved this month</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXEC SUMMARY -->
+  <div class="section">
+    <div class="s-hdr">
+      <span class="s-title">Executive summary</span>
+      <span class="badge b-green">Strong performance</span>
+    </div>
+    <div class="exec-box">
+      Bahari Ridge Holdings delivered its strongest collection month since September 2025, with KES 2.43M recovered against a KES 2.59M target — a 94% rate driven by Aedra's automated reminder cadence introduced in February. One structural risk requires immediate attention: Block C's net yield has deteriorated to 6.1% after maintenance costs, underperforming the portfolio average of 9.4% despite commanding above-average rents. Prioritise Block C maintenance audit and tenant retention action on Unit 7B before the April cycle opens.
+    </div>
+  </div>
+
+  <!-- CHARTS ROW -->
+  <div class="two-col">
+    <div class="section">
+      <div class="s-hdr"><span class="s-title">Rent collection</span></div>
+      <div class="chart-label">Collected vs target (KES thousands)</div>
+      <div class="chart-wrap" style="height:185px"><canvas id="colChart"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="s-hdr"><span class="s-title">Payment methods</span></div>
+      <div class="chart-label">Distribution — March 2026</div>
+      <div class="legend">
+        <span class="leg-item"><span class="leg-sq" style="background:#1d9e75"></span>M-Pesa 71%</span>
+        <span class="leg-item"><span class="leg-sq" style="background:#378add"></span>Card 18%</span>
+        <span class="leg-item"><span class="leg-sq" style="background:#888780"></span>Cash 11%</span>
+      </div>
+      <div class="chart-wrap" style="height:145px"><canvas id="payChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- OCCUPANCY TREND -->
+  <div class="section">
+    <div class="s-hdr">
+      <span class="s-title">Occupancy trend</span>
+      <span class="badge b-blue">6-month view</span>
+    </div>
+    <div class="chart-label">Portfolio occupancy rate (%)</div>
+    <div class="chart-wrap" style="height:150px"><canvas id="trendChart"></canvas></div>
+  </div>
+
+  <!-- YIELD WATERFALL -->
+  <div class="section">
+    <div class="s-hdr">
+      <span class="s-title">Net yield waterfall</span>
+      <span class="badge b-amber">Block C flagged</span>
+    </div>
+    <div class="narrative">Gross rent masks a significant yield gap across blocks. Block C generates KES 420,000 in gross rent but absorbs KES 187,000 in maintenance — a cost ratio 3.1× higher than Block A. On a net basis, Block C is your least profitable asset despite highest per-unit rent.</div>
+    <div class="waterfall-bar">
+      <div class="wf-row">
+        <span class="wf-lbl">Gross rent</span>
+        <div class="wf-bar" style="background:#b5d4f4;color:#185fa5;width:100%">KES 2,590,000</div>
+      </div>
+      <div class="wf-row">
+        <span class="wf-lbl">Vacancies</span>
+        <div class="wf-bar" style="background:#fcebeb;color:#a32d2d;width:18%">− 155K</div>
+        <span class="wf-val">2 units vacant</span>
+      </div>
+      <div class="wf-row">
+        <span class="wf-lbl">Arrears</span>
+        <div class="wf-bar" style="background:#faeeda;color:#854f0b;width:12%">− 155K</div>
+        <span class="wf-val">3 tenants</span>
+      </div>
+      <div class="wf-row">
+        <span class="wf-lbl">Maintenance</span>
+        <div class="wf-bar" style="background:#faeeda;color:#854f0b;width:22%">− 210K</div>
+        <span class="wf-val">Block C heavy</span>
+      </div>
+      <div class="wf-row">
+        <span class="wf-lbl">Net yield</span>
+        <div class="wf-bar" style="background:#eaf3de;color:#3b6d11;width:76%">KES 2,070,000</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEATMAP -->
+  <div class="section">
+    <div class="s-hdr">
+      <span class="s-title">Tenant payment heatmap</span>
+      <span class="badge b-amber">4 flagged</span>
+    </div>
+    <div class="narrative">Payment consistency is strong across 80% of the portfolio. Three tenants show a pattern of late payment clustering in Q1 — historically correlated with post-holiday financial pressure. One tenant, Omar Faraj, has missed two consecutive months and is entering legal notice territory.</div>
+    <div class="heat-wrap">
+      <table class="heat-table">
+        <thead>
+          <tr><th>Tenant</th><th>Unit</th><th>Nov</th><th>Dec</th><th>Jan</th><th>Feb</th><th>Mar</th><th>LTV score</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Amina Wanjiru</td><td>A1</td><td><span class="hc-g">On time</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-g">97</span></td></tr>
+          <tr><td>David Otieno</td><td>A3</td><td><span class="hc-g">On time</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-a">Late</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-g">84</span></td></tr>
+          <tr><td>Sarah Kimani</td><td>B2</td><td><span class="hc-g">On time</span></td><td><span class="hc-a">Late</span></td><td><span class="hc-a">Late</span></td><td><span class="hc-a">Late</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-a">61</span></td></tr>
+          <tr><td>Noah Mwenda</td><td>B5</td><td><span class="hc-g">On time</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-a">Late</span></td><td><span class="hc-a">Late</span></td><td><span class="hc-a">68</span></td></tr>
+          <tr><td>Omar Faraj</td><td>C4</td><td><span class="hc-g">On time</span></td><td><span class="hc-a">Late</span></td><td><span class="hc-r">Missed</span></td><td><span class="hc-r">Missed</span></td><td><span class="hc-r">Missed</span></td><td><span class="hc-r">22</span></td></tr>
+          <tr><td>Fatuma Hassan</td><td>C6</td><td><span class="hc-g">On time</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-g">99</span></td></tr>
+          <tr><td>James Kariuki</td><td>D2</td><td><span class="hc-a">Late</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-g">On time</span></td><td><span class="hc-g">79</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- DEEP PATTERNS -->
+  <div class="section">
+    <div class="s-hdr">
+      <span class="s-title">Deep pattern analysis</span>
+      <span class="badge b-blue">AI insight layer</span>
+    </div>
+
+    <div class="pattern-card">
+      <div class="p-tag">Pattern 01 · Intake cohort risk</div>
+      Tenants who moved in between June–August 2024 show a 2.3× higher late payment rate than those onboarded in other periods. Of your current 4 late payers, 3 belong to this cohort. The likely driver is that June–August move-ins correlate with post-Ramadan relocation activity — a segment with higher income variability. Recommend tightening income verification for this seasonal intake window going forward.
+    </div>
+
+    <div class="pattern-card">
+      <div class="p-tag">Pattern 02 · Cash payment decline signal</div>
+      Cash payments have dropped from 23% to 11% over 6 months — a positive digital adoption trend. However, two tenants who previously paid via M-Pesa have reverted to cash in the last 60 days. Historical data shows cash reversion precedes missed payments in 68% of similar cases within this portfolio. Both tenants warrant a proactive check-in before April's cycle.
+    </div>
+
+    <div class="pattern-card">
+      <div class="p-tag">Pattern 03 · Block C yield trap</div>
+      Block C commands the highest average rent in the portfolio at KES 28,500/unit but generates the lowest net yield at 6.1%. The maintenance cost per unit in Block C is KES 3,116/month vs a portfolio average of KES 875/month. This is not a rent pricing problem — it is a structural maintenance problem that is silently eroding returns. A one-time infrastructure audit would likely identify a root cause (plumbing or electrical) that, if resolved, could recover KES 140,000+ annually in net yield.
+    </div>
+
+    <div class="pattern-card">
+      <div class="p-tag">Pattern 04 · Vacancy gap cost</div>
+      Your average vacancy gap is 19 days. At a blended rent of KES 24,200/month, each turnover costs KES 15,300 in lost income. You had 6 turnovers in the last 12 months — total vacancy cost: KES 91,800. Aedra's move-intent detection has flagged 2 tenants showing early departure signals this month. Acting on these signals now could prevent 2 vacancies worth KES 30,600 in protected income.
+    </div>
+  </div>
+
+  <!-- ROI STRIP -->
+  <div class="section">
+    <div class="s-hdr"><span class="s-title">Aedra ROI — this portfolio</span><span class="badge b-green">Positive</span></div>
+    <div class="roi-strip">
+      <div class="roi-cell">
+        <div class="roi-lbl">Annual subscription</div>
+        <div class="roi-val">KES 54K</div>
+      </div>
+      <div class="roi-cell">
+        <div class="roi-lbl">Estimated savings</div>
+        <div class="roi-val" style="color:#1d9e75">KES 122K</div>
+      </div>
+      <div class="roi-cell">
+        <div class="roi-lbl">Return on investment</div>
+        <div class="roi-val" style="color:#1d9e75">126%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RISKS -->
+  <div class="section">
+    <div class="s-hdr">
+      <span class="s-title">Risk flags</span>
+      <span class="badge b-red">3 flags</span>
+    </div>
+    <ul class="risk-list">
+      <li class="risk-item">
+        <span class="rdot red"></span>
+        <div>
+          <div class="r-label">Critical · Omar Faraj — Unit C4</div>
+          <div class="r-body">Three consecutive missed payments totalling KES 85,500. Tenant has not responded to 4 Aedra messages in 18 days. Legal notice threshold reached. Recommend formal notice issuance by March 18th — delay beyond this point reduces recovery probability to below 30% based on portfolio history.</div>
+        </div>
+      </li>
+      <li class="risk-item">
+        <span class="rdot amber"></span>
+        <div>
+          <div class="r-label">Watch · Sarah Kimani — Unit B2</div>
+          <div class="r-body">Three late payments in four months. Recovered this month but the pattern is consistent with pre-default behaviour. She has begun browsing 1-bedroom listings on Homeet in a lower price band — a move-intent signal. Proactive retention conversation recommended before April 1st.</div>
+        </div>
+      </li>
+      <li class="risk-item">
+        <span class="rdot amber"></span>
+        <div>
+          <div class="r-label">Watch · Block C structural costs</div>
+          <div class="r-body">Maintenance spend in Block C has exceeded budget for 4 consecutive months. Net yield has compressed from 9.8% to 6.1% over this period. Without intervention, Block C will become cash-flow negative by June 2026 at the current trajectory.</div>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- RECOMMENDATIONS -->
+  <div class="section">
+    <div class="s-hdr">
+      <span class="s-title">Recommendations</span>
+      <span class="badge b-blue">4 actions</span>
+    </div>
+    <ul class="rec-list">
+      <li class="rec-item">
+        <span class="rec-num">01</span>
+        <span class="rec-body">Issue formal demand notice to Omar Faraj (Unit C4) by <strong>Wednesday March 18th</strong>. Aedra can generate the notice automatically — agent to review and send via WhatsApp with read receipt. If no response within 7 days, escalate to formal eviction process.</span>
+      </li>
+      <li class="rec-item">
+        <span class="rec-num">02</span>
+        <span class="rec-body">Commission a Block C infrastructure audit before <strong>March 31st</strong>. Target: identify root cause of recurring maintenance spend. Estimated resolution investment: KES 80,000–120,000. Estimated annual yield recovery: KES 140,000+. Payback period under 12 months.</span>
+      </li>
+      <li class="rec-item">
+        <span class="rec-num">03</span>
+        <span class="rec-body">Initiate retention conversation with Sarah Kimani (Unit B2) this week. Her Homeet browsing activity suggests she is price-shopping. A rent freeze offer or minor upgrade (painting, fixture) may cost KES 15,000 but prevent a KES 15,300 vacancy gap — net neutral with relationship upside.</span>
+      </li>
+      <li class="rec-item">
+        <span class="rec-num">04</span>
+        <span class="rec-body">Pre-list Unit C4 on Homeet immediately — do not wait for formal vacancy. Current market absorption rate for 2BR units in this zone is 11 days. Starting the listing now ensures zero vacancy gap upon Omar's exit and protects KES 28,500 in April rent.</span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="footer">Generated by Homeet Intelligence · Powered by Aedra · March 14, 2026 · Bahari Ridge Holdings · Confidential</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+new Chart(document.getElementById('colChart'),{
+  type:'bar',
+  data:{
+    labels:['Target','Collected','Outstanding'],
+    datasets:[{
+      data:[2590,2435,155],
+      backgroundColor:['#b5d4f4','#1d9e75','#f0997b'],
+      borderWidth:0,borderRadius:4
+    }]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,indexAxis:'y',
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{font:{size:10,family:'DM Mono'},callback:v=>v+'K',color:'#888780'},grid:{color:'rgba(128,128,128,0.1)'}},
+      y:{ticks:{font:{size:11,family:'DM Mono'},color:'#888780'},grid:{display:false}}
+    }
+  }
+});
+
+new Chart(document.getElementById('payChart'),{
+  type:'doughnut',
+  data:{
+    labels:['M-Pesa','Card','Cash'],
+    datasets:[{data:[71,18,11],backgroundColor:['#1d9e75','#378add','#888780'],borderWidth:0,hoverOffset:4}]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,cutout:'70%',
+    plugins:{legend:{display:false}}
+  }
+});
+
+new Chart(document.getElementById('trendChart'),{
+  type:'line',
+  data:{
+    labels:['Oct','Nov','Dec','Jan','Feb','Mar'],
+    datasets:[{
+      data:[78,80,76,83,88,92],
+      borderColor:'#0f1923',
+      backgroundColor:'rgba(15,25,35,0.07)',
+      borderWidth:2,fill:true,tension:0.4,
+      pointRadius:4,pointBackgroundColor:'#0f1923',
+      pointBorderColor:'#fff',pointBorderWidth:2
+    }]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      y:{min:60,max:100,ticks:{font:{size:10,family:'DM Mono'},callback:v=>v+'%',color:'#888780'},grid:{color:'rgba(128,128,128,0.1)'}},
+      x:{ticks:{font:{size:10,family:'DM Mono'},color:'#888780'},grid:{display:false}}
+    }
+  }
+});
+</script>

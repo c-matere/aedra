@@ -1,10 +1,13 @@
 import { GoogleGenerativeAI, Tool, SchemaType } from '@google/generative-ai';
 import { WorkflowType } from '@prisma/client';
 
+// Pick a model that is guaranteed to exist for the configured API key.
+// Allow override via GEMINI_MODEL, otherwise prefer gemini-2.5-flash.
+const BASE_MODEL = (process.env.GEMINI_MODEL || '').trim() || 'gemini-2.5-flash';
+
 const buildTools = (tools: any[]) => [{ functionDeclarations: tools }] as Tool[];
 
-export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string) => {
-    const coreReadTools = [
+export const coreReadTools = [
         {
             name: 'list_companies',
             description: 'List all companies (Super Admin only).',
@@ -138,6 +141,7 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
                     propertyId: { type: SchemaType.STRING, description: 'Filter by property UUID' },
                     tenantId: { type: SchemaType.STRING, description: 'Filter by tenant UUID' },
                     status: { type: SchemaType.STRING, description: 'Filter by lease status' },
+                    query: { type: SchemaType.STRING, description: 'Search text (semantic)' },
                     limit: { type: SchemaType.NUMBER, description: 'Max results (default 20)' },
                 },
             },
@@ -155,11 +159,14 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
         },
         {
             name: 'list_payments',
-            description: 'List payments, optionally filtered by lease or date range.',
+            description: 'List payments, optionally filtered by lease, property, tenant or date range.',
             parameters: {
                 type: SchemaType.OBJECT,
                 properties: {
                     leaseId: { type: SchemaType.STRING, description: 'Filter by lease UUID' },
+                    propertyId: { type: SchemaType.STRING, description: 'Filter by property UUID' },
+                    tenantId: { type: SchemaType.STRING, description: 'Filter by tenant UUID' },
+                    query: { type: SchemaType.STRING, description: 'Search text (tenant name, property name, unit, reference)' },
                     dateFrom: { type: SchemaType.STRING, description: 'ISO date string (inclusive). Defaults to start of current month if omitted.' },
                     dateTo: { type: SchemaType.STRING, description: 'ISO date string (inclusive). Defaults to now if omitted.' },
                     limit: { type: SchemaType.NUMBER, description: 'Max results (default 20)' },
@@ -168,11 +175,14 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
         },
         {
             name: 'list_invoices',
-            description: 'List invoices, optionally filtered by lease or status.',
+            description: 'List invoices, optionally filtered by lease, property, tenant, or status.',
             parameters: {
                 type: SchemaType.OBJECT,
                 properties: {
                     leaseId: { type: SchemaType.STRING, description: 'Filter by lease UUID' },
+                    propertyId: { type: SchemaType.STRING, description: 'Filter by property UUID' },
+                    tenantId: { type: SchemaType.STRING, description: 'Filter by tenant UUID' },
+                    query: { type: SchemaType.STRING, description: 'Search text (tenant name, property name, unit, description)' },
                     status: { type: SchemaType.STRING, description: 'Filter by invoice status' },
                     limit: { type: SchemaType.NUMBER, description: 'Max results (default 20)' },
                 },
@@ -193,6 +203,16 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
             },
         },
         {
+            name: 'list_vacant_units',
+            description: 'List all vacant units available across all managed properties. Use this to help potential tenants find a place to rent.',
+            parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    limit: { type: SchemaType.NUMBER, description: 'Max results (default 20)' },
+                },
+            },
+        },
+        {
             name: 'list_maintenance_requests',
             description: 'List maintenance requests, optionally filtered by property, unit, or status.',
             parameters: {
@@ -201,6 +221,7 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
                     propertyId: { type: SchemaType.STRING, description: 'Filter by property UUID' },
                     unitId: { type: SchemaType.STRING, description: 'Filter by unit UUID' },
                     status: { type: SchemaType.STRING, description: 'Filter by maintenance status' },
+                    query: { type: SchemaType.STRING, description: 'Search text (semantic)' },
                     limit: { type: SchemaType.NUMBER, description: 'Max results (default 20)' },
                 },
             },
@@ -249,6 +270,16 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
             },
         },
         {
+            name: 'get_portfolio_arrears',
+            description: 'Get a snapshot of who has and hasn\'t paid rent for the current month across the portfolio.',
+            parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    propertyId: { type: SchemaType.STRING, description: 'Optional property UUID to filter results' },
+                },
+            },
+        },
+        {
             name: 'get_company_summary',
             description: 'Get a high-level company summary including occupancy and financial totals. If dates are omitted, defaults to current month.',
             parameters: {
@@ -270,9 +301,42 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
                 required: ['companyId'],
             },
         },
-    ];
+        {
+            name: 'generate_execution_plan',
+            description: 'Propose a step-by-step plan for a complex multi-entity operation. Use this when the user request involves creating or updating more than 3 entities (e.g. bulk property/tenant imports).',
+            parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    planTitle: { type: SchemaType.STRING, description: 'A short, descriptive title for the plan' },
+                    steps: {
+                        type: SchemaType.ARRAY,
+                        items: {
+                            type: SchemaType.OBJECT,
+                            properties: {
+                                stepNumber: { type: SchemaType.NUMBER },
+                                action: { type: SchemaType.STRING, description: 'The tool to be called (e.g. create_property)' },
+                                description: { type: SchemaType.STRING, description: 'What this step accomplishes with what data' },
+                            },
+                        },
+                    },
+                },
+                required: ['planTitle', 'steps'],
+            },
+        },
+        {
+            name: 'get_tenant_statement',
+            description: 'Get a full accounting statement for a tenant, including all invoices and payments.',
+            parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    tenantId: { type: SchemaType.STRING, description: 'The UUID of the tenant' },
+                },
+                required: ['tenantId'],
+            },
+        },
+];
 
-    const coreWriteTools = [
+export const coreWriteTools = [
         {
             name: 'create_tenant',
             description: 'Create a new tenant for a property. Requires confirmation.',
@@ -288,6 +352,18 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
                     confirm: { type: SchemaType.BOOLEAN, description: 'Must be true to create' },
                 },
                 required: ['firstName', 'lastName', 'propertyId', 'confirm'],
+            },
+        },
+        {
+            name: 'delete_tenant',
+            description: 'Delete a tenant from the system. This is a destructive action and requires confirmation.',
+            parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    tenantId: { type: SchemaType.STRING, description: 'The UUID of the tenant to delete' },
+                    confirm: { type: SchemaType.BOOLEAN, description: 'Must be true to delete' },
+                },
+                required: ['tenantId', 'confirm'],
             },
         },
         {
@@ -479,6 +555,44 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
             },
         },
         {
+            name: 'create_unit',
+            description: 'Create a new unit for a property. Requires confirmation.',
+            parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    propertyId: { type: SchemaType.STRING, description: 'Property UUID' },
+                    unitNumber: { type: SchemaType.STRING, description: 'Unit number/name (e.g. "A1")' },
+                    floor: { type: SchemaType.STRING, description: 'Floor number' },
+                    bedrooms: { type: SchemaType.NUMBER, description: 'Number of bedrooms' },
+                    bathrooms: { type: SchemaType.NUMBER, description: 'Number of bathrooms' },
+                    sizeSqm: { type: SchemaType.NUMBER, description: 'Size in square meters' },
+                    rentAmount: { type: SchemaType.NUMBER, description: 'Monthly rent amount' },
+                    status: { type: SchemaType.STRING, description: 'Initial status (VACANT, OCCUPIED, etc)' },
+                    confirm: { type: SchemaType.BOOLEAN, description: 'Must be true to create' },
+                },
+                required: ['propertyId', 'unitNumber', 'confirm'],
+            },
+        },
+        {
+            name: 'update_unit',
+            description: 'Update unit details. Requires confirmation.',
+            parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    unitId: { type: SchemaType.STRING, description: 'Unit UUID' },
+                    unitNumber: { type: SchemaType.STRING, description: 'Unit number/name' },
+                    floor: { type: SchemaType.STRING, description: 'Floor number' },
+                    bedrooms: { type: SchemaType.NUMBER, description: 'Number of bedrooms' },
+                    bathrooms: { type: SchemaType.NUMBER, description: 'Number of bathrooms' },
+                    sizeSqm: { type: SchemaType.NUMBER, description: 'Size in square meters' },
+                    rentAmount: { type: SchemaType.NUMBER, description: 'Monthly rent amount' },
+                    status: { type: SchemaType.STRING, description: 'Unit status' },
+                    confirm: { type: SchemaType.BOOLEAN, description: 'Must be true to update' },
+                },
+                required: ['unitId', 'confirm'],
+            },
+        },
+        {
             name: 'update_tenant',
             description: 'Update an existing tenant. Requires confirmation.',
             parameters: {
@@ -556,9 +670,93 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
                 required: ['requestId', 'confirm'],
             },
         },
-    ];
+        {
+            name: 'send_whatsapp_message',
+            description: 'Send a WhatsApp template message to a tenant or landlord. Requires confirmation.',
+            parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    to: { type: SchemaType.STRING, description: 'The recipient phone number (e.g. 254...)' },
+                    templateName: { type: SchemaType.STRING, description: 'The name of the WhatsApp template to use' },
+                    bodyText: { type: SchemaType.STRING, description: 'Optional text to fill the first template variable {{1}}' },
+                    confirm: { type: SchemaType.BOOLEAN, description: 'Must be true to send' },
+                },
+                required: ['to', 'templateName', 'confirm'],
+            },
+        },
+        {
+            name: 'configure_whatsapp',
+            description: 'Configure Meta WhatsApp API credentials for the current company. Requires confirmation.',
+            parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    accessToken: { type: SchemaType.STRING, description: 'Meta Graph API Access Token' },
+                    phoneNumberId: { type: SchemaType.STRING, description: 'Meta Phone Number ID' },
+                    verifyToken: { type: SchemaType.STRING, description: 'Webhook Verify Token' },
+                    businessAccountId: { type: SchemaType.STRING, description: 'Meta Business Account ID' },
+                    ownerPhone: { type: SchemaType.STRING, description: 'WhatsApp number for notifications' },
+                    confirm: { type: SchemaType.BOOLEAN, description: 'Must be true to save' },
+                },
+                required: ['accessToken', 'phoneNumberId', 'confirm'],
+            },
+        },
+        {
+            name: 'register_company',
+            description: 'Register a new company workspace and an admin user. Use this tool ONLY for creating a brand new account on the Aedra platform. If the user is already logged in or managed within a workspace, this tool is likely NOT what they want—they probably want `create_property` instead.',
+            parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    companyName: { type: SchemaType.STRING, description: 'The name of the company to register' },
+                    email: { type: SchemaType.STRING, description: 'The admin user email' },
+                    password: { type: SchemaType.STRING, description: 'The admin user password' },
+                    firstName: { type: SchemaType.STRING, description: 'Admin first name' },
+                    lastName: { type: SchemaType.STRING, description: 'Admin last name' },
+                },
+                required: ['companyName', 'email', 'password', 'firstName', 'lastName'],
+            },
+        },
+        {
+            name: 'send_rent_reminders',
+            description: 'Send automated rent reminders to all tenants with outstanding balances for the current month. Requires confirmation.',
+            parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    propertyId: { type: SchemaType.STRING, description: 'Optional property UUID to filter' },
+                    confirm: { type: SchemaType.BOOLEAN, description: 'Must be true to proceed' },
+                },
+                required: ['confirm'],
+            },
+        },
+        {
+            name: 'create_penalty',
+            description: 'Charge a penalty (fine) to a tenant for rule violations or late payments. Requires confirmation.',
+            parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    leaseId: { type: SchemaType.STRING, description: 'Lease UUID' },
+                    amount: { type: SchemaType.NUMBER, description: 'Penalty amount' },
+                    description: { type: SchemaType.STRING, description: 'Reason for the penalty' },
+                    type: { type: SchemaType.STRING, description: 'Penalty type (LATE_PAYMENT, LEASE_VIOLATION, etc)' },
+                    confirm: { type: SchemaType.BOOLEAN, description: 'Must be true to create' },
+                },
+                required: ['leaseId', 'amount', 'description', 'confirm'],
+            },
+        },
+        {
+            name: 'archive_tenant',
+            description: 'Soft-delete a tenant record by archiving it. Use this instead of delete_tenant for typical business operations. Requires confirmation.',
+            parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    tenantId: { type: SchemaType.STRING, description: 'The UUID of the tenant to archive' },
+                    confirm: { type: SchemaType.BOOLEAN, description: 'Must be true to archive' },
+                },
+                required: ['tenantId', 'confirm'],
+            },
+        },
+];
 
-    const reportTools = [
+export const reportTools = [
         {
             name: 'get_financial_report',
             description: 'Get financial totals and breakdowns. Defaults to current month if dates are omitted.',
@@ -576,11 +774,12 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
         },
         {
             name: 'generate_report_file',
-            description: 'Generate a downloadable PDF or CSV financial report. Default to PDF and current month if parameters are unspecified.',
+            description: 'Generate a Premium Portfolio Intelligence Report (PDF) or a data export (CSV). The PDF version includes AI-driven McKinsey-grade insights, trend analysis, and professional visualizations. ALWAYS use this for "monthly reports" or "portfolio summaries".',
             parameters: {
                 type: SchemaType.OBJECT,
                 properties: {
                     reportType: { type: SchemaType.STRING, description: 'Summary | Revenue | Occupancy | Financial' },
+                    propertyId: { type: SchemaType.STRING, description: 'Optional property UUID for deep portfolio intelligence' },
                     dateFrom: { type: SchemaType.STRING, description: 'ISO date string (inclusive). Defaults to start of current month.' },
                     dateTo: { type: SchemaType.STRING, description: 'ISO date string (inclusive). Defaults to now.' },
                     format: { type: SchemaType.STRING, description: 'pdf | csv (default pdf)', enum: ['pdf', 'csv'] },
@@ -588,9 +787,9 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
                 required: ['reportType', 'format'],
             },
         },
-    ];
+];
 
-    const workflowTools = [
+export const workflowTools = [
         {
             name: 'workflow_initiate',
             description: 'Start a new stateful property management workflow.',
@@ -615,22 +814,109 @@ export const buildModels = (genAI: GoogleGenerativeAI, systemInstruction: string
                 required: ['type'],
             },
         },
-    ];
+];
+
+const conductorTools: any[] = [
+    {
+        name: 'list_tenants_staged',
+        description: 'Fetches all tenants for a property and STAGES them for future processing. Returns a staging key, not the full data.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                propertyId: { type: 'STRING', description: 'The ID of the property' },
+                jobId: { type: 'STRING', description: 'The unique orchestration job ID' },
+            },
+            required: ['propertyId', 'jobId'],
+        },
+    },
+    {
+        name: 'list_payments_staged',
+        description: 'Fetches all payments for a property and STAGES them for future processing. Returns a staging key.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                propertyId: { type: 'STRING', description: 'The ID of the property' },
+                jobId: { type: 'STRING', description: 'The unique orchestration job ID' },
+            },
+            required: ['propertyId', 'jobId'],
+        },
+    },
+    {
+        name: 'list_invoices_staged',
+        description: 'Fetches all invoices for a property and STAGES them for future processing. Returns a staging key.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                propertyId: { type: 'STRING', description: 'The ID of the property' },
+                jobId: { type: 'STRING', description: 'The unique orchestration job ID' },
+            },
+            required: ['propertyId', 'jobId'],
+        },
+    },
+    {
+        name: 'process_risk_analysis',
+        description: 'Reads staged tenant data, minifies it for risk assessment, and returns a high-signal risk analysis summary.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                jobId: { type: 'STRING', description: 'The unique orchestration job ID' },
+                inputKey: { type: 'STRING', description: 'The key for staged raw data (e.g. "tenants")' },
+            },
+            required: ['jobId', 'inputKey'],
+        },
+    },
+    {
+        name: 'assemble_report_staged',
+        description: 'Reads multiple staged components and generates a final report. Returns only the report URL.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                jobId: { type: 'STRING', description: 'The unique orchestration job ID' },
+                reportType: { type: 'STRING', description: 'Type of report (e.g. "MCKINSEY_PORTFOLIO")' },
+                stagedKeys: { type: 'ARRAY', items: { type: 'STRING' }, description: 'List of staging keys to include' },
+            },
+            required: ['jobId', 'reportType', 'stagedKeys'],
+        },
+    },
+];
+
+export const allToolDeclarations = [
+    ...coreReadTools, 
+    ...coreWriteTools, 
+    ...reportTools, 
+    ...workflowTools,
+    ...conductorTools
+];
+
+
+export const buildModels = (
+    genAI: GoogleGenerativeAI,
+    systemInstruction: string,
+    modelName?: string,
+) => {
+    const selectedModel = (modelName || '').trim() || BASE_MODEL;
+    const allTools = allToolDeclarations;
+    console.log(`[AiTools] Initializing models with ${allTools.length} tools total.`);
 
     return {
         read: genAI.getGenerativeModel({
-            model: 'gemini-2.0-flash',
-            tools: buildTools([...coreReadTools, ...workflowTools]) as any,
+            model: selectedModel,
+            tools: buildTools(allTools) as any,
             systemInstruction,
         }),
         write: genAI.getGenerativeModel({
-            model: 'gemini-2.0-flash',
-            tools: buildTools([...coreReadTools, ...coreWriteTools, ...workflowTools]) as any,
+            model: selectedModel,
+            tools: buildTools(allTools) as any,
             systemInstruction,
         }),
         report: genAI.getGenerativeModel({
-            model: 'gemini-2.0-flash',
-            tools: buildTools([...coreReadTools, ...reportTools, ...workflowTools]) as any,
+            model: selectedModel,
+            tools: buildTools(allTools) as any,
+            systemInstruction,
+        }),
+        gemma: genAI.getGenerativeModel({
+            model: 'gemma-2-2b-it',
+            tools: buildTools(allTools) as any,
             systemInstruction,
         }),
     };

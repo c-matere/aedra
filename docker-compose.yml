@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgis/postgis:15-3.3
+    build:
+      context: ./api
+      dockerfile: postgres.Dockerfile
     container_name: aedra-postgres
     ports:
       - "4543:5432"

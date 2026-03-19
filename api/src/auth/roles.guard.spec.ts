@@ -41,9 +41,9 @@ describe('RolesGuard', () => {
   });
 
   it('rejects when role is required and token is missing', () => {
-    (reflector.getAllAndOverride as jest.Mock).mockReturnValue([
-      UserRole.COMPANY_ADMIN,
-    ]);
+    (reflector.getAllAndOverride as jest.Mock)
+      .mockReturnValueOnce([UserRole.COMPANY_ADMIN]) // required roles
+      .mockReturnValueOnce(false); // isPublic flag
 
     expect(() => guard.canActivate(mockContext())).toThrow(
       UnauthorizedException,
@@ -51,9 +51,9 @@ describe('RolesGuard', () => {
   });
 
   it('allows required role with valid token', () => {
-    (reflector.getAllAndOverride as jest.Mock).mockReturnValue([
-      UserRole.COMPANY_ADMIN,
-    ]);
+    (reflector.getAllAndOverride as jest.Mock)
+      .mockReturnValueOnce([UserRole.COMPANY_ADMIN])
+      .mockReturnValueOnce(false);
 
     const token = createSessionToken({
       userId: 'u1',
@@ -65,9 +65,9 @@ describe('RolesGuard', () => {
   });
 
   it('forbids role mismatch', () => {
-    (reflector.getAllAndOverride as jest.Mock).mockReturnValue([
-      UserRole.COMPANY_ADMIN,
-    ]);
+    (reflector.getAllAndOverride as jest.Mock)
+      .mockReturnValueOnce([UserRole.COMPANY_ADMIN])
+      .mockReturnValueOnce(false);
 
     const token = createSessionToken({
       userId: 'u2',
@@ -81,9 +81,9 @@ describe('RolesGuard', () => {
   });
 
   it('allows super admin regardless of required role', () => {
-    (reflector.getAllAndOverride as jest.Mock).mockReturnValue([
-      UserRole.COMPANY_STAFF,
-    ]);
+    (reflector.getAllAndOverride as jest.Mock)
+      .mockReturnValueOnce([UserRole.COMPANY_STAFF])
+      .mockReturnValueOnce(false);
 
     const token = createSessionToken({
       userId: 'u3',

@@ -15,17 +15,18 @@ import { PropertiesController } from './properties/properties.controller';
 import { PropertiesService } from './properties/properties.service';
 import { LandlordsController } from './landlords/landlords.controller';
 import { LandlordsService } from './landlords/landlords.service';
-import { UnitsController } from './units/units.controller';
-import { UnitsService } from './units/units.service';
+import { UnitsModule } from './units/units.module';
 import { ExpensesController } from './expenses/expenses.controller';
 import { ExpensesService } from './expenses/expenses.service';
 import { LeasesController } from './leases/leases.controller';
 import { LeasesService } from './leases/leases.service';
 import { PaymentsController } from './payments/payments.controller';
 import { PaymentsService } from './payments/payments.service';
+import { MpesaController } from './payments/mpesa.controller';
+import { MpesaService } from './payments/mpesa.service';
 import { MaintenanceRequestsController } from './maintenance-requests/maintenance-requests.controller';
 import { MaintenanceRequestsService } from './maintenance-requests/maintenance-requests.service';
-import { AuditLogService } from './audit/audit-log.service';
+import { AuditModule } from './audit/audit.module';
 import { AuditLoggingInterceptor } from './audit/audit-logging.interceptor';
 import { InvoicesModule } from './invoices/invoices.module';
 import { DocumentsModule } from './documents/documents.module';
@@ -36,11 +37,14 @@ import { redisStore } from 'cache-manager-redis-yet';
 import { TenantMiddleware } from './common/tenant-middleware';
 import { AiModule } from './ai/ai.module';
 import { FinancesModule } from './finances/finances.module';
+import { MessagingModule } from './messaging/messaging.module';
+import { BullModule } from '@nestjs/bullmq';
 
 @Module({
   imports: [
     PrismaModule,
     AiModule,
+    AuditModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
@@ -49,20 +53,42 @@ import { FinancesModule } from './finances/finances.module';
     ]),
     CacheModule.registerAsync({
       isGlobal: true,
-      useFactory: async () => ({
-        store: await redisStore({
-          socket: {
-            host: process.env.REDIS_HOST || 'localhost',
-            port: parseInt(process.env.REDIS_PORT || '4379'),
-          },
-        }),
-      }),
+      useFactory: async () => {
+        const redisDisabled = process.env.REDIS_DISABLED === 'true';
+        if (redisDisabled) {
+          return { store: 'memory' as const };
+        }
+        try {
+          return {
+            store: await redisStore({
+              socket: {
+                host: process.env.REDIS_HOST || 'localhost',
+                port: parseInt(process.env.REDIS_PORT || '4379'),
+              },
+            }),
+          };
+        } catch (err: any) {
+          // If Redis is unavailable (e.g., dev sandbox), fall back to in-memory cache
+          console.warn(
+            `Redis unavailable (${err?.code || err?.message || 'unknown'}); falling back to in-memory cache.`,
+          );
+          return { store: 'memory' as const };
+        }
+      },
+    }),
+    BullModule.forRoot({
+      connection: {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '4379'),
+      },
     }),
     InvoicesModule,
     DocumentsModule,
     CompaniesModule,
     ReportsModule,
+    UnitsModule,
     FinancesModule,
+    MessagingModule,
   ],
   controllers: [
     AppController,
@@ -71,10 +97,10 @@ import { FinancesModule } from './finances/finances.module';
     TenantsController,
     PropertiesController,
     LandlordsController,
-    UnitsController,
     ExpensesController,
     LeasesController,
     PaymentsController,
+    MpesaController,
     MaintenanceRequestsController,
   ],
   providers: [
@@ -84,12 +110,11 @@ import { FinancesModule } from './finances/finances.module';
     TenantsService,
     PropertiesService,
     LandlordsService,
-    UnitsService,
     ExpensesService,
     LeasesService,
     PaymentsService,
+    MpesaService,
     MaintenanceRequestsService,
-    AuditLogService,
     {
       provide: APP_GUARD,
       useClass: RolesGuard,

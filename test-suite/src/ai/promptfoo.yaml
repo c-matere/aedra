@@ -1,0 +1,292 @@
+description: "Aedra AI Golden Test Set — run before every model update"
+
+providers:
+  - id: groq:llama3-70b-8192
+    label: "Groq Llama 3.3 (primary)"
+    config:
+      temperature: 0
+      max_tokens: 500
+
+  - id: google:gemini-2.0-flash
+    label: "Gemini Flash (fallback)"
+    config:
+      temperature: 0
+      max_tokens: 500
+
+prompts:
+  - file://prompts/aedra-agent-system.txt
+  - file://prompts/aedra-tenant-system.txt
+
+# ── Test cases ────────────────────────────────────────────────
+tests:
+
+  # ── CATEGORY 1: Intent classification accuracy ─────────────
+  - description: "check_rent_status — EN"
+    vars:
+      persona: AGENT
+      message: "who hasn't paid this month"
+    assert:
+      - type: javascript
+        value: "output.intent === 'check_rent_status'"
+      - type: javascript
+        value: "output.complexity <= 2"
+      - type: javascript
+        value: "output.executionMode === 'DIRECT_LOOKUP'"
+
+  - description: "check_rent_status — SW"
+    vars:
+      persona: AGENT
+      message: "hawajapaya nani mwezi huu"
+    assert:
+      - type: javascript
+        value: "output.intent === 'check_rent_status'"
+      - type: javascript
+        value: "output.language === 'sw'"
+
+  - description: "record_payment — nimetuma variant"
+    vars:
+      persona: TENANT
+      message: "nimetuma"
+    assert:
+      - type: javascript
+        value: "output.intent === 'record_payment'"
+
+  - description: "record_payment — pesa imeingia variant"
+    vars:
+      persona: TENANT
+      message: "pesa imeingia boss"
+    assert:
+      - type: javascript
+        value: "output.intent === 'record_payment'"
+
+  - description: "list_companies must be complexity 1 — was bug in logs"
+    vars:
+      persona: SUPER_ADMIN
+      message: "Hello, list our companies for me"
+    assert:
+      - type: javascript
+        value: "output.intent === 'list_companies'"
+      - type: javascript
+        value: "output.complexity === 1"
+      - type: javascript
+        value: "output.complexity !== 3"
+
+  - description: "generate_mckinsey_report must be complexity 5"
+    vars:
+      persona: AGENT
+      message: "generate full portfolio report for Bahari Ridge"
+    assert:
+      - type: javascript
+        value: "output.intent === 'generate_mckinsey_report'"
+      - type: javascript
+        value: "output.complexity >= 4"
+      - type: javascript
+        value: "output.executionMode === 'INTELLIGENCE'"
+
+  # ── CATEGORY 2: Emergency detection — zero tolerance ────────
+  - description: "EMERGENCY: fire — EN — must escalate"
+    vars:
+      persona: TENANT
+      message: "there is a fire in the building"
+    assert:
+      - type: javascript
+        value: "output.isEmergency === true"
+      - type: javascript
+        value: "output.intent === 'emergency_escalation'"
+      - type: javascript
+        # Response must contain phone number
+        value: "output.response && /\\+?254\\d{9}/.test(output.response)"
+      - type: javascript
+        # Must NOT contain ticket reference
+        value: "output.response && !/ticket|ref #/i.test(output.response)"
+
+  - description: "EMERGENCY: moto — SW — must escalate"
+    vars:
+      persona: TENANT
+      message: "moto umewaka jikoni msaada"
+    assert:
+      - type: javascript
+        value: "output.isEmergency === true"
+
+  - description: "NOT emergency: minor drip should not escalate"
+    vars:
+      persona: TENANT
+      message: "the tap is dripping a little"
+    assert:
+      - type: javascript
+        value: "output.isEmergency === false"
+      - type: javascript
+        value: "output.intent === 'report_maintenance'"
+
+  - description: "NOT emergency: fire exit sign broken"
+    vars:
+      persona: TENANT
+      message: "the fire exit sign is broken"
+    assert:
+      - type: javascript
+        # 'fire' in message but not an emergency
+        value: "output.isEmergency === false"
+
+  # ── CATEGORY 3: Response quality ────────────────────────────
+  - description: "Rent reminder — EN — should be professional"
+    vars:
+      persona: AGENT
+      message: "send reminder to John in unit 4B"
+      context:
+        tenant: { name: "John Mwangi", unit: "4B", amount: 18000, dueDate: "1st March" }
+    assert:
+      - type: contains
+        value: "John"
+      - type: contains
+        value: "18,000"
+      - type: javascript
+        # Should NOT be longer than 300 chars for WhatsApp
+        value: "output.response.length < 300"
+      - type: javascript
+        # Should contain payment instructions
+        value: "/M-Pesa|mpesa|paybill/i.test(output.response)"
+
+  - description: "Rent reminder — SW — must be grammatically correct Swahili"
+    vars:
+      persona: AGENT
+      message: "tuma ukumbusho kwa John kitengo 4B"
+      context:
+        tenant: { name: "John Mwangi", unit: "4B", amount: 18000 }
+        language: "sw"
+    assert:
+      - type: contains
+        value: "John"
+      - type: javascript
+        # Must contain Swahili property vocabulary
+        value: "/pango|kitengo|malipo|M-Pesa/i.test(output.response)"
+      - type: javascript
+        # Must NOT be a direct English translation (bad Swahili signal)
+        value: "!/Dear tenant|your rent is due/i.test(output.response)"
+
+  - description: "Receipt — must contain required fields"
+    vars:
+      persona: SYSTEM
+      action: generate_receipt
+      context:
+        tenant: "Sarah Ali"
+        unit: "A1"
+        amount: 128702
+        mpesaCode: "QGH7821KNM"
+        date: "2026-03-15"
+    assert:
+      - type: contains
+        value: "Sarah Ali"
+      - type: contains
+        value: "128,702"
+      - type: contains
+        value: "QGH7821KNM"
+      - type: javascript
+        value: "output.response.length < 500"
+
+  # ── CATEGORY 4: Financial accuracy ──────────────────────────
+  - description: "Collection summary — figures must match tool results"
+    vars:
+      persona: AGENT
+      message: "collection status this month"
+      mockToolResults:
+        get_collection_summary:
+          total_collected: 2435000
+          total_due: 2590000
+          collection_rate: 94
+          outstanding: 155000
+    assert:
+      - type: javascript
+        # Must contain the exact collection rate from tool results
+        value: "output.response.includes('94')"
+      - type: javascript
+        # Must NOT contain any number not in tool results
+        value: |
+          const toolNumbers = [2435000, 2590000, 94, 155000];
+          const responseNumbers = (output.response.match(/[\d,]+/g) || [])
+            .map(n => parseInt(n.replace(/,/g, '')))
+            .filter(n => n > 100);
+          responseNumbers.every(n => toolNumbers.some(t => Math.abs(t - n) / t < 0.01))
+
+  # ── CATEGORY 5: Language consistency ────────────────────────
+  - description: "EN message gets EN response"
+    vars:
+      persona: TENANT
+      message: "what is my current balance"
+    assert:
+      - type: javascript
+        value: "output.language === 'en'"
+      - type: javascript
+        # Should not contain Swahili words in EN response
+        value: "!/habari|asante|tafadhali/i.test(output.response)"
+
+  - description: "SW message gets SW response"
+    vars:
+      persona: TENANT
+      message: "niambie salio langu la sasa"
+    assert:
+      - type: javascript
+        value: "output.language === 'sw'"
+      - type: javascript
+        value: "/salio|shilingi|pesa|KES/i.test(output.response)"
+
+  - description: "Mixed Sheng message handled as Swahili"
+    vars:
+      persona: TENANT
+      message: "boss nimetuma five k jana"
+    assert:
+      - type: javascript
+        value: "output.language === 'sw'"
+      - type: javascript
+        value: "output.intent === 'record_payment'"
+
+  # ── CATEGORY 6: Tool selection verification ─────────────────
+  - description: "list_companies loads only 1 tool"
+    vars:
+      persona: SUPER_ADMIN
+      message: "list companies"
+    assert:
+      - type: javascript
+        value: "output.toolsLoaded <= 1"
+      - type: javascript
+        value: "output.toolsLoaded !== 51"
+
+  - description: "generate_mckinsey_report loads ≤ 10 tools"
+    vars:
+      persona: AGENT
+      message: "generate full report"
+    assert:
+      - type: javascript
+        value: "output.toolsLoaded <= 10"
+
+  # ── CATEGORY 7: Regression tests from known bugs ───────────
+  - description: "REGRESSION: list companies was misclassified as complexity 3"
+    vars:
+      persona: SUPER_ADMIN
+      message: "List out companies for me"
+    assert:
+      - type: javascript
+        value: "output.complexity === 1"
+      - type: javascript
+        # This was the exact bug that caused 71s response time
+        value: "output.complexity !== 3"
+
+  - description: "REGRESSION: nimetuma must not classify as general query"
+    vars:
+      persona: TENANT
+      message: "nimetuma"
+    assert:
+      - type: javascript
+        value: "output.intent === 'record_payment'"
+      - type: javascript
+        value: "output.intent !== 'general_query'"
+      - type: javascript
+        value: "output.intent !== 'generate_basic_report'"
+
+# ── Evaluation thresholds ─────────────────────────────────────
+evaluateOptions:
+  maxConcurrency: 4
+
+# Fail the test suite if pass rate drops below these thresholds
+thresholds:
+  pass: 0.95  # 95% of tests must pass
+  # If below 95%, block model update deployment

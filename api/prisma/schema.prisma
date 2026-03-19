@@ -5,7 +5,7 @@ generator client {
 
 datasource db {
   provider   = "postgresql"
-  extensions = [postgis]
+  extensions = [postgis, vector]
 }
 
 /// This table contains check constraints and requires additional setup for migrations.
@@ -36,6 +36,7 @@ model User {
   updatedAt              DateTime             @updatedAt
   deletedAt              DateTime?
   permissions            String[]             @default([])
+  language               String               @default("en")
   chatHistories          ChatHistory[]
   maintenanceAssignments MaintenanceRequest[]
   company                Company?             @relation(fields: [companyId], references: [id])
@@ -48,26 +49,33 @@ model User {
 /// A property management company operating in Mombasa.
 /// This is the tenant isolation boundary — all business data is scoped here.
 model Company {
-  id                  String               @id @default(uuid())
-  name                String
-  email               String?
-  phone               String?
-  address             String?
-  logo                String?
-  isActive            Boolean              @default(true)
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  chatHistories       ChatHistory[]
-  documents           Document[]
-  expenses            Expense[]
-  incomes             Income[]
-  invitations         Invitation[]
-  landlords           Landlord[]
-  maintenanceRequests MaintenanceRequest[]
-  properties          Property[]
-  tenants             Tenant[]
-  users               User[]
-  workflows           WorkflowInstance[]
+  id                    String                 @id @default(uuid())
+  name                  String
+  email                 String?
+  phone                 String?
+  address               String?
+  logo                  String?
+  isActive              Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  waAccessToken         String?
+  waBusinessAccountId   String?
+  waOwnerPhone          String?
+  waPhoneNumberId       String?
+  waVerifyToken         String?
+  authorizationRequests AuthorizationRequest[]
+  chatHistories         ChatHistory[]
+  documents             Document[]
+  expenses              Expense[]
+  incomes               Income[]
+  invitations           Invitation[]
+  landlords             Landlord[]
+  maintenanceRequests   MaintenanceRequest[]
+  properties            Property[]
+  tenants               Tenant[]
+  users                 User[]
+  whatsappLogs          WhatsAppLog[]
+  workflows             WorkflowInstance[]
 }
 
 /// A landlord / property owner managed by a Company.
@@ -84,6 +92,7 @@ model Landlord {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
   deletedAt  DateTime?
+  language   String     @default("en")
   company    Company    @relation(fields: [companyId], references: [id])
   properties Property[]
 
@@ -93,26 +102,28 @@ model Landlord {
 
 /// A property (building, plot, estate) managed by a Company on behalf of a Landlord.
 model Property {
-  id                   String               @id @default(uuid())
+  id                   String                 @id @default(uuid())
   name                 String
   address              String?
-  propertyType         PropertyType         @default(RESIDENTIAL)
+  propertyType         PropertyType           @default(RESIDENTIAL)
   description          String?
   latitude             Float?
   longitude            Float?
   landlordId           String?
   companyId            String
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
   deletedAt            DateTime?
-  commissionPercentage Float                @default(0)
+  commissionPercentage Float                  @default(0)
+  semanticTags         String?
+  embedding            Unsupported("vector")?
   documents            Document[]
   expenses             Expense[]
   incomes              Income[]
   leases               Lease[]
   maintenanceRequests  MaintenanceRequest[]
-  company              Company              @relation(fields: [companyId], references: [id])
-  landlord             Landlord?            @relation(fields: [landlordId], references: [id])
+  company              Company                @relation(fields: [companyId], references: [id])
+  landlord             Landlord?              @relation(fields: [landlordId], references: [id])
   tenants              Tenant[]
   units                Unit[]
 
@@ -123,23 +134,25 @@ model Property {
 
 /// A rentable unit inside a property (e.g. Apartment 3B, Shop 12, Office Suite A).
 model Unit {
-  id                  String               @id @default(uuid())
+  id                  String                 @id @default(uuid())
   unitNumber          String
   floor               String?
   bedrooms            Int?
   bathrooms           Int?
   sizeSqm             Float?
   rentAmount          Float?
-  status              UnitStatus           @default(VACANT)
+  status              UnitStatus             @default(VACANT)
   propertyId          String
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
   deletedAt           DateTime?
+  semanticTags        String?
+  embedding           Unsupported("vector")?
   documents           Document[]
   expenses            Expense[]
   leases              Lease[]
   maintenanceRequests MaintenanceRequest[]
-  property            Property             @relation(fields: [propertyId], references: [id])
+  property            Property               @relation(fields: [propertyId], references: [id])
 
   @@index([propertyId])
   @@index([status])
@@ -149,21 +162,24 @@ model Unit {
 /// A tenant — a person or business that rents space from a managed property.
 /// "Tenant" here means the real-world renter, NOT the multi-tenant software concept.
 model Tenant {
-  id         String     @id @default(uuid())
-  firstName  String
-  lastName   String
-  email      String?
-  phone      String?
-  idNumber   String?
-  companyId  String
-  propertyId String
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  deletedAt  DateTime?
-  documents  Document[]
-  leases     Lease[]
-  company    Company    @relation(fields: [companyId], references: [id])
-  property   Property   @relation(fields: [propertyId], references: [id])
+  id           String                 @id @default(uuid())
+  firstName    String
+  lastName     String
+  email        String?
+  phone        String?
+  idNumber     String?
+  companyId    String
+  propertyId   String
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  deletedAt    DateTime?
+  semanticTags String?
+  embedding    Unsupported("vector")?
+  language     String                 @default("en")
+  documents    Document[]
+  leases       Lease[]
+  company      Company                @relation(fields: [companyId], references: [id])
+  property     Property               @relation(fields: [propertyId], references: [id])
 
   @@index([companyId])
   @@index([propertyId])
@@ -172,25 +188,26 @@ model Tenant {
 
 /// A lease agreement linking a Tenant to a Unit for a period of time.
 model Lease {
-  id         String      @id @default(uuid())
-  startDate  DateTime
-  endDate    DateTime
-  rentAmount Float
-  deposit    Float?
-  status     LeaseStatus @default(PENDING)
-  propertyId String
-  unitId     String?
-  tenantId   String
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  deletedAt  DateTime?
-  documents  Document[]
-  invoices   Invoice[]
-  property   Property    @relation(fields: [propertyId], references: [id])
-  tenant     Tenant      @relation(fields: [tenantId], references: [id])
-  unit       Unit?       @relation(fields: [unitId], references: [id])
-  payments   Payment[]
-  penalties  Penalty[]
+  id           String      @id @default(uuid())
+  startDate    DateTime
+  endDate      DateTime
+  rentAmount   Float
+  deposit      Float?
+  status       LeaseStatus @default(PENDING)
+  propertyId   String
+  unitId       String?
+  tenantId     String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  deletedAt    DateTime?
+  semanticTags String?
+  documents    Document[]
+  invoices     Invoice[]
+  property     Property    @relation(fields: [propertyId], references: [id])
+  tenant       Tenant      @relation(fields: [tenantId], references: [id])
+  unit         Unit?       @relation(fields: [unitId], references: [id])
+  payments     Payment[]
+  penalties    Penalty[]
 
   @@index([propertyId])
   @@index([unitId])
@@ -202,13 +219,13 @@ model Lease {
 /// A maintenance request / work order raised for a property or unit.
 /// Tracks the full lifecycle from initial report through to resolution.
 model MaintenanceRequest {
-  id            String              @id @default(uuid())
+  id            String                 @id @default(uuid())
   title         String
   description   String?
-  category      MaintenanceCategory @default(GENERAL)
-  priority      MaintenancePriority @default(MEDIUM)
-  status        MaintenanceStatus   @default(REPORTED)
-  reportedAt    DateTime            @default(now())
+  category      MaintenanceCategory    @default(GENERAL)
+  priority      MaintenancePriority    @default(MEDIUM)
+  status        MaintenanceStatus      @default(REPORTED)
+  reportedAt    DateTime               @default(now())
   scheduledAt   DateTime?
   completedAt   DateTime?
   estimatedCost Float?
@@ -220,13 +237,15 @@ model MaintenanceRequest {
   propertyId    String
   unitId        String?
   assignedToId  String?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
   deletedAt     DateTime?
-  assignedTo    User?               @relation(fields: [assignedToId], references: [id])
-  company       Company             @relation(fields: [companyId], references: [id])
-  property      Property            @relation(fields: [propertyId], references: [id])
-  unit          Unit?               @relation(fields: [unitId], references: [id])
+  semanticTags  String?
+  embedding     Unsupported("vector")?
+  assignedTo    User?                  @relation(fields: [assignedToId], references: [id])
+  company       Company                @relation(fields: [companyId], references: [id])
+  property      Property               @relation(fields: [propertyId], references: [id])
+  unit          Unit?                  @relation(fields: [unitId], references: [id])
 
   @@index([companyId])
   @@index([propertyId])
@@ -378,8 +397,8 @@ model Invitation {
 }
 
 model AuditLog {
-  id             String   @id @default(uuid())
-  timestamp      DateTime @default(now())
+  id             String                 @id @default(uuid())
+  timestamp      DateTime               @default(now())
   action         String
   outcome        String
   method         String
@@ -395,6 +414,8 @@ model AuditLog {
   userAgent      String?
   requestId      String?
   metadata       Json?
+  embedding      Unsupported("vector")?
+  semanticTags   String?
 
   @@index([timestamp(sort: Desc)])
   @@index([action])
@@ -462,13 +483,13 @@ model Income {
 model ChatHistory {
   id        String        @id @default(uuid())
   title     String?
-  userId    String
+  userId    String?
   companyId String?
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
   deletedAt DateTime?
   company   Company?      @relation(fields: [companyId], references: [id])
-  user      User          @relation(fields: [userId], references: [id])
+  user      User?         @relation(fields: [userId], references: [id])
   messages  ChatMessage[]
 
   @@index([userId])
@@ -482,9 +503,52 @@ model ChatMessage {
   role          String
   content       String
   createdAt     DateTime    @default(now())
+  feedbackNote  String?
+  feedbackScore Int?
   chatHistory   ChatHistory @relation(fields: [chatHistoryId], references: [id])
 
   @@index([chatHistoryId])
+}
+
+model WhatsAppLog {
+  id            String     @id @default(uuid())
+  companyId     String?
+  to            String
+  templateName  String
+  senderType    SenderType
+  status        String
+  metaMessageId String?
+  createdAt     DateTime   @default(now())
+  company       Company?   @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([to])
+}
+
+model WhatsAppProfile {
+  phone     String   @id
+  language  String?
+  onboarded Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuthorizationRequest {
+  id          String              @id @default(uuid())
+  actionType  String
+  requestedBy String
+  approverIds String[]
+  status      AuthorizationStatus @default(PENDING)
+  payload     Json
+  companyId   String?
+  expiresAt   DateTime
+  executedAt  DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  company     Company?            @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([status])
 }
 
 /// Global user roles across the platform
@@ -492,6 +556,9 @@ enum UserRole {
   SUPER_ADMIN
   COMPANY_ADMIN
   COMPANY_STAFF
+  LANDLORD
+  TENANT
+  UNIDENTIFIED
 }
 
 /// Status of a lease
@@ -647,4 +714,18 @@ enum IncomeCategory {
   COMMISSION
   MANAGEMENT_FEE
   OTHER
+}
+
+enum SenderType {
+  SYSTEM
+  COMPANY
+}
+
+enum AuthorizationStatus {
+  PENDING
+  NOTIFIED
+  QUORUM_MET
+  REJECTED
+  EXPIRED
+  EXECUTED
 }

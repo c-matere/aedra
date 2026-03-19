@@ -1,0 +1,38 @@
+[
+  {
+    "workflow_id": "wf_user_behavior_001",
+    "goal": "Simulate a new user greeting, selecting a company, adding property/tenant, deleting tenant, and sending reminders.",
+    "requests": [
+      {
+        "message": "hello"
+      },
+      {
+        "message": "list companies"
+      },
+      {
+        "message": "select company #4"
+      },
+      {
+        "message": "add a property in company #4"
+      },
+      {
+        "message": "add a tenant"
+      },
+      {
+        "message": "delete a tenant"
+      },
+      {
+        "message": "send a reminder or an invoice"
+      }
+    ],
+    "expected_outcome": {
+      "greeting_received": true,
+      "companies_listed": true,
+      "company_selected": true,
+      "property_added": true,
+      "tenant_added": true,
+      "tenant_deleted": true,
+      "action_sent": true
+    }
+  }
+]

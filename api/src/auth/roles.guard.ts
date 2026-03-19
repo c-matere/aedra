@@ -10,6 +10,7 @@ import { RequestWithUser } from './request-with-user.interface';
 import { ROLES_KEY } from './roles.decorator';
 import { UserRole } from './roles.enum';
 import { verifySessionToken } from './session-token';
+import { IS_PUBLIC_KEY } from './public.decorator';
 
 const VALID_ROLES = new Set<string>(Object.values(UserRole));
 
@@ -22,6 +23,15 @@ export class RolesGuard implements CanActivate {
       ROLES_KEY,
       [context.getHandler(), context.getClass()],
     );
+
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
+      return true;
+    }
 
     if (!requiredRoles || requiredRoles.length === 0) {
       return true;

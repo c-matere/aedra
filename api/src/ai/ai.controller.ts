@@ -35,7 +35,27 @@ export class AiController {
 
     @Post('workflows/active')
     @Roles(UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF, UserRole.SUPER_ADMIN)
-    async listWorkflows() {
-        return await this.aiService.listActiveWorkflows();
+    async listWorkflows(@Req() req: any) {
+        return await this.aiService.listActiveWorkflows(req.user.id);
+    }
+
+    // Gap 6: Quorum Bridge Approval Endpoint
+    @Post('quorum/approve/:id')
+    @Roles(UserRole.COMPANY_ADMIN, UserRole.SUPER_ADMIN)
+    async approveAction(@Req() req: any) {
+        // In a real multi-party setup, we'd check if `req.user.id` is in `approverIds`
+        // and increment a counter until `quorumRequired` is met.
+        // For this V1, any valid admin approval triggers execution.
+        return await this.aiService.executeApprovedAction(req.params.id, req.user.id);
+    }
+
+    // Gap 9: Signal Feedback Loop
+    @Post('chat/message/:id/feedback')
+    @Roles(UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF, UserRole.SUPER_ADMIN, UserRole.TENANT, UserRole.LANDLORD)
+    async submitFeedback(
+        @Req() req: any,
+        @Body() body: { score: number; note?: string }
+    ) {
+        return await this.aiService.submitFeedback(req.params.id, body.score, body.note);
     }
 }
