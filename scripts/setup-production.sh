@@ -84,12 +84,35 @@ echo "🌐 Configuring Nginx for HTTPS (Full/Strict compatible)..."
 DOMAIN="aedra.homeet.site"
 NGINX_PATH="/etc/nginx/sites-available/aedra"
 
-# Use the TLS-enabled config (redirects 80 -> 443 and serves HTTPS)
+# Check if SSL certificates exist
+if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+  echo "🔑 SSL Certificates NOT found. Bootstrapping with minimal config..."
+  sudo cp deploy/nginx/aedra-bootstrap.conf $NGINX_PATH
+  sudo ln -sf $NGINX_PATH /etc/nginx/sites-enabled/
+  sudo rm -f /etc/nginx/sites-enabled/default
+  
+  # Ensure certbot directory exists
+  sudo mkdir -p /var/www/certbot
+  
+  # Restart Nginx with bootstrap config
+  sudo systemctl reload nginx || sudo systemctl restart nginx
+  
+  echo "🛡️  Obtaining SSL certificates via Certbot..."
+  # Use --nginx or --webroot. Given we have a port 80 config with /.well-known/acme-challenge/
+  # we use webroot mode which is very reliable.
+  sudo certbot certonly --webroot -w /var/www/certbot -d $DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN || {
+    echo "❌ Certbot failed to obtain certificates. Check your DNS and domain name."
+    exit 1
+  }
+  echo "✅ Certificates obtained."
+fi
+
+# Apply full TLS-enabled config
 sudo cp deploy/nginx/aedra.conf $NGINX_PATH
 sudo ln -sf $NGINX_PATH /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 
-# Restart Nginx
+# Final Restart Nginx
 sudo systemctl reload nginx || sudo systemctl restart nginx
 
 # 4. Build and Start Services
