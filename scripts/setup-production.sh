@@ -83,10 +83,14 @@ fi
 echo "🌐 Configuring Nginx for HTTPS (Full/Strict compatible)..."
 DOMAIN="aedra.homeet.site"
 NGINX_PATH="/etc/nginx/sites-available/aedra"
+ORIGIN_CERT="/etc/ssl/certs/homeet_site.pem"
+ORIGIN_KEY="/etc/ssl/private/homeet_site.key"
 
-# Check if SSL certificates exist
-if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
-  echo "🔑 SSL Certificates NOT found. Bootstrapping with minimal config..."
+# Prefer the existing wildcard Cloudflare origin cert (*.homeet.site)
+if [ -f "$ORIGIN_CERT" ] && [ -f "$ORIGIN_KEY" ]; then
+  echo "🔒 Using Cloudflare origin certificate already on host."
+else
+  echo "🔑 Origin cert not found. Bootstrapping with minimal config + certbot..."
   sudo cp deploy/nginx/aedra-bootstrap.conf $NGINX_PATH
   sudo ln -sf $NGINX_PATH /etc/nginx/sites-enabled/
   sudo rm -f /etc/nginx/sites-enabled/default
@@ -98,8 +102,6 @@ if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
   sudo systemctl reload nginx || sudo systemctl restart nginx
   
   echo "🛡️  Obtaining SSL certificates via Certbot..."
-  # Use --nginx or --webroot. Given we have a port 80 config with /.well-known/acme-challenge/
-  # we use webroot mode which is very reliable.
   sudo certbot certonly --webroot -w /var/www/certbot -d $DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN || {
     echo "❌ Certbot failed to obtain certificates. Check your DNS and domain name."
     exit 1
