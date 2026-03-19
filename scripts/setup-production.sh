@@ -42,6 +42,17 @@ RANDOM_SECRET=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 32 ; echo '')
 # API .env
 if [ ! -f api/.env ]; then
   echo "Creating api/.env..."
+  
+  # Generate a random verify token for WhatsApp
+  META_VERIFY_TOKEN=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16 ; echo '')
+  
+  # Ask for Meta API Token if not provided via env
+  if [ -z "$META_API_TOKEN" ]; then
+    echo "⚠️  META_API_TOKEN (System User Token) is required for WhatsApp messaging."
+    read -p "Enter Meta API Token (or press Enter to skip and add later): " USER_META_TOKEN
+    META_API_TOKEN=${USER_META_TOKEN:-"CHANGE_ME"}
+  fi
+
   cat <<EOF > api/.env
 DATABASE_URL="postgresql://postgres:postgres@postgres:5432/aedra?schema=public"
 AUTH_SESSION_SECRET="$RANDOM_SECRET"
@@ -52,7 +63,10 @@ PORT=4001
 NODE_ENV="production"
 GEMINI_API_KEY="$GEMINI_API_KEY"
 GROQ_API_KEY="${GROQ_API_KEY:-dummy-key}"
+META_VERIFY_TOKEN="$META_VERIFY_TOKEN"
+META_API_TOKEN="$META_API_TOKEN"
 EOF
+  echo "✅ api/.env created."
 fi
 
 # Web .env
@@ -114,3 +128,16 @@ done
 
 echo "✅ Aedra setup completed successfully!"
 echo "🌍 Visit: https://$DOMAIN"
+
+# WhatsApp Configuration Summary
+# Extract the token directly from the .env file we just created/verified
+WHATSAPP_VERIFY_TOKEN=$(grep META_VERIFY_TOKEN api/.env | cut -d'=' -f2 | tr -d '\"')
+
+echo ""
+echo "------------------------------------------------------"
+echo "📲  WHATSAPP WEBHOOK CONFIGURATION (META SIDE)"
+echo "------------------------------------------------------"
+echo "Callback URL: https://$DOMAIN/messaging/whatsapp/webhook/system"
+echo "Verify Token: $WHATSAPP_VERIFY_TOKEN"
+echo "------------------------------------------------------"
+echo "Note: Ensure 'messages' is subscribed in your Meta App."
