@@ -67,6 +67,18 @@ META_VERIFY_TOKEN="$META_VERIFY_TOKEN"
 META_API_TOKEN="$META_API_TOKEN"
 EOF
   echo "✅ api/.env created."
+else
+  # Ensure AUTH_SESSION_SECRET exists in existing .env
+  if ! grep -q "AUTH_SESSION_SECRET" api/.env; then
+    echo "AUTH_SESSION_SECRET=\"$RANDOM_SECRET\"" >> api/.env
+    echo "✅ Added missing AUTH_SESSION_SECRET to existing api/.env."
+  fi
+  # Ensure META_VERIFY_TOKEN exists in existing .env
+  if ! grep -q "META_VERIFY_TOKEN" api/.env; then
+    META_VERIFY_TOKEN=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16 ; echo '')
+    echo "META_VERIFY_TOKEN=\"$META_VERIFY_TOKEN\"" >> api/.env
+    echo "✅ Added missing META_VERIFY_TOKEN to existing api/.env."
+  fi
 fi
 
 # Web .env
