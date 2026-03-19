@@ -19,7 +19,7 @@ type ToolDecl = {
 describe('Tool Registry', () => {
   it('exports exactly 56 tools with no duplicates', () => {
     const names = allToolDeclarations.map(t => t.name);
-    expect(allToolDeclarations).toHaveLength(56);
+    expect(allToolDeclarations).toHaveLength(60);
     expect(new Set(names).size).toBe(names.length);
   });
 

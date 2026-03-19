@@ -186,6 +186,85 @@ export class NextStepOrchestrator {
           return null;
       }
 
+      case 'get_property_details': {
+        const id = result.data?.id;
+        const name = result.data?.name || 'this property';
+        if (isSw) {
+          return {
+            type: 'menu',
+            message: `Pata huduma zaidi kwa ${name}:`,
+            options: [
+              { key: '1', label: 'Ongeza Chumba', action: `create_unit:${id}` },
+              { key: '2', label: 'Ripoti ya Madeni', action: `get_property_arrears:${id}` },
+              { key: '3', label: 'Statement ya Mali', action: `generate_report_file:${id}` },
+              { key: '4', label: 'Badili Habari', action: `update_property:${id}` },
+            ]
+          };
+        }
+        return {
+          type: 'menu',
+          message: `Quick Actions for ${name}:`,
+          options: [
+            { key: '1', label: 'Add a Unit', action: `create_unit:${id}` },
+            { key: '2', label: 'Arrears Report', action: `get_property_arrears:${id}` },
+            { key: '3', label: 'Financial Statement', action: `generate_report_file:${id}:Financial` },
+            { key: '4', label: 'Edit Details', action: `update_property:${id}` },
+          ]
+        };
+      }
+
+      case 'get_unit_details': {
+        const unitNo = result.data?.unitNumber || 'this unit';
+        if (isSw) {
+          return {
+            type: 'menu',
+            message: `Kitendo kwa chumba ${unitNo}:`,
+            options: [
+              { key: '1', label: 'Weka Mpangaji', action: 'create_tenant' },
+              { key: '2', label: 'Ongeza Expense', action: 'create_expense' },
+              { key: '3', label: 'Angalia Mpango', action: 'get_unit_leases' },
+            ]
+          };
+        }
+        return {
+          type: 'menu',
+          message: `Action for unit ${unitNo}:`,
+          options: [
+            { key: '1', label: 'Register Tenant', action: 'create_tenant' },
+            { key: '2', label: 'Add Expense', action: 'create_expense' },
+            { key: '3', label: 'View Leases', action: 'get_unit_leases' },
+          ]
+        };
+      }
+
+      case 'get_tenant_details': {
+        const id = result.data?.id;
+        const leaseId = result.data?.leases?.[0]?.id; // Prefer active lease if available
+        const name = result.data?.firstName || 'this tenant';
+        if (isSw) {
+          return {
+            type: 'menu',
+            message: `Chagua huduma kwa ajili ya ${name}:`,
+            options: [
+              { key: '1', label: 'Tuma Statement', action: `get_tenant_statement:${id}` },
+              { key: '2', label: 'Toza Penalti', action: `create_penalty:${leaseId || id}` },
+              { key: '3', label: 'Badili Habari', action: `update_tenant:${id}` },
+              { key: '4', label: 'Ilani ya Kisheria', action: `create_maintenance_request:${id}:LEGAL` },
+            ]
+          };
+        }
+        return {
+          type: 'menu',
+          message: `Quick Actions for ${name}:`,
+          options: [
+            { key: '1', label: 'Payment Report', action: `get_tenant_statement:${id}` },
+            { key: '2', label: 'Charge Penalty', action: `create_penalty:${leaseId || 'none'}` },
+            { key: '3', label: 'Edit Details', action: `update_tenant:${id}` },
+            { key: '4', label: 'Legal Notice', action: `create_maintenance_request:${id}:LEGAL` },
+          ]
+        };
+      }
+
       default:
         return null;
     }
@@ -195,11 +274,10 @@ export class NextStepOrchestrator {
    * Helper to format a NextStep into a string for WhatsApp
    */
   formatNextStep(step: NextStep): string {
-    // For WhatsApp, we might want to strip the numbered list if we are using buttons
-    // But we keep it as a fallback for the text part of the message.
     let output = `\n\n${step.message}`;
-    if (step.options && step.options.length > 0 && !process.env.WA_USE_BUTTONS) {
-      output += '\n\n' + step.options.map(o => `${o.key}. ${o.label}`).join('\n');
+    // If not using buttons, append the options as a numbered list
+    if (step.options && step.options.length > 0) {
+      output += '\n\n' + step.options.map(o => `*${o.key}.* ${o.label}`).join('\n');
     }
     return output;
   }

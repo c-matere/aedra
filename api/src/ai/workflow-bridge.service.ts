@@ -3,12 +3,14 @@ import { WorkflowHandlers } from '../workflows/workflow.engine';
 import { AiToolRegistryService } from './ai-tool-registry.service';
 import { AiService } from './ai.service';
 import { WorkflowInstance, WorkflowStep } from '../workflows/workflow.types';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class WorkflowBridgeService implements WorkflowHandlers {
     private readonly logger = new Logger(WorkflowBridgeService.name);
 
     constructor(
+        private readonly prisma: PrismaService,
         private readonly toolRegistry: AiToolRegistryService,
         @Inject(forwardRef(() => AiService))
         private readonly aiService: AiService,
@@ -16,12 +18,44 @@ export class WorkflowBridgeService implements WorkflowHandlers {
 
     async executeRule(stepId: string, context: Record<string, any>): Promise<any> {
         this.logger.log(`Executing RULE step: ${stepId}`);
-        // Rules are simple logic checks. For now, we can use simple switch or delegate.
+        
+        const args = context.args || {};
+
         switch (stepId) {
-            case 'validate_entities':
-                return { valid: true }; // Placeholder
-            case 'segment_by_history':
-                return { segment: 'GOOD_PAYER' }; // Placeholder
+            case 'validate_entities': {
+                const { tenantId, propertyId, unitId } = args;
+                if (tenantId) {
+                    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+                    if (!tenant) return { valid: false, error: `Tenant ${tenantId} not found` };
+                }
+                if (propertyId) {
+                    const property = await this.prisma.property.findUnique({ where: { id: propertyId } });
+                    if (!property) return { valid: false, error: `Property ${propertyId} not found` };
+                }
+                if (unitId) {
+                    const unit = await this.prisma.unit.findUnique({ where: { id: unitId } });
+                    if (!unit) return { valid: false, error: `Unit ${unitId} not found` };
+                }
+                return { valid: true };
+            }
+
+            case 'segment_by_history': {
+                const { tenantId } = args;
+                if (!tenantId) return { segment: 'UNKNOWN' };
+                
+                const payments = await this.prisma.payment.findMany({
+                    where: { lease: { tenantId } },
+                    orderBy: { paidAt: 'desc' },
+                    take: 5
+                });
+
+                if (payments.length === 0) return { segment: 'NEW_TENANT' };
+                
+                // Simple logic: if they have at least 3 payments, they are a 'GOOD_PAYER' for this demo
+                const segment = payments.length >= 3 ? 'GOOD_PAYER' : 'NEEDS_MONITORING';
+                return { segment };
+            }
+
             default:
                 return { success: true };
         }

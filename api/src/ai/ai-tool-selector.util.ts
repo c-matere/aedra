@@ -63,11 +63,18 @@ export const INTENT_TOOL_MAP: Record<string, string[]> = {
 
     'workflow_initiate': ['workflow_initiate', 'generate_execution_plan', 'list_leases', 'list_maintenance_requests'],
     
-    // --- DIRECT TOOL MAPPINGS (to handle classifier returning tool names) ---
+    // --- DIRECT TOOL MAPPINGS ---
     'create_tenant': ['create_tenant', 'list_properties', 'list_units', 'create_lease'],
     'create_property': ['create_property', 'create_unit', 'create_landlord'],
     'create_unit': ['create_unit', 'list_properties'],
     'create_lease': ['create_lease', 'list_units', 'list_tenants'],
+    'list_units': ['list_units', 'get_unit_details', 'search_units', 'list_properties'],
+    'list_leases': ['list_leases', 'get_lease_details', 'list_tenants', 'list_units'],
+    'list_payments': ['list_payments', 'record_payment', 'list_leases', 'list_tenants'],
+    'list_invoices': ['list_invoices', 'create_invoice', 'list_leases', 'list_tenants'],
+    'list_maintenance': ['list_maintenance_requests', 'update_maintenance_request', 'create_maintenance_request'],
+    'generate_report': ['generate_report_file', 'get_financial_report', 'get_portfolio_arrears'],
+    'general_query': ['list_properties', 'list_tenants', 'list_units', 'get_company_summary', 'get_portfolio_arrears'],
 };
 
 /**
@@ -83,15 +90,22 @@ export const DEFAULT_TOOLS_BY_ROLE: Record<UserPersona, string[]> = {
         'get_company_summary', 'generate_report_file', 'select_company'
     ],
     [UserPersona.STAFF]: [
-        'list_properties', 'get_property_details', 'list_tenants', 'search_tenants', 
-        'get_portfolio_arrears', 'get_company_summary', 'record_payment', 'create_maintenance_request',
-        'select_company', 'generate_execution_plan',
+        'list_properties', 'get_property_details', 'search_properties',
+        'list_units', 'get_unit_details', 'search_units',
+        'list_tenants', 'get_tenant_details', 'search_tenants',
+        'list_leases', 'get_lease_details',
+        'list_payments', 'list_invoices', 'list_expenses',
+        'list_maintenance_requests', 'create_maintenance_request',
+        'get_portfolio_arrears', 'get_company_summary', 'record_payment',
+        'select_company', 'generate_execution_plan', 'generate_report_file',
         'create_tenant', 'create_property', 'create_unit', 'create_lease', 'create_landlord'
     ],
     [UserPersona.SUPER_ADMIN]: [
-        'list_companies', 'search_companies', 'select_company', 'list_properties', 
-        'get_company_summary', 'register_company', 'configure_whatsapp',
-        'create_maintenance_request', 'list_tenants', 'record_payment'
+        'list_companies', 'search_companies', 'select_company', 'register_company', 'configure_whatsapp',
+        'list_properties', 'get_property_details', 'list_tenants', 'search_tenants',
+        'list_units', 'get_unit_details', 'list_leases', 'list_payments',
+        'get_company_summary', 'get_portfolio_arrears', 'generate_report_file',
+        'create_maintenance_request', 'record_payment'
     ],
 };
 
@@ -203,7 +217,17 @@ export function selectTools(
     
     const requiredNames = new Set([...combinedTools, ...contextTools]);
 
-    
+    // 5. Global Operational Set for Staff/Admin to prevent "I can't do that" for basic lookups
+    if (persona.id === UserPersona.STAFF || persona.id === UserPersona.SUPER_ADMIN) {
+        const globalOperationalSet = [
+            'list_properties', 'get_property_details', 
+            'list_tenants', 'get_tenant_details',
+            'list_units', 'get_unit_details',
+            'get_company_summary', 'get_portfolio_arrears'
+        ];
+        globalOperationalSet.forEach(t => requiredNames.add(t));
+    }
+
     // Filter the full manifest by the required names AND the persona's allowed tools (Hard Wall)
     const personaAllowed = new Set(persona.allowedTools);
     

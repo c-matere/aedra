@@ -27,9 +27,19 @@ const INTENT_SEEDS: Record<string, any> = {
     swahili: ['chagua', 'badilisha', 'fungua']
   },
   list_tenants: {
-    action: ['list', 'show', 'display', 'get', 'view'],
-    entity: ['tenant', 'renter', 'occupant', 'resident'],
-    swahili: ['orodha', 'onyesha', 'mpangaji', 'wapangaji']
+    action: ['list', 'show', 'display', 'enumerate'],
+    entity: ['tenants', 'renters', 'occupants', 'residents'],
+    swahili: ['orodha', 'onyesha', 'wapangaji']
+  },
+  get_tenant_details: {
+    action: ['get', 'view', 'show', 'find', 'who'],
+    entity: ['tenant', 'renter', 'occupant', 'resident', 'details', 'profile', 'info'],
+    swahili: ['mpangaji', 'maelezo', 'hali']
+  },
+  get_property_details: {
+    action: ['get', 'view', 'show', 'find'],
+    entity: ['property', 'building', 'apartment', 'house', 'details', 'info'],
+    swahili: ['nyumba', 'jengo', 'mali', 'maelezo']
   },
   generate_mckinsey_report: {
     action: ['generate', 'create', 'make', 'produce', 'build', 'prepare'],

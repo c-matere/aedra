@@ -1,25 +1,25 @@
 export const formatPropertyList = (properties: any[]) => {
-    if (!properties || properties.length === 0) return 'I couldn\'t find any properties in the portfolio right now.';
+    if (!properties || properties.length === 0) return '📂 I couldn\'t find any properties in the portfolio right now.';
     const lines = properties.map((p: any, idx: number) => {
-        const address = p.address ? ` — ${p.address}` : '';
-        const landlord = p.landlord ? ` (Landlord: ${p.landlord.firstName} ${p.landlord.lastName})` : '';
-        return `${idx + 1}. ${p.name}${address}${landlord}`;
+        const address = p.address ? ` — _${p.address}_` : '';
+        const landlord = p.landlord ? ` (👤 *Landlord:* ${p.landlord.firstName})` : '';
+        return `*${idx + 1}.* ${p.name}${address}${landlord}`;
     });
-    return `Here are the properties on file:\n${lines.join('\n')}`;
+    return `📂 *Properties on file:*\n\n${lines.join('\n')}`;
 };
 
 export const formatTenantList = (tenants: any[], query?: string) => {
     if (!tenants || tenants.length === 0) {
-        return query ? `I looked for tenants matching "${query}" but didn't find anyone.` : 'I don\'t see any tenants listed here yet.';
+        return query ? `🔍 I looked for tenants matching *"${query}"* but didn't find anyone.` : '👤 I don\'t see any tenants listed here yet.';
     }
     const lines = tenants.map((t: any, idx: number) => {
-        const name = `${t.firstName} ${t.lastName}`.trim();
-        const property = t.property?.name ? ` — ${t.property.name}` : '';
-        const phone = t.phone ? ` — ${t.phone}` : '';
-        return `${idx + 1}. ${name}${property}${phone}`;
+        const name = `*${t.firstName} ${t.lastName}*`.trim();
+        const property = t.property?.name ? ` — 📂 _${t.property.name}_` : '';
+        const phone = t.phone ? ` — 📞 _${t.phone}_` : '';
+        return `*${idx + 1}.* ${name}${property}${phone}`;
     });
-    const header = query ? `I found these tenants matching "${query}":` : 'Here are the tenants currently in the system:';
-    return `${header}\n${lines.join('\n')}`;
+    const header = query ? `🔍 *Found these tenants matching "${query}":*` : '👤 *Current Tenants:*';
+    return `${header}\n\n${lines.join('\n')}`;
 };
 
 const COMPANY_PAGE_SIZE = 8;
@@ -62,16 +62,16 @@ export const formatCompanyList = (
 
 export const formatUnitList = (units: any[], query?: string) => {
     if (!units || units.length === 0) {
-        return query ? `No units found matching "${query}".` : 'No units found.';
+        return query ? `🔍 No units found matching *"${query}"*.` : '🏠 No units found.';
     }
     const lines = units.map((u: any, idx: number) => {
-        const property = u.property?.name ? ` [${u.property.name}]` : '';
-        const status = u.status ? ` — ${u.status}` : '';
-        const rent = u.rentAmount ? ` — Rent: ${u.rentAmount}` : '';
-        return `${idx + 1}. Unit ${u.unitNumber}${property}${status}${rent}`;
+        const property = u.property?.name ? ` [_${u.property.name}_]` : '';
+        const status = u.status ? ` — *${u.status}*` : '';
+        const rent = u.rentAmount ? ` — 💰 *KES ${u.rentAmount.toLocaleString()}*` : '';
+        return `*${idx + 1}.* Unit *${u.unitNumber}*${property}${status}${rent}`;
     });
-    const header = query ? `Here are matching units for "${query}":` : 'Here are the units:';
-    return `${header}\n${lines.join('\n')}`;
+    const header = query ? `🔍 *Matching units for "${query}":*` : '🏠 *Unit Availability:*';
+    return `${header}\n\n${lines.join('\n')}`;
 };
 
 export const formatLeaseList = (leases: any[]) => {
@@ -87,7 +87,7 @@ export const formatLeaseList = (leases: any[]) => {
 };
 
 export const formatPaymentList = (payments: any[]) => {
-    if (!payments || payments.length === 0) return 'I don\'t see any recorded payments for this account yet.';
+    if (!payments || payments.length === 0) return '💸 I don\'t see any recorded payments for this account yet.';
     
     // Sort by date to analyze consistency
     const sorted = [...payments].sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime());
@@ -95,9 +95,9 @@ export const formatPaymentList = (payments: any[]) => {
     const lines = sorted.map((p: any, idx: number) => {
         const date = p.paidAt ? new Date(p.paidAt).toLocaleDateString() : 'N/A';
         const amount = p.amount ? p.amount.toLocaleString() : '0';
-        const method = p.method ? ` via ${p.method}` : '';
+        const method = p.method ? ` 💳 _${p.method}_` : '';
         const type = p.type ? ` (${p.type})` : '';
-        return `${idx + 1}. ${date}: KES ${amount}${method}${type}`;
+        return `*${idx + 1}.* ${date}: *KES ${amount}*${method}${type}`;
     });
 
     let summary = '';
@@ -105,35 +105,37 @@ export const formatPaymentList = (payments: any[]) => {
         const amounts = payments.map(p => p.amount);
         const uniqueAmounts = new Set(amounts);
         if (uniqueAmounts.size === 1) {
-            summary = `\n\nPayments are consistent at KES ${amounts[0].toLocaleString()}. No arrears noted based on this history.`;
+            summary = `\n\n✅ *Insights:*\nPayments are consistent at *KES ${amounts[0].toLocaleString()}*. No arrears noted based on this history.`;
         } else {
-            summary = `\n\nI've noted ${payments.length} payments with some variation in amounts—I'll keep monitoring for consistency.`;
+            summary = `\n\nℹ️ *Insights:*\nI've noted ${payments.length} payments with variation in amounts—I'll keep monitoring for consistency.`;
         }
     }
 
-    return `Here's the payment history:\n${lines.join('\n')}${summary}`;
+    return `💸 *Payment History:*\n\n${lines.join('\n')}${summary}`;
 };
 
 export const formatInvoiceList = (invoices: any[]) => {
-    if (!invoices || invoices.length === 0) return 'Everything is clear on this side — I don\'t see any outstanding invoices.';
+    if (!invoices || invoices.length === 0) return '🧾 Everything is clear — I don\'t see any outstanding invoices.';
     const lines = invoices.map((i: any, idx: number) => {
         const date = i.dueDate ? new Date(i.dueDate).toLocaleDateString() : 'N/A';
         const amount = i.amount ? i.amount.toLocaleString() : '0';
-        const status = ` [${i.status}]`;
-        return `${idx + 1}. Due ${date}: KES ${amount}${status} — ${i.description}`;
+        const statusEmoji = i.status === 'PAID' ? '✅' : '⏳';
+        const status = ` *[${i.status}]*`;
+        return `*${idx + 1}.* Due ${date}: *KES ${amount}* ${statusEmoji}${status} — _${i.description}_`;
     });
-    return `Here are the invoices currently on record:\n${lines.join('\n')}`;
+    return `🧾 *Outstanding Invoices:*\n\n${lines.join('\n')}`;
 };
 
 export const formatMaintenanceRequestList = (requests: any[]) => {
-    if (!requests || requests.length === 0) return 'No maintenance requests found.';
+    if (!requests || requests.length === 0) return '🛠 No maintenance requests found.';
     const lines = requests.map((r: any, idx: number) => {
-        const priority = r.priority ? `[${r.priority}] ` : '';
-        const status = r.status ? `(${r.status})` : '';
-        const property = r.property ? ` — ${r.property.name}` : '';
-        return `${idx + 1}. ${priority}${r.title} ${status}${property}`;
+        const priorityEmoji = r.priority === 'HIGH' ? '🔴' : (r.priority === 'MEDIUM' ? '🟠' : '🟡');
+        const priority = r.priority ? `${priorityEmoji} *${r.priority}* ` : '';
+        const status = r.status ? `(_${r.status}_)` : '';
+        const property = r.property ? ` — 📂 _${r.property.name}_` : '';
+        return `*${idx + 1}.* ${priority}${r.title} ${status}${property}`;
     });
-    return `Here are the maintenance requests:\n${lines.join('\n')}`;
+    return `🛠 *Maintenance Requests:*\n\n${lines.join('\n')}`;
 };
 
 export const formatExpenseList = (expenses: any[]) => {
@@ -324,4 +326,31 @@ ${invoiceLines.length > 0 ? invoiceLines.join('\n') : 'No invoices found.'}
 ${paymentLines.length > 0 ? paymentLines.join('\n') : 'No payments found.'}
 
 _Generated by Aedra AI_`;
+};
+
+export const formatPaymentReceipt = (payment: any) => {
+    if (!payment) return '💸 Payment recorded successfully.';
+    const date = new Date(payment.paidAt).toLocaleDateString('en-KE', { day: 'numeric', month: 'long', year: 'numeric' });
+    return `✅ *PAYMENT RECEIVED* 💸
+---------------------------
+👤 *Tenant:* ${payment.lease?.tenant?.firstName || 'Valued Tenant'}
+🏠 *Unit:* ${payment.lease?.unit?.unitNumber || 'N/A'}
+💰 *Amount:* *KES ${payment.amount.toLocaleString()}*
+📅 *Date:* ${date}
+💳 *Method:* ${payment.method}
+
+_Thank you for your payment!_`;
+};
+
+export const formatInvoiceSuccess = (invoice: any) => {
+    if (!invoice) return '🧾 Invoice created successfully.';
+    const date = new Date(invoice.dueDate).toLocaleDateString();
+    return `✅ *INVOICE GENERATED* 🧾
+---------------------------
+👤 *Tenant:* ${invoice.lease?.tenant?.firstName} ${invoice.lease?.tenant?.lastName}
+💰 *Amount:* *KES ${invoice.amount.toLocaleString()}*
+📅 *Due Date:* ${date}
+📝 *Description:* ${invoice.description}
+
+_Sent to tenant via WhatsApp._`;
 };

@@ -39,6 +39,9 @@ export class AiWhatsappOrchestratorService {
         const uid = getSessionUid({ phone });
         const lockKey = `lock:wa:${uid}`;
         const isLocked = await this.cacheManager.get(lockKey);
+        
+        this.logger.log(`[WhatsApp] Incoming from ${phone} (wamid: ${messageId || 'NONE'}). Lock status: ${!!isLocked}`);
+
         if (isLocked) {
             this.logger.warn(`Locked: Already processing a request for ${uid}`);
             return;
@@ -91,7 +94,8 @@ export class AiWhatsappOrchestratorService {
             // Handle "Home" or Greeting for identified users
             const isGreeting = (text && /^(hi|hello|start|home|menyu|menu|mwanzo)$/i.test(text.toLowerCase().trim()));
             if (isGreeting && sender.role !== UserRole.UNIDENTIFIED) {
-                const menu = this.mainMenu.getMainMenu(language);
+                const context = await this.getMenuContext(sender, language);
+                const menu = this.mainMenu.getMainMenu(sender.role, language, context);
                 await this.whatsappService.sendInteractiveMessage({ to: phone, interactive: menu });
                 if (messageId) await this.whatsappService.sendReaction({ to: phone, messageId: messageId as string, emoji: '✅' });
                 return { response: 'Showing Main Menu', chatId: null };
@@ -137,10 +141,17 @@ export class AiWhatsappOrchestratorService {
                 const companyId = lastChat?.companyId || sender.companyId || undefined;
                 this.logger.log(`Processing WhatsApp from ${phone}: role=${sender.role}, id=${sender.id}, companyId=${companyId || 'NONE'}`);
 
+                const lang = language || 'en';
                 let downloadedMedia: { data: string; mimeType: string } | null = null;
                 if (mimeType?.startsWith('audio') && mediaId) {
                     try {
                         downloadedMedia = await this.whatsappService.downloadMedia(mediaId, companyId);
+                        // Proactive feedback for audio
+                        const feedbackMsg = lang === 'sw' 
+                            ? "🎤 Nimepokea ujumbe wako wa sauti. Hebu niusikilize..." 
+                            : "🎤 Received your voice note. Let me listen to it...";
+                        await this.whatsappService.sendTextMessage({ companyId, to: phone, text: feedbackMsg });
+
                         const transcript = await this.transcribeAudio(downloadedMedia.data, downloadedMedia.mimeType, language || undefined);
                         if (!transcript || transcript.trim() === '') {
                             const failMsg = language === 'sw'
@@ -159,14 +170,12 @@ export class AiWhatsappOrchestratorService {
                     }
                 }
 
-                const lang = language || 'en';
-
 
             // Resolve chatId early for logging
             let chatId = lastChat?.id;
 
             // Helper to send and log
-            const sendAndLog = async (resp: string, cid?: string, interactive?: any) => {
+            const sendAndLog = async (resp: string, cid?: string, interactive?: any, skipLog: boolean = false) => {
                 if (interactive) {
                     await this.whatsappService.sendInteractiveMessage({ 
                         companyId: cid || companyId, 
@@ -181,7 +190,7 @@ export class AiWhatsappOrchestratorService {
                     });
                 }
 
-                if (chatId) {
+                if (chatId && !skipLog) {
                     await this.prisma.chatMessage.create({
                         data: { chatHistoryId: chatId, role: 'assistant', content: resp }
                     });
@@ -249,7 +258,9 @@ export class AiWhatsappOrchestratorService {
                         phone,
                         chatId: activeList.chatId || chatId
                     };
-                    const actionResult = await this.aiService.executeTool('select_company', { companyId: selected.id }, ctx, lang);
+                    const action = activeList.action || 'select_company';
+                    const idField = activeList.idField || 'companyId';
+                    const actionResult = await this.aiService.executeTool(action, { [idField]: selected.id }, ctx, lang);
                     const formatted = await this.aiService.formatToolResponse(actionResult, sender, selected.id, lang);
                     
                     await sendAndLog(formatted.text, undefined, formatted.interactive);
@@ -282,7 +293,38 @@ export class AiWhatsappOrchestratorService {
                              return { response: cancelMsg, chatId: chatId || null };
                         }
 
-                        const actionResult = await this.aiService.executeTool(orchestratedAction, {}, {
+                        // Parse orchestrated action (format: toolName:id:extra)
+                        const parts = orchestratedAction.split(':');
+                        const toolName = parts[0];
+                        const entityId = parts[1];
+                        const extra = parts[2];
+
+                        const args: any = {};
+                        if (entityId) {
+                            if (toolName.includes('tenant')) args.tenantId = entityId;
+                            else if (toolName.includes('property')) args.propertyId = entityId;
+                            else if (toolName.includes('unit')) args.unitId = entityId;
+                            else if (toolName.includes('lease') || toolName.includes('penalty')) args.leaseId = entityId;
+                        }
+
+                        // Special case for Legal Notice proxy
+                        if (toolName === 'create_maintenance_request' && extra === 'LEGAL') {
+                            args.title = 'Legal Notice / Eviction';
+                            args.description = 'Formal legal notice or vacate request initiated from tenant profile.';
+                            args.category = 'OTHER';
+                            args.priority = 'HIGH';
+                            args.confirm = true;
+                        }
+
+                        // Special case for Financial Report
+                        if (toolName === 'generate_report_file' && extra === 'Financial') {
+                            args.reportType = 'Financial';
+                            args.format = 'pdf';
+                        }
+
+                        this.logger.log(`Executing orchestrated tool: ${toolName} with args: ${JSON.stringify(args)}`);
+                        
+                        const actionResult = await this.aiService.executeTool(toolName, args, {
                             userRole: sender.role,
                             role: sender.role,
                             isSuperAdmin: sender.role === UserRole.SUPER_ADMIN,
@@ -509,7 +551,7 @@ export class AiWhatsappOrchestratorService {
                     }
                 }
 
-                await sendAndLog(finalResponse, undefined, result.interactive);
+                await sendAndLog(finalResponse, undefined, result.interactive, true);
                 result.response = finalResponse;
             }
 
@@ -571,10 +613,14 @@ export class AiWhatsappOrchestratorService {
 
     private stripJsonBlocks(text: string): string {
         if (!text) return text;
+        // Strip markdown-fenced JSON blocks
         let cleaned = text.replace(/```(?:json)?\s*([\s\S]*?)\s*```/gi, '');
-        cleaned = cleaned.replace(/\{(\s*"[^"]+"\s*:\s*(?:[^"{}[\]]+|{[^{}]*}|\[[^[\]]*\]),?)*\}/g, (match) => {
+        
+        // Strip raw JSON objects {} that look like technical data (at least one key-value pair)
+        cleaned = cleaned.replace(/\{[\s\S]*?\}/g, (match) => {
             try {
-                if (match.length > 20 && match.includes('"') && match.includes(':')) {
+                // Only strip if it looks like a real JSON object with keys
+                if (match.length > 10 && match.includes('"') && match.includes(':')) {
                     JSON.parse(match);
                     return '';
                 }
@@ -583,6 +629,17 @@ export class AiWhatsappOrchestratorService {
                 return match; 
             }
         });
+
+        // Strip raw JSON arrays []
+        cleaned = cleaned.replace(/\[\s*\{[\s\S]*?\}\s*\]/g, (match) => {
+            try {
+                JSON.parse(match);
+                return '';
+            } catch (e) {
+                return match;
+            }
+        });
+
         cleaned = cleaned.replace(/\bjson\b\s*/gim, '');
         return cleaned.trim();
     }
@@ -593,5 +650,40 @@ export class AiWhatsappOrchestratorService {
         } catch (e) {
             return text;
         }
+    }
+
+    private async getMenuContext(sender: any, language: string): Promise<any> {
+        const context: any = { 
+            userName: sender.name || sender.firstName || (sender.id !== 'unidentified' ? 'there' : 'Guest'),
+            role: sender.role
+        };
+
+        try {
+            if (sender.role === UserRole.TENANT) {
+                const unpaidInvoices = await this.prisma.invoice.aggregate({
+                    where: { 
+                        lease: { tenantId: sender.id, deletedAt: null },
+                        status: 'OPEN',
+                        deletedAt: null 
+                    },
+                    _sum: { amount: true }
+                });
+                context.balanceDue = unpaidInvoices._sum.amount || 0;
+            } else if (sender.role === UserRole.LANDLORD) {
+                if (sender.companyId) {
+                    context.collectionRate = await this.aiService.getCollectionRate(sender.companyId);
+                }
+            } else if (sender.role === UserRole.COMPANY_ADMIN || sender.role === UserRole.COMPANY_STAFF) {
+                 if (sender.companyId) {
+                     context.propertyCount = await this.prisma.property.count({ 
+                         where: { companyId: sender.companyId, deletedAt: null } 
+                     });
+                 }
+            }
+        } catch (e) {
+            this.logger.warn(`Failed to fetch menu context for ${sender.id}: ${e.message}`);
+        }
+
+        return context;
     }
 }

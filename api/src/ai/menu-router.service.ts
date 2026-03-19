@@ -110,6 +110,11 @@ export class MenuRouterService {
             return this.handleMainMenuSelection(text, language);
         }
 
+        // Handle Auth selections (Ids starting with auth_)
+        if (text.startsWith('auth_')) {
+            return this.handleAuthSelection(text, language);
+        }
+
         const session = await this.loadSession(uid);
         if (session.awaitingSelection !== 'company') return { handled: false };
 
@@ -250,13 +255,67 @@ export class MenuRouterService {
             case 'menu_units':
                 return { handled: true, tool: { name: 'list_units' } };
             case 'menu_financials':
-                return { handled: true, tool: { name: 'get_company_financial_summary' } };
+                return { handled: true, tool: { name: 'get_company_summary' } };
             case 'menu_reports':
-                return { handled: true, response: isSw ? 'Tafadhali andika aina ya ripoti unayotaka (mfano: "Ripoti ya makusanyo")' : 'Please type the type of report you want (e.g., "Collection report")' };
+                return { 
+                    handled: true, 
+                    tool: { name: 'generate_report_file', args: { reportType: 'Summary', format: 'pdf' } } 
+                };
+            
+            // Super Admin
+            case 'menu_companies':
+                return { handled: true, tool: { name: 'list_companies' } };
+            case 'menu_system_health':
+                return { handled: true, tool: { name: 'get_company_summary' } }; // Use default summary for health for now
+            case 'menu_platform_report':
+                return { handled: true, tool: { name: 'generate_report_file', args: { scope: 'platform', format: 'pdf' } } };
+
+            // Tenant
+            case 'menu_tenant_balance':
+                return { handled: true, tool: { name: 'list_invoices', args: { status: 'OPEN' } } };
+            case 'menu_tenant_receipt':
+                return { handled: true, tool: { name: 'generate_receipt', args: { scope: 'last_payment' } } };
+            case 'menu_tenant_statement':
+                return { handled: true, tool: { name: 'generate_report_file', args: { reportType: 'Tenant Statement', format: 'pdf' } } };
+            case 'menu_tenant_maintenance':
+                return { handled: true, tool: { name: 'create_maintenance_request' } };
+
+            // Landlord
+            case 'menu_landlord_status':
+                return { handled: true, tool: { name: 'get_portfolio_arrears' } };
+            case 'menu_landlord_vacancies':
+                return { handled: true, tool: { name: 'list_vacant_units' } };
+            case 'menu_landlord_report':
+                return { handled: true, tool: { name: 'generate_report_file', args: { reportType: 'Portfolio', format: 'pdf' } } };
+            case 'menu_landlord_agent':
+                return { handled: true, tool: { name: 'get_company_staff', args: { role: 'AGENT' } } };
+
             case 'menu_help':
-                return { handled: true, response: isSw ? 'Naweza kukusaidia kusimamia nyumba, wapangaji, na ripoti za fedha. Uliza chochote!' : 'I can help you manage properties, tenants, and financial reports. Just ask anything!' };
+                return { handled: true, response: isSw ? 'Aedra ni msaidizi wako wa usimamizi wa majengo. Unaweza:\n\n1. Kuangalia hali ya kodi\n2. Kusajili wapangaji\n3. Kupata ripoti za PDF\n\nNime hapa kukusaidia!' : 'Aedra is your property management assistant. You can:\n\n1. Check rent collection status\n2. Register tenants\n3. Generate PDF reports\n\nI am here to help!' };
             case 'menu_settings':
-                return { handled: true, response: isSw ? 'Unaweza kubadili lugha kwa kusema "Change to English".' : 'You can change language by saying "Badili kwenda Kiswahili".' };
+                return { handled: true, response: isSw ? 'Mipangilio iko njiani! Kwa sasa, unaweza kubadili lugha kwa kusema "Speak English".' : 'Settings are coming soon! For now, you can switch language by saying "Badili lugha kwa Kiswahili".' };
+            default:
+                return { handled: false };
+        }
+    }
+
+    private handleAuthSelection(id: string, language: string): MenuRouteResult {
+        const isSw = language === 'sw';
+        switch (id) {
+            case 'auth_register':
+                return { 
+                    handled: true, 
+                    response: isSw 
+                        ? 'Ili kusajili kampuni yako, tafadhali nipe jina la kampuni na barua pepe yako (mfano: "Sajili kampuni ya ABC, email: abc@example.com")' 
+                        : 'To register your company, please provide your company name and email (e.g., "Register company ABC, email: abc@example.com")' 
+                };
+            case 'auth_support':
+                return { 
+                    handled: true, 
+                    response: isSw 
+                        ? 'Msaada wa kiufundi unakuja! Kwa sasa, tafadhali acha ujumbe wako hapa na timu yetu itakupigia.' 
+                        : 'Technical support is on its way! For now, please leave your message here and our team will get back to you.' 
+                };
             default:
                 return { handled: false };
         }

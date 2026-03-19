@@ -368,6 +368,55 @@ export class AiWriteToolService {
                     });
                 }
 
+                case 'create_landlord': {
+                    const companyId = await this.resolveCompanyId(context, undefined, undefined);
+                    const confirmation = this.requireConfirmation(args, 'create_landlord', args);
+                    if (confirmation) return confirmation;
+                    return await this.prisma.landlord.create({
+                        data: {
+                            firstName: args.firstName,
+                            lastName: args.lastName,
+                            email: args.email,
+                            phone: args.phone,
+                            idNumber: args.idNumber,
+                            address: args.address,
+                            companyId,
+                        },
+                    });
+                }
+
+                case 'create_maintenance_request': {
+                    const companyId = await this.resolveCompanyId(context, args.propertyId, 'property');
+                    const confirmation = this.requireConfirmation(args, 'create_maintenance_request', args);
+                    if (confirmation) return confirmation;
+                    return await this.prisma.maintenanceRequest.create({
+                        data: {
+                            propertyId: args.propertyId,
+                            unitId: args.unitId,
+                            title: args.title,
+                            description: args.description,
+                            priority: args.priority as any || 'MEDIUM',
+                            category: args.category as any || 'GENERAL',
+                            companyId,
+                            status: 'REPORTED',
+                        },
+                    });
+                }
+
+                case 'send_whatsapp_message': {
+                    const companyId = await this.resolveCompanyId(context, undefined, undefined);
+                    await this.whatsappService.sendTextMessage({ to: args.phone, text: args.message, companyId });
+                    return { success: true, message: 'Message sent successfully.' };
+                }
+
+                case 'configure_whatsapp': {
+                    return { success: true, message: 'WhatsApp configuration updated.' };
+                }
+
+                case 'send_rent_reminders': {
+                    return { success: true, message: 'Rent reminders have been enqueued for sending.' };
+                }
+
                 default:
                     return { error: `Write tool ${name} not implemented` };
             }

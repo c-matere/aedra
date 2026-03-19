@@ -30,8 +30,8 @@ describe('Seam coverage', () => {
       const exec = jest.fn();
       const res = await tryDirectTool('Hello', { role: 'SUPER_ADMIN' }, prismaMock, exec, 'en');
       expect(exec).not.toHaveBeenCalled();
-      expect(typeof res).toBe('string');
-      expect((res as string).length).toBeGreaterThan(0);
+      expect(typeof res).toBe('object');
+      expect((res as any).data).toBeDefined();
     });
 
     it('single digit routes directly via quick action', async () => {

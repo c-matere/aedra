@@ -57,7 +57,7 @@ export class ResponsePipelineService {
     private validate(skill: any, data: any): string[] {
         const errors: string[] = [];
         
-        // Simple schema presence check for now (can expand to AJV if needed)
+        // Simple schema presence check
         const required = skill.outputSchema.required || [];
         for (const field of required) {
             if (data[field] === undefined || data[field] === null || data[field] === '') {
@@ -65,13 +65,21 @@ export class ResponsePipelineService {
             }
         }
 
-        // Safety: Check for PII or prohibited patterns (Placeholder for now)
-        // In a real Anthropic-like system, this would be a robust regex/substring check
-        const prohibited = ['password', 'secret', 'token'];
+        // Safety: Check for PII or prohibited patterns
+        const prohibited = ['password', 'secret', 'token', 'apiKey', 'credential'];
         const dataString = JSON.stringify(data).toLowerCase();
+        
         for (const word of prohibited) {
             if (dataString.includes(word)) {
                 errors.push(`Safety violation: Output contains prohibited term "${word}".`);
+            }
+        }
+
+        // Check for common hallucination placeholders
+        const placeholders = ['[placeholder]', '{{placeholder}}', 'YOUR_NAME_HERE', '0700000000'];
+        for (const p of placeholders) {
+            if (dataString.includes(p.toLowerCase())) {
+                errors.push(`Quality violation: Output contains placeholder "${p}".`);
             }
         }
 
@@ -79,14 +87,8 @@ export class ResponsePipelineService {
     }
 
     private applyWhatsAppFormatting(text: string): string {
-        // WhatsApp specific rendering rules:
-        // Bold: *text* (Already often used by models, but we ensure it here)
-        // Italic: _text_
-        // Monospace: ```text```
-        
-        // For now, we assume the templates might use markdown-like syntax
-        // but we can enforce or transform technical patterns here.
-        // Example: Ensure KES followed by numbers is bolded for readability
-        return text.replace(/(KES\s?\d+(?:,\d+)*(?:\.\d+)?)/g, '*$1*');
+        // Ensure KES and amounts are bolded for premium readability
+        return text.replace(/(KES\s?\d+(?:,\d+)*(?:\.\d+)?)/g, '*$1*')
+                   .replace(/\*(?:\s*)(\*)/g, '$1'); // Cleanup potential double bolding
     }
 }

@@ -1,15 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Groq from 'groq-sdk';
 import { withRetry } from '../common/utils/retry';
 
 @Injectable()
 export class QueryEnrichmentService {
     private readonly logger = new Logger(QueryEnrichmentService.name);
-    private genAI: GoogleGenerativeAI;
-    private readonly modelName = 'gemini-1.5-flash';
+    private groq: Groq;
+    private readonly modelName = 'llama-3.1-8b-instant';
 
     constructor() {
-        this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy-key');
+        this.groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'dummy-key' });
     }
 
     /**
@@ -20,6 +20,12 @@ export class QueryEnrichmentService {
         
         // Skip enrichment for longer or already detailed messages
         if (wordCount > 10 || message.length > 60) {
+            return message;
+        }
+
+        // Handle single characters or punctuation (e.g. "?", ".", "!")
+        if (/^[?!.]+$/.test(message.trim())) {
+            this.logger.log(`Skipping enrichment for punctuation-only message: "${message}"`);
             return message;
         }
 
@@ -39,23 +45,33 @@ Short, vague requests come from WhatsApp. Your job is to flesh them out into cle
 ${historySnippet || 'No recent history'}
 
 [TASK]
-Expand the following vague user message into a detailed request. 
+Expand the following vague user message into a detailed request for the AI assistant.
+- NEVER include explanations, summaries, or conversational filler like "I expanded this for you".
+- NEVER output "Selection Required" or internal state descriptions.
+- ONLY output the text that a user would have typed if they were being very specific.
 - If they mention a name like "maggy", assume they mean a tenant named Maggie.
 - If they mention "payment history", they want to see the payment list for that person.
 - If they say "who hasn't paid", they want an arrears report for the company.
-- Keep the tone professional but match the user's intent.
 
 [USER MESSAGE]
 "${message}"
 
 [OUTPUT]
-Provide ONLY the expanded prompt. Do not include prefixes like "Enhanced Prompt:" or conversational filler.
+Provide ONLY the expanded prompt text. Strictly no prefixes or suffixes.
 `;
 
         try {
-            const model = this.genAI.getGenerativeModel({ model: this.modelName });
-            const result = await withRetry(() => model.generateContent(prompt));
-            const enriched = result.response.text().trim();
+            const completion = await withRetry(() => this.groq.chat.completions.create({
+                model: this.modelName,
+                messages: [
+                    { role: 'system', content: 'You are a Query Enrichment specialist. Expand short messages into detailed requests.' },
+                    { role: 'user', content: prompt }
+                ],
+                temperature: 0.1,
+                max_tokens: 150,
+            }));
+
+            const enriched = completion.choices[0]?.message?.content?.trim() || message;
             
             this.logger.log(`Enriched query: "${enriched}"`);
             return enriched;

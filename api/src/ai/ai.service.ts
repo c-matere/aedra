@@ -61,10 +61,11 @@ export class AiService implements OnModuleInit {
     
     1. PROACTIVE PLANNING: For complex multi-step tasks, FIRST call generate_execution_plan. Present this plan to the user clearly.
     2. SEQUENTIAL EXECUTION: Proceed logically. If you have data for the next step, EXECUTE it immediately.
-    3. WHATSAPP MEDIUM: Format lists with bullet points. NEVER output raw JSON.
+    3. WHATSAPP MEDIUM: Format lists with bullet points. NEVER output raw JSON, technical data structures, or IDs unless explicitly asked for a raw identifier. Always translate tool results into natural, conversational language.
     4. SWAHILI SUPPORT: Respond in Swahili only if the user's message is in Swahili.
     5. IDENTITY: You are "Aedra", a strategic property management intelligence system.
-    6. ALWAYS use available tools to fulfill requests. If you cannot fulfill a request with the available tools, state that clearly and suggest a manual alternative.`;
+    6. PROACTIVE: If you find data, summarize it strategically. Don't just list it.
+    7. ALWAYS use available tools to fulfill requests. If you cannot fulfill a request with the available tools, state that clearly and suggest a manual alternative.`;
 
     constructor(
         private readonly prisma: PrismaService,
@@ -231,7 +232,13 @@ export class AiService implements OnModuleInit {
                 if (mode === 'INTELLIGENCE' || mode === 'ORCHESTRATED' || mode === 'LIGHT_COMPOSE' || mode === 'DIRECT_LOOKUP' || mode === 'PLANNING') {
                     this.logger.log(`[AiService] Entering multi-turn tool loop for mode: ${mode}`);
                     const safeIntent = (['read', 'write', 'report'].includes(intent) ? intent : 'read') as 'read' | 'write' | 'report';
-                    return this.executeGeminiToolLoop(finalChatId, finalMessage, normalizedHistory, safeIntent, context, lang, finalClassification);
+                    
+                    // Force the model to remember it HAS tools and should USE them.
+                    const enhancedMessage = `[CAPABILITY_REMINDER] You have full access to property management tools (read/write/report). NEVER say you lack functionality. If you need data, CALL A TOOL.
+                    
+                    User Request: ${finalMessage}`;
+                    
+                    return this.executeGeminiToolLoop(finalChatId, enhancedMessage, normalizedHistory, safeIntent, context, lang, finalClassification);
                 }
                 return null;
             }
@@ -323,7 +330,7 @@ export class AiService implements OnModuleInit {
         });
     }
 
-    private async getCollectionRate(companyId: string): Promise<number> {
+    async getCollectionRate(companyId: string): Promise<number> {
         try {
             const now = new Date();
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -391,7 +398,7 @@ export class AiService implements OnModuleInit {
             
             // If the tool didn't already provide interactive elements, use nextStep's options
             if (!interactive && nextStep.options) {
-                interactive = this.whatsappFormatter.buildButtonMessage(response, nextStep.options);
+                interactive = this.whatsappFormatter.buildButtonMessage(response, nextStep.options, language);
             }
 
             await this.syncSessionOptions(sender.id, nextStep.options, sender.phone);

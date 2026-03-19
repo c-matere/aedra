@@ -79,7 +79,7 @@ export class AiReadToolService {
                     const pListKey = `list:${propUid}`;
                     await this.cacheManager.set(pListKey, { items: propSession.lastResults, chatId: context.chatId, action: 'list_properties', idField: 'propertyId' }, 300 * 1000);
 
-                    return formatPropertyList(properties);
+                    return properties;
 
                 case 'list_companies': {
                     const isSuperAdmin = context.isSuperAdmin ?? role === UserRole.SUPER_ADMIN;
@@ -221,7 +221,30 @@ export class AiReadToolService {
                             landlord: true,
                         },
                     });
-                    return formatPropertyDetails(property);
+                    if (!property) return { error: 'Property not found.' };
+                    return property;
+
+                case 'get_tenant_details': {
+                    await this.resolveCompanyId(context, args.tenantId, 'tenant');
+                    const tenant = await this.prisma.tenant.findFirst({
+                        where: {
+                            id: args.tenantId,
+                            companyId: context.companyId ?? undefined,
+                            deletedAt: null,
+                        },
+                        include: {
+                            property: true,
+                            leases: {
+                                where: { deletedAt: null },
+                                orderBy: { createdAt: 'desc' },
+                                take: 1,
+                                include: { unit: true }
+                            }
+                        }
+                    });
+                    if (!tenant) return { error: 'Tenant not found.' };
+                    return tenant;
+                }
 
                 case 'select_company': {
                     if (!args.companyId) return { error: 'Company ID is required' };
@@ -288,7 +311,7 @@ export class AiReadToolService {
                     const uListKey = `list:${unitUid}`;
                     await this.cacheManager.set(uListKey, { items: unitSession.lastResults, chatId: context.chatId, action: 'list_units', idField: 'unitId' }, 300 * 1000);
 
-                    return formatUnitList(vacantUnits, args.query);
+                    return vacantUnits;
                 }
 
                 case 'search_properties': {
@@ -309,7 +332,7 @@ export class AiReadToolService {
                         include: { landlord: true },
                         take: args?.limit || 20,
                     });
-                    return formatPropertyList(foundProperties);
+                    return foundProperties;
                 }
 
                 case 'list_units': {
@@ -328,7 +351,7 @@ export class AiReadToolService {
                         include: { property: true },
                         take: args?.limit || 20,
                     });
-                    return formatUnitList(units);
+                    return units;
                 }
 
                 case 'get_unit_details': {
@@ -341,7 +364,7 @@ export class AiReadToolService {
                         },
                         include: { property: true, leases: { include: { tenant: true } } },
                     });
-                    return formatUnitDetails(unit);
+                    return unit;
                 }
 
                 case 'list_tenants': {
@@ -363,7 +386,7 @@ export class AiReadToolService {
                     const tListKey = `list:${tenantUid}`;
                     await this.cacheManager.set(tListKey, { items: tenantSession.lastResults, chatId: context.chatId, action: 'list_tenants', idField: 'tenantId' }, 300 * 1000);
 
-                    return formatTenantList(tenants);
+                    return tenants;
                 }
 
                 case 'search_tenants': {
@@ -393,7 +416,7 @@ export class AiReadToolService {
                     sTenantSession.lastIntent = 'list_tenants';
                     await this.cacheManager.set(sTenantSessionKey, sTenantSession, 3600 * 1000);
 
-                    return formatTenantList(foundTenants, args.query);
+                    return foundTenants;
                 }
 
                 case 'get_company_summary': {
@@ -427,7 +450,7 @@ export class AiReadToolService {
                         include: { property: true, unit: true, assignedTo: true },
                         take: args?.limit || 20,
                     });
-                    return formatMaintenanceRequestList(requests);
+                    return requests;
                 }
 
                 case 'list_payments': {
@@ -439,7 +462,7 @@ export class AiReadToolService {
                         include: { lease: { include: { tenant: true, property: true } } },
                         take: args?.limit || 20,
                     });
-                    return formatPaymentList(payments);
+                    return payments;
                 }
 
                 case 'list_invoices': {
@@ -451,7 +474,7 @@ export class AiReadToolService {
                         include: { lease: { include: { tenant: true, property: true } } },
                         take: args?.limit || 20,
                     });
-                    return formatInvoiceList(invoices);
+                    return invoices;
                 }
 
                 case 'list_expenses': {
@@ -460,7 +483,7 @@ export class AiReadToolService {
                         include: { property: true, unit: true },
                         take: args?.limit || 20,
                     });
-                    return formatExpenseList(expenses);
+                    return expenses;
                 }
 
                 case 'get_tenant_statement': {
@@ -481,7 +504,109 @@ export class AiReadToolService {
                     const invoices = tenant.leases.flatMap(l => l.invoices);
                     const payments = tenant.leases.flatMap(l => l.payments);
                     
-                    return formatTenantStatement(tenant, invoices, payments);
+                    return { tenant, invoices, payments };
+                }
+
+                case 'search_units': {
+                    const isGeneric = this.isGenericQuery(args.query);
+                    const vectorIds = (!isGeneric && args.query) ? await this.vectorSearch('UNIT', args.query, context.companyId) : [];
+                    const units = await this.prisma.unit.findMany({
+                        where: {
+                            deletedAt: null,
+                            property: { companyId: context.companyId, deletedAt: null },
+                            id: vectorIds.length > 0 ? { in: vectorIds } : undefined,
+                            ...(args.query && vectorIds.length === 0 ? {
+                                OR: [
+                                    { unitNumber: { contains: args.query, mode: 'insensitive' } },
+                                    { semanticTags: { contains: args.query, mode: 'insensitive' } },
+                                ]
+                            } : {}),
+                        },
+                        include: { property: true },
+                        take: args?.limit || 20,
+                    });
+                    return units;
+                }
+
+                case 'list_leases': {
+                    const statusValue = validateEnum(args?.status, ALLOWED_LEASE_STATUS, 'status');
+                    const leases = await this.prisma.lease.findMany({
+                        where: {
+                            deletedAt: null,
+                            property: { companyId: context.companyId, deletedAt: null },
+                            ...(typeof statusValue === 'string' ? { status: statusValue } : {}),
+                        },
+                        include: { tenant: true, property: true, unit: true },
+                        take: args?.limit || 20,
+                    });
+                    return leases;
+                }
+
+                case 'get_lease_details': {
+                    const lease = await this.prisma.lease.findFirst({
+                        where: {
+                            id: args.leaseId,
+                            deletedAt: null,
+                            property: { companyId: context.companyId, deletedAt: null },
+                        },
+                        include: { tenant: true, property: true, unit: true, invoices: true, payments: true },
+                    });
+                    return lease;
+                }
+
+                case 'list_landlords': {
+                    const landlords = await this.prisma.landlord.findMany({
+                        where: { companyId: context.companyId, deletedAt: null },
+                        take: args?.limit || 20,
+                    });
+                    return landlords;
+                }
+
+                case 'search_landlords': {
+                    const landlords = await this.prisma.landlord.findMany({
+                        where: {
+                            companyId: context.companyId,
+                            deletedAt: null,
+                            OR: [
+                                { firstName: { contains: args.query, mode: 'insensitive' } },
+                                { lastName: { contains: args.query, mode: 'insensitive' } },
+                                { email: { contains: args.query, mode: 'insensitive' } },
+                            ],
+                        },
+                        take: args?.limit || 20,
+                    });
+                    return landlords;
+                }
+
+                case 'list_staff': {
+                    const staff = await this.prisma.user.findMany({
+                        where: { companyId: context.companyId, role: UserRole.COMPANY_STAFF, isActive: true },
+                        select: { id: true, firstName: true, lastName: true, email: true, phone: true, role: true },
+                        take: args?.limit || 20,
+                    });
+                    return staff;
+                }
+
+                case 'search_staff': {
+                    const staff = await this.prisma.user.findMany({
+                        where: {
+                            companyId: context.companyId,
+                            role: UserRole.COMPANY_STAFF,
+                            isActive: true,
+                            OR: [
+                                { firstName: { contains: args.query, mode: 'insensitive' } },
+                                { lastName: { contains: args.query, mode: 'insensitive' } },
+                                { email: { contains: args.query, mode: 'insensitive' } },
+                            ],
+                        },
+                        select: { id: true, firstName: true, lastName: true, email: true, phone: true, role: true },
+                        take: args?.limit || 20,
+                    });
+                    return staff;
+                }
+
+                case 'generate_execution_plan': {
+                    return { success: true, data: "Execution plan generated based on your request. I will proceed with the listed steps." };
                 }
 
                 default:
