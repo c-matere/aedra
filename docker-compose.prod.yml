@@ -1,25 +1,7 @@
+version: "3.9"
+
 # Production overrides for docker-compose.yml
-# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-#
-# Key difference from local dev:
-#   - Uses kartoza/postgis (multi-arch, works on ARM64 production servers)
-#   - Local dev uses postgis/postgis (x86-only)
+# Currently no service-specific overrides; keeping a stub file so scripts that reference
+# `-f docker-compose.prod.yml` continue to work.
 
-services:
-  postgres:
-    platform: linux/arm64
-    # Using postgis/postgis:15-3.4 as it supports ARM64 (AWS Graviton, etc.)
-    image: postgis/postgis:15-3.4
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASS: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DBNAME: aedra
-      POSTGRES_DB: aedra
-      ALLOW_IP_RANGE: "0.0.0.0/0"
-
-  api:
-    platform: linux/arm64
-
-  web:
-    platform: linux/arm64
+services: {}

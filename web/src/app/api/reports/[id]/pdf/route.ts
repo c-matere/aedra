@@ -24,7 +24,7 @@ export async function GET(
     // Wait for any charts or animations to finish
     await new Promise((r) => setTimeout(r, 2000));
 
-    const pdf = await page.pdf({
+    const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
       margin: { top: "10mm", bottom: "10mm" },
@@ -32,7 +32,7 @@ export async function GET(
 
     await browser.close();
 
-    return new NextResponse(pdf, {
+    return new NextResponse(pdfBuffer as any, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="aedra-report-${id}.pdf"`,
