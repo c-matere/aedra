@@ -94,11 +94,14 @@ sudo systemctl reload nginx || sudo systemctl restart nginx
 
 # 4. Build and Start Services
 echo "🏗️ Building and starting Docker services..."
+echo "🔒 Note: Database volumes (pgdata) are preserved during this process."
 export NEXT_PUBLIC_AEDRA_API_URL="https://aedra.homeet.site/api"
 
 DC="docker-compose -f docker-compose.yml -f docker-compose.prod.yml"
 
-$DC down || true
+# Use stop instead of down to be even less destructive (though down is usually safe for volumes)
+# We avoid '-v' to ensure data stays intact.
+$DC stop || true
 $DC pull
 $DC up --build -d
 
@@ -119,11 +122,29 @@ echo "✅ Database is ready!"
 echo "⏳ Waiting an additional 15s for final PostGIS setup..."
 sleep 15
 
-# 5. Wait for API to fully start (includes migrations)
-echo "⏳ Waiting for API to come online (includes auto-migrations)..."
+# 5. Run Migrations and Wait for API
+echo "🔄 Running Prisma migrations inside the API container..."
+# Give the container a few seconds to initialize its internal environment
+sleep 5
+docker exec aedra-api npx prisma migrate deploy --schema ./prisma/schema.prisma || {
+    echo "❌ Migration failed! Checking logs..."
+    docker logs aedra-api | tail -n 20
+    exit 1
+}
+echo "✅ Migrations applied successfully."
+
+echo "⏳ Waiting for API to come online..."
+MAX_RETRIES=20
+COUNT=0
 until curl -sf http://localhost:4001/ > /dev/null 2>&1; do
-    echo "   ...waiting for API..."
+    echo "   ...waiting for API ($COUNT/$MAX_RETRIES)..."
     sleep 3
+    COUNT=$((COUNT + 1))
+    if [ $COUNT -ge $MAX_RETRIES ]; then
+        echo "❌ API failed to start in time. Checking logs..."
+        docker logs aedra-api | tail -n 20
+        exit 1
+    fi
 done
 
 echo "✅ Aedra setup completed successfully!"
