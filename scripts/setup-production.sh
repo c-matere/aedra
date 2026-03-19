@@ -66,12 +66,12 @@ EOF
 fi
 
 # 3. Nginx Configuration
-echo "🌐 Configuring Nginx for Cloudflare Proxy..."
+echo "🌐 Configuring Nginx for HTTPS (Full/Strict compatible)..."
 DOMAIN="aedra.homeet.site"
 NGINX_PATH="/etc/nginx/sites-available/aedra"
 
-# Use Cloudflare-specific config (No local SSL)
-sudo cp deploy/nginx/aedra.cloudflare.conf $NGINX_PATH
+# Use the TLS-enabled config (redirects 80 -> 443 and serves HTTPS)
+sudo cp deploy/nginx/aedra.conf $NGINX_PATH
 sudo ln -sf $NGINX_PATH /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 
