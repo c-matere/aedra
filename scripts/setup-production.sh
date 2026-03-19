@@ -4,8 +4,8 @@
 # This script sets up the entire application on a fresh Linux server.
 #
 # Image notes:
-#   - Production uses kartoza/postgis (multi-arch, ARM64 compatible)
-#   - Local dev uses postgis/postgis (x86 only)
+#   - Production and local dev now both use postgis/postgis:15-3.4
+#   - This image supports both x86_64 and ARM64 (AWS Graviton, etc.)
 #   docker-compose.prod.yml handles the image swap via Docker Compose override.
 
 set -e

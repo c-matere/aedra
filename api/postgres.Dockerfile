@@ -1,4 +1,4 @@
-FROM postgis/postgis:15-3.3
+FROM postgis/postgis:15-3.4
 
 # Use HTTPS mirrors and retries to avoid MITM/proxy resets when installing pgvector
 RUN set -eux; \
