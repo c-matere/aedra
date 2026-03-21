@@ -20,7 +20,7 @@ import { UnitStatus } from '@prisma/client';
 @Controller('units')
 @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF)
 export class UnitsController {
-  constructor(private readonly unitsService: UnitsService) { }
+  constructor(private readonly unitsService: UnitsService) {}
 
   @Get()
   findAll(

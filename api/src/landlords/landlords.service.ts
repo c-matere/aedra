@@ -28,7 +28,7 @@ export interface UpdateLandlordDto {
 
 @Injectable()
 export class LandlordsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async findAll(
     actor: AuthenticatedUser,
@@ -56,19 +56,19 @@ export class LandlordsService {
       ...(isSuperAdmin ? {} : { companyId: actor.companyId }),
       ...(search
         ? {
-          OR: [
-            { firstName: { contains: search, mode: 'insensitive' } },
-            { lastName: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } },
-            { phone: { contains: search, mode: 'insensitive' } },
-            { idNumber: { contains: search, mode: 'insensitive' } },
-            {
-              properties: {
-                some: { name: { contains: search, mode: 'insensitive' } },
+            OR: [
+              { firstName: { contains: search, mode: 'insensitive' } },
+              { lastName: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+              { phone: { contains: search, mode: 'insensitive' } },
+              { idNumber: { contains: search, mode: 'insensitive' } },
+              {
+                properties: {
+                  some: { name: { contains: search, mode: 'insensitive' } },
+                },
               },
-            },
-          ],
-        }
+            ],
+          }
         : {}),
     };
 

@@ -4,7 +4,7 @@ import { AuthenticatedUser } from '../auth/authenticated-user.interface';
 
 @Injectable()
 export class ReportsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   private getWhere(actor: AuthenticatedUser) {
     if (actor.role === 'SUPER_ADMIN') {
@@ -28,11 +28,15 @@ export class ReportsService {
       await Promise.all([
         this.prisma.property.count({ where }),
         this.prisma.unit.count({
-          where: isSuperAdmin ? {} : { property: { companyId: actor.companyId } },
+          where: isSuperAdmin
+            ? {}
+            : { property: { companyId: actor.companyId } },
         }),
         this.prisma.tenant.count({ where }),
         this.prisma.lease.count({
-          where: isSuperAdmin ? {} : { property: { companyId: actor.companyId } },
+          where: isSuperAdmin
+            ? {}
+            : { property: { companyId: actor.companyId } },
         }),
       ]);
 
@@ -50,7 +54,9 @@ export class ReportsService {
       throw new ForbiddenException('Your account is not linked to a company.');
     }
 
-    const where = isSuperAdmin ? {} : { property: { companyId: actor.companyId } };
+    const where = isSuperAdmin
+      ? {}
+      : { property: { companyId: actor.companyId } };
 
     const statusCounts = await this.prisma.unit.groupBy({
       by: ['status'],
@@ -113,7 +119,12 @@ export class ReportsService {
     };
   }
 
-  async getPortfolioData(propertyId: string, actor: AuthenticatedUser, dateFrom?: Date, dateTo?: Date) {
+  async getPortfolioData(
+    propertyId: string,
+    actor: AuthenticatedUser,
+    dateFrom?: Date,
+    dateTo?: Date,
+  ) {
     const isSuperAdmin = actor.role === 'SUPER_ADMIN';
     const where: any = { id: propertyId };
     if (!isSuperAdmin) {
@@ -143,7 +154,10 @@ export class ReportsService {
               include: {
                 tenant: true,
                 payments: {
-                  where: { deletedAt: null, paidAt: { gte: historyStart, lte: end } },
+                  where: {
+                    deletedAt: null,
+                    paidAt: { gte: historyStart, lte: end },
+                  },
                   orderBy: { paidAt: 'desc' },
                 },
               },
@@ -154,31 +168,52 @@ export class ReportsService {
       },
     });
 
-    if (!property) throw new ForbiddenException('Property not found or access denied.');
+    if (!property)
+      throw new ForbiddenException('Property not found or access denied.');
 
     const totalUnits = property.units.length;
-    const occupiedUnits = property.units.filter(u => u.status === 'OCCUPIED').length;
-    const occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
+    const occupiedUnits = property.units.filter(
+      (u) => u.status === 'OCCUPIED',
+    ).length;
+    const occupancyRate =
+      totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
 
-    const [invoicesAgg, paymentsAgg, expensesAgg, payMethods] = await Promise.all([
-      this.prisma.invoice.aggregate({
-        where: { lease: { propertyId }, createdAt: { gte: start, lte: end }, deletedAt: null },
-        _sum: { amount: true },
-      }),
-      this.prisma.payment.aggregate({
-        where: { lease: { propertyId }, paidAt: { gte: start, lte: end }, deletedAt: null },
-        _sum: { amount: true },
-      }),
-      this.prisma.expense.aggregate({
-        where: { propertyId, date: { gte: start, lte: end }, deletedAt: null },
-        _sum: { amount: true },
-      }),
-      this.prisma.payment.groupBy({
-        by: ['method'],
-        where: { lease: { propertyId }, paidAt: { gte: start, lte: end }, deletedAt: null },
-        _count: true,
-      }),
-    ]);
+    const [invoicesAgg, paymentsAgg, expensesAgg, payMethods] =
+      await Promise.all([
+        this.prisma.invoice.aggregate({
+          where: {
+            lease: { propertyId },
+            createdAt: { gte: start, lte: end },
+            deletedAt: null,
+          },
+          _sum: { amount: true },
+        }),
+        this.prisma.payment.aggregate({
+          where: {
+            lease: { propertyId },
+            paidAt: { gte: start, lte: end },
+            deletedAt: null,
+          },
+          _sum: { amount: true },
+        }),
+        this.prisma.expense.aggregate({
+          where: {
+            propertyId,
+            date: { gte: start, lte: end },
+            deletedAt: null,
+          },
+          _sum: { amount: true },
+        }),
+        this.prisma.payment.groupBy({
+          by: ['method'],
+          where: {
+            lease: { propertyId },
+            paidAt: { gte: start, lte: end },
+            deletedAt: null,
+          },
+          _count: true,
+        }),
+      ]);
 
     const maintenanceStats = await this.prisma.maintenanceRequest.groupBy({
       by: ['status'],
@@ -187,11 +222,13 @@ export class ReportsService {
     });
 
     const openMaintenance = maintenanceStats
-      .filter(s => ['REPORTED', 'IN_PROGRESS', 'ACKNOWLEDGED', 'OPEN'].includes(s.status))
+      .filter((s) =>
+        ['REPORTED', 'IN_PROGRESS', 'ACKNOWLEDGED', 'OPEN'].includes(s.status),
+      )
       .reduce((acc, curr) => acc + curr._count, 0);
 
     const resolvedMaintenance = maintenanceStats
-      .filter(s => s.status === 'COMPLETED')
+      .filter((s) => s.status === 'COMPLETED')
       .reduce((acc, curr) => acc + curr._count, 0);
 
     // Prepare 5 months of labels
@@ -203,24 +240,25 @@ export class ReportsService {
     }
 
     const tenantPayments = property.units
-      .filter(u => u.leases.length > 0)
-      .map(u => {
+      .filter((u) => u.leases.length > 0)
+      .map((u) => {
         const lease = u.leases[0];
-        const monthlyStatus = monthLabels.map(label => {
-          const hasPayment = lease.payments.some(p => 
-            p.paidAt.toLocaleString('en-US', { month: 'short' }) === label
+        const monthlyStatus = monthLabels.map((label) => {
+          const hasPayment = lease.payments.some(
+            (p) =>
+              p.paidAt.toLocaleString('en-US', { month: 'short' }) === label,
           );
           return { month: label, status: hasPayment ? 'ok' : 'missed' };
         });
 
-        const okCount = monthlyStatus.filter(s => s.status === 'ok').length;
+        const okCount = monthlyStatus.filter((s) => s.status === 'ok').length;
         const ltv = Math.round((okCount / monthLabels.length) * 100);
 
         return {
           name: `${lease.tenant.firstName} ${lease.tenant.lastName}`,
           unit: u.unitNumber,
           payments: monthlyStatus,
-          ltv
+          ltv,
         };
       });
 
@@ -230,7 +268,9 @@ export class ReportsService {
       property: {
         id: property.id,
         name: property.name,
-        manager: user ? `${user.firstName} ${user.lastName}` : 'Aedra Resident Manager',
+        manager: user
+          ? `${user.firstName} ${user.lastName}`
+          : 'Aedra Resident Manager',
         address: property.address,
       },
       totals: {
@@ -245,13 +285,16 @@ export class ReportsService {
         open: openMaintenance,
         resolved: resolvedMaintenance,
       },
-      paymentMethods: payMethods.map(pm => ({
+      paymentMethods: payMethods.map((pm) => ({
         method: pm.method || 'Other',
         count: pm._count,
       })),
       tenantPayments,
       occupancyHistory: [
-        { month: 'Last Month', value: occupancyRate - 2 > 0 ? occupancyRate - 2 : 0 },
+        {
+          month: 'Last Month',
+          value: occupancyRate - 2 > 0 ? occupancyRate - 2 : 0,
+        },
         { month: 'Current', value: occupancyRate },
       ],
       month: start.toLocaleString('en-US', { month: 'long', year: 'numeric' }),

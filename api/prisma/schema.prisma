@@ -39,6 +39,7 @@ model User {
   language               String               @default("en")
   chatHistories          ChatHistory[]
   maintenanceAssignments MaintenanceRequest[]
+  todos                  TodoItem[]
   company                Company?             @relation(fields: [companyId], references: [id])
 
   @@index([companyId])
@@ -429,6 +430,7 @@ model WorkflowInstance {
   type      WorkflowType
   status    WorkflowStatus @default(PENDING)
   companyId String
+  userId    String?
   targetId  String?
   metadata  Json?
   createdAt DateTime       @default(now())
@@ -531,6 +533,23 @@ model WhatsAppProfile {
   onboarded Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model TodoItem {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  status      TodoStatus @default(PENDING)
+  dueDate     DateTime?
+  isCritical  Boolean    @default(false)
+  userId      String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+  user        User       @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
 }
 
 model AuthorizationRequest {
@@ -698,6 +717,7 @@ enum WorkflowType {
   MAINTENANCE_LIFECYCLE
   LEASE_RENEWAL
   TENANT_ONBOARDING
+  AUTONOMOUS_AGENT
 }
 
 enum WorkflowStatus {
@@ -708,6 +728,7 @@ enum WorkflowStatus {
   COMPLETED
   FAILED
   CANCELLED
+  BACKGROUND_PAUSED
 }
 
 enum IncomeCategory {
@@ -728,4 +749,9 @@ enum AuthorizationStatus {
   REJECTED
   EXPIRED
   EXECUTED
+}
+
+enum TodoStatus {
+  PENDING
+  DONE
 }

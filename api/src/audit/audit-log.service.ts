@@ -118,6 +118,90 @@ export class AuditLogService {
     return record;
   }
 
+  async logEntityChange(
+    entity: string,
+    targetId: string,
+    before: Record<string, any> | null,
+    after: Record<string, any> | null,
+    context: {
+      actorId?: string;
+      actorRole?: string;
+      actorCompanyId?: string;
+      path?: string;
+      method?: string;
+      requestId?: string;
+      entitySummary?: string;
+    },
+  ): Promise<AuditLogEntry> {
+    const diff = this.calculateDiff(before, after);
+    const metadata = {
+      before: before ? this.sanitize(before) : null,
+      after: after ? this.sanitize(after) : null,
+      diff,
+      entitySummary: context.entitySummary,
+    };
+
+    return this.write({
+      action: before ? (after ? 'UPDATE' : 'DELETE') : 'CREATE',
+      outcome: 'SUCCESS',
+      method: context.method || 'INTERNAL',
+      path: context.path || 'system',
+      entity,
+      targetId,
+      actorId: context.actorId,
+      actorRole: context.actorRole,
+      actorCompanyId: context.actorCompanyId,
+      requestId: context.requestId,
+      metadata,
+    });
+  }
+
+  /**
+   * Build a concise version-control summary to embed in write tool responses.
+   * The AI reads this and is instructed to surface it to the user after every mutation.
+   */
+  buildVcSummary(
+    logEntry: AuditLogEntry,
+  ): { versionId: string; action: string; changedFields: string[]; hint: string } {
+    const diff = (logEntry.metadata?.diff ?? {}) as Record<string, { old: any; new: any }>;
+    const changedFields = Object.keys(diff);
+    const hint =
+      changedFields.length > 0
+        ? `Changed: ${changedFields.join(', ')}.`
+        : logEntry.action === 'CREATE'
+          ? 'New record created.'
+          : logEntry.action === 'DELETE'
+            ? 'Record deleted.'
+            : 'No field-level changes detected.';
+
+    return {
+      versionId: logEntry.id,
+      action: logEntry.action,
+      changedFields,
+      hint,
+    };
+  }
+
+  private calculateDiff(
+    before: Record<string, any> | null,
+    after: Record<string, any> | null,
+  ): Record<string, { old: any; new: any }> {
+    if (!before || !after) return {};
+    const diff: Record<string, { old: any; new: any }> = {};
+    const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+
+    for (const key of keys) {
+      if (['updatedAt', 'createdAt', 'id', 'deletedAt'].includes(key)) continue;
+      const oldVal = before[key];
+      const newVal = after[key];
+
+      if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+        diff[key] = { old: oldVal, new: newVal };
+      }
+    }
+    return diff;
+  }
+
   async read(filter: AuditLogFilter = {}): Promise<AuditLogEntry[]> {
     const limit = this.resolveLimit(filter.limit);
 

@@ -32,7 +32,7 @@ export interface UpdateLeaseDto {
 
 @Injectable()
 export class LeasesService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async findAll(
     actor: AuthenticatedUser,
@@ -62,21 +62,21 @@ export class LeasesService {
       ...(tenantId ? { tenantId } : {}),
       ...(search
         ? {
-          OR: [
-            {
-              tenant: {
-                firstName: { contains: search, mode: 'insensitive' },
+            OR: [
+              {
+                tenant: {
+                  firstName: { contains: search, mode: 'insensitive' },
+                },
               },
-            },
-            {
-              tenant: { lastName: { contains: search, mode: 'insensitive' } },
-            },
-            {
-              unit: { unitNumber: { contains: search, mode: 'insensitive' } },
-            },
-            { property: { name: { contains: search, mode: 'insensitive' } } },
-          ],
-        }
+              {
+                tenant: { lastName: { contains: search, mode: 'insensitive' } },
+              },
+              {
+                unit: { unitNumber: { contains: search, mode: 'insensitive' } },
+              },
+              { property: { name: { contains: search, mode: 'insensitive' } } },
+            ],
+          }
         : {}),
     };
 

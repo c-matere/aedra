@@ -28,10 +28,7 @@ export class ReportsController {
 
   @Get(':id/data')
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
-  async getPortfolioData(
-    @Req() req: RequestWithUser,
-    @Param('id') id: string,
-  ) {
+  async getPortfolioData(@Req() req: RequestWithUser, @Param('id') id: string) {
     return this.reportsService.getPortfolioData(id, req.user!);
   }
 }

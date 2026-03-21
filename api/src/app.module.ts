@@ -39,6 +39,8 @@ import { AiModule } from './ai/ai.module';
 import { FinancesModule } from './finances/finances.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { BullModule } from '@nestjs/bullmq';
+import { WorkflowModule } from './workflows/workflow.module';
+import { TodoModule } from './todo/todo.module';
 
 @Module({
   imports: [
@@ -48,7 +50,7 @@ import { BullModule } from '@nestjs/bullmq';
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        limit: 10,
+        limit: 100,
       },
     ]),
     CacheModule.registerAsync({
@@ -89,6 +91,8 @@ import { BullModule } from '@nestjs/bullmq';
     UnitsModule,
     FinancesModule,
     MessagingModule,
+    TodoModule,
+    WorkflowModule,
   ],
   controllers: [
     AppController,

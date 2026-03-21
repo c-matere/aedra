@@ -4,21 +4,21 @@ import { MASTER_PERSONAS } from './persona.registry';
 import { withRetry } from '../common/utils/retry';
 
 export class PromptCompiler {
-    private genAI: GoogleGenerativeAI;
-    private compilerModel = 'gemini-1.5-pro';
+  private genAI: GoogleGenerativeAI;
+  private compilerModel = 'gemini-1.5-pro';
 
-    constructor() {
-        const apiKey = process.env.GEMINI_API_KEY || 'dummy-key';
-        this.genAI = new GoogleGenerativeAI(apiKey);
-    }
+  constructor() {
+    const apiKey = process.env.GEMINI_API_KEY || 'dummy-key';
+    this.genAI = new GoogleGenerativeAI(apiKey);
+  }
 
-    /**
-     * Compiles a skill definition into an optimized prompt for a target model.
-     */
-    async compile(skill: AedraSkill, targetModel: string): Promise<string> {
-        const model = this.genAI.getGenerativeModel({ model: this.compilerModel });
+  /**
+   * Compiles a skill definition into an optimized prompt for a target model.
+   */
+  async compile(skill: AedraSkill, targetModel: string): Promise<string> {
+    const model = this.genAI.getGenerativeModel({ model: this.compilerModel });
 
-        const prompt = `
+    const prompt = `
 [ROLE]
 You are a Meta-Prompt Engineer. Your task is to write an OPTIMIZED SYSTEM PROMPT for a specific AI model (${targetModel}) to execute a specific skill reliably.
 
@@ -48,13 +48,15 @@ The prompt MUST include:
 Output ONLY the compiled system prompt.
 `;
 
-        try {
-            const result = await withRetry(() => model.generateContent(prompt));
-            const response = await result.response;
-            return response.text().trim();
-        } catch (error) {
-            console.error(`Prompt compilation failed for ${skill.skill_id}: ${error.message}`);
-            return `Persona: ${MASTER_PERSONAS[skill.persona_id].constitution}\nObjective: ${skill.objective}\nOutput JSON matching: ${JSON.stringify(skill.outputSchema)}`;
-        }
+    try {
+      const result = await withRetry(() => model.generateContent(prompt));
+      const response = await result.response;
+      return response.text().trim();
+    } catch (error) {
+      console.error(
+        `Prompt compilation failed for ${skill.skill_id}: ${error.message}`,
+      );
+      return `Persona: ${MASTER_PERSONAS[skill.persona_id].constitution}\nObjective: ${skill.objective}\nOutput JSON matching: ${JSON.stringify(skill.outputSchema)}`;
     }
+  }
 }

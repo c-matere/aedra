@@ -32,7 +32,7 @@ export interface UpdateExpenseDto {
 
 @Injectable()
 export class ExpensesService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async findAll(
     actor: AuthenticatedUser,
@@ -60,16 +60,16 @@ export class ExpensesService {
       ...(isSuperAdmin ? {} : { companyId: actor.companyId }),
       ...(search
         ? {
-          OR: [
-            { description: { contains: search, mode: 'insensitive' } },
-            { vendor: { contains: search, mode: 'insensitive' } },
-            { reference: { contains: search, mode: 'insensitive' } },
-            { property: { name: { contains: search, mode: 'insensitive' } } },
-            {
-              unit: { unitNumber: { contains: search, mode: 'insensitive' } },
-            },
-          ],
-        }
+            OR: [
+              { description: { contains: search, mode: 'insensitive' } },
+              { vendor: { contains: search, mode: 'insensitive' } },
+              { reference: { contains: search, mode: 'insensitive' } },
+              { property: { name: { contains: search, mode: 'insensitive' } } },
+              {
+                unit: { unitNumber: { contains: search, mode: 'insensitive' } },
+              },
+            ],
+          }
         : {}),
     };
 

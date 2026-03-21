@@ -1,13 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AiClassifierService } from '../../../api/src/ai/ai-classifier.service';
+import { WordNetIntentResolver } from '../../../api/src/ai/wordnet-intent-resolver.util';
 import { selectTools, INTENT_TOOL_MAP } from '../../../api/src/ai/ai-tool-selector.util';
 
 // ── Types ─────────────────────────────────────────────────────
 interface ClassificationResult {
   intent: string;
   complexity: number;
-  executionMode: 'DIRECT_LOOKUP' | 'LIGHT_COMPOSE' | 'ORCHESTRATED' | 'INTELLIGENCE';
+  executionMode: 'DIRECT_LOOKUP' | 'LIGHT_COMPOSE' | 'ORCHESTRATED' | 'INTELLIGENCE' | 'PLANNING';
   language: 'en' | 'sw' | 'mixed';
+  hasAttachments?: boolean;
 }
 
 // ── Test data: the probability space ─────────────────────────
@@ -208,7 +210,16 @@ describe('AiClassifierService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AiClassifierService],
+      providers: [
+        AiClassifierService,
+        {
+          provide: WordNetIntentResolver,
+          useValue: {
+            initialize: jest.fn().mockResolvedValue(undefined),
+            resolve: jest.fn().mockReturnValue({ route: 'HINT', intent: 'unknown', confidence: 0 }),
+          },
+        },
+      ],
     }).compile();
 
     classifier = module.get<AiClassifierService>(AiClassifierService);
@@ -218,7 +229,7 @@ describe('AiClassifierService', () => {
     test.each(AGENT_MESSAGES)(
       '$description',
       async ({ message, expectedIntent, expectedComplexity, expectedMode, expectedLang }) => {
-        const result: any = await classifier.classify(message, 'COMPANY_STAFF' as any);
+        const result: any = await classifier.classify(message, 'COMPANY_STAFF' as any, [], 0);
 
         expect(result.intent).toBe(expectedIntent);
         expect(result.language).toBe(expectedLang);
@@ -238,7 +249,7 @@ describe('AiClassifierService', () => {
     test.each(DIRECT_LOOKUP_QUERIES)(
       'DIRECT_LOOKUP: "%s" must not touch expensive model',
       async (message) => {
-        const result: any = await classifier.classify(message, 'COMPANY_STAFF' as any);
+        const result: any = await classifier.classify(message, 'COMPANY_STAFF' as any, [], 0);
         expect(result.complexity).toBe(1);
         expect(result.executionMode).toBe('DIRECT_LOOKUP');
       }
@@ -249,7 +260,7 @@ describe('AiClassifierService', () => {
     test.each(EMERGENCY_MESSAGES)(
       'Emergency detected: "$message"',
       async ({ message }) => {
-        const result: any = await classifier.classify(message, 'TENANT' as any);
+        const result: any = await classifier.classify(message, 'TENANT' as any, [], 0);
         expect(result.intent).toBe('emergency_escalation');
         expect(result.complexity).toBe(1);
         expect(result.executionMode).toBe('DIRECT_LOOKUP');
@@ -259,17 +270,17 @@ describe('AiClassifierService', () => {
 
   describe('Language Detection', () => {
     it('detects English correctly', async () => {
-      const result: any = await classifier.classify('show me all unpaid tenants', 'COMPANY_STAFF' as any);
+      const result: any = await classifier.classify('show me all unpaid tenants', 'COMPANY_STAFF' as any, [], 0);
       expect(result.language).toBe('en');
     });
 
     it('detects Swahili correctly', async () => {
-      const result: any = await classifier.classify('nionyeshe wapangaji wote ambao hawajalipa', 'COMPANY_STAFF' as any);
+      const result: any = await classifier.classify('nionyeshe wapangaji wote ambao hawajalipa', 'COMPANY_STAFF' as any, [], 0);
       expect(result.language).toBe('sw');
     });
 
     it('handles mixed Swahili-English (Sheng) as Swahili', async () => {
-      const result: any = await classifier.classify('boss nimetuma pesa jana si leo', 'TENANT' as any);
+      const result: any = await classifier.classify('boss nimetuma pesa jana si leo', 'TENANT' as any, [], 0);
       expect(result.language).toBe('sw');
     });
 
@@ -281,7 +292,7 @@ describe('AiClassifierService', () => {
         'malipo yamefanyika'
       ];
       for (const msg of variants) {
-        const result: any = await classifier.classify(msg, 'TENANT' as any);
+        const result: any = await classifier.classify(msg, 'TENANT' as any, [], 0);
         expect(result.intent).toBe('record_payment');
       }
     });

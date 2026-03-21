@@ -1,6 +1,8 @@
 import { Controller, Post, Body, Logger } from '@nestjs/common';
 import { MpesaService, MpesaWebhookDto } from './mpesa.service';
+import { SkipThrottle } from '@nestjs/throttler';
 
+@SkipThrottle()
 @Controller('payments/mpesa')
 export class MpesaController {
   private readonly logger = new Logger(MpesaController.name);
@@ -14,7 +16,7 @@ export class MpesaController {
   @Post('validate')
   async validateOperation(@Body() body: any) {
     this.logger.log(`M-Pesa Validation Request: ${JSON.stringify(body)}`);
-    // Rule: We accept all at the validation stage for now, 
+    // Rule: We accept all at the validation stage for now,
     // real logic happens in confirmation.
     return {
       ResultCode: 0,
@@ -37,7 +39,7 @@ export class MpesaController {
   @Post('callback')
   async handleCallback(@Body() body: any) {
     this.logger.log(`M-Pesa STK Callback: ${JSON.stringify(body)}`);
-    
+
     // STK push has a different structure (Body.stkCallback)
     const callbackData = body?.Body?.stkCallback;
     if (!callbackData) return { ResultCode: 1, ResultDesc: 'Invalid Payload' };
@@ -49,7 +51,8 @@ export class MpesaController {
 
     // Extract item values from MetaData
     const items = callbackData.CallbackMetadata?.Item || [];
-    const getVal = (name: string) => items.find((i: any) => i.Name === name)?.Value;
+    const getVal = (name: string) =>
+      items.find((i: any) => i.Name === name)?.Value;
 
     const webhookDto: MpesaWebhookDto = {
       TransID: getVal('MpesaReceiptNumber'),
@@ -60,8 +63,8 @@ export class MpesaController {
     };
 
     if (!webhookDto.TransID || !webhookDto.TransAmount) {
-        this.logger.error('Incomplete STK callback metadata');
-        return { ResultCode: 1, ResultDesc: 'Incomplete Metadata' };
+      this.logger.error('Incomplete STK callback metadata');
+      return { ResultCode: 1, ResultDesc: 'Incomplete Metadata' };
     }
 
     return this.mpesaService.handleC2BWebhook(webhookDto);

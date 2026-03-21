@@ -28,7 +28,9 @@ export class ConversationStateValidator {
       } as HistoryMessage;
     });
 
-    const { history: repairedHistory, report } = validateAndRepairHistory(normalized as any);
+    const { history: repairedHistory, report } = validateAndRepairHistory(
+      normalized as any,
+    );
     return {
       ...report,
       repairedHistory,
@@ -69,8 +71,11 @@ export function validateAndRepairHistory(history: HistoryMessage[]): {
 
   // Rule 2: Remove turns with empty parts
   const beforeEmpty = repaired.length;
-  repaired = repaired.filter(msg => {
-    const hasContent = msg.parts && msg.parts.length > 0 && msg.parts.some(p => p.text?.trim());
+  repaired = repaired.filter((msg) => {
+    const hasContent =
+      msg.parts &&
+      msg.parts.length > 0 &&
+      msg.parts.some((p) => p.text?.trim());
     return hasContent;
   });
   const removedEmpty = beforeEmpty - repaired.length;
@@ -83,12 +88,18 @@ export function validateAndRepairHistory(history: HistoryMessage[]): {
   const cleaned: HistoryMessage[] = [];
   for (let i = 0; i < repaired.length; i++) {
     const msg = repaired[i];
-    const isFunctionCallTurn = msg.role === 'model' && msg.parts.some((p: any) => p.functionCall);
+    const isFunctionCallTurn =
+      msg.role === 'model' && msg.parts.some((p: any) => p.functionCall);
     if (isFunctionCallTurn) {
       const next = repaired[i + 1];
-      const nextHasFunctionResponse = next && next.role === 'user' && next.parts.some((p: any) => p.functionResponse);
+      const nextHasFunctionResponse =
+        next &&
+        next.role === 'user' &&
+        next.parts.some((p: any) => p.functionResponse);
       if (!nextHasFunctionResponse) {
-        issues.push(`Dropped dangling functionCall turn at index ${i} (no matching functionResponse)`);
+        issues.push(
+          `Dropped dangling functionCall turn at index ${i} (no matching functionResponse)`,
+        );
         repairsMade++;
         // Skip this turn — do not add to cleaned
         continue;
@@ -105,7 +116,9 @@ export function validateAndRepairHistory(history: HistoryMessage[]): {
     const prev = normalized[normalized.length - 1];
     if (prev && prev.role === msg.role && msg.role !== 'user') {
       // Insert a synthetic user acknowledgement so the model doesn't see two model turns in a row
-      issues.push(`Inserted synthetic user turn between consecutive ${msg.role} turns at index ${i}`);
+      issues.push(
+        `Inserted synthetic user turn between consecutive ${msg.role} turns at index ${i}`,
+      );
       normalized.push({ role: 'user', parts: [{ text: '...' }] });
       repairsMade++;
     }
@@ -113,9 +126,13 @@ export function validateAndRepairHistory(history: HistoryMessage[]): {
   }
 
   if (repairsMade > 0) {
-    logger.warn(`[StateValidator] History repaired: ${repairsMade} fix(es). Issues: ${issues.join(' | ')}`);
+    logger.warn(
+      `[StateValidator] History repaired: ${repairsMade} fix(es). Issues: ${issues.join(' | ')}`,
+    );
   } else {
-    logger.verbose(`[StateValidator] History valid. ${normalized.length} turns.`);
+    logger.verbose(
+      `[StateValidator] History valid. ${normalized.length} turns.`,
+    );
   }
 
   return {

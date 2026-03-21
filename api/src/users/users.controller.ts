@@ -24,7 +24,7 @@ import type { RequestWithUser } from '../auth/request-with-user.interface';
 @Controller('users')
 @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(private readonly usersService: UsersService) {}
 
   @Get()
   findAll(
@@ -83,7 +83,13 @@ export class UsersController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
   async createInvitation(
     @Req() req: RequestWithUser,
-    @Body() data: { email: string; role: UserRole; firstName?: string; lastName?: string },
+    @Body()
+    data: {
+      email: string;
+      role: UserRole;
+      firstName?: string;
+      lastName?: string;
+    },
   ) {
     if (!data.email || !data.role) {
       throw new BadRequestException('Email and role are required.');

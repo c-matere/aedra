@@ -1,4 +1,14 @@
-import { Controller, Post, Get, Body, Query, Param, UseGuards, Inject, forwardRef } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Query,
+  Param,
+  UseGuards,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { WhatsappService } from './whatsapp.service';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -7,6 +17,7 @@ import { AiWhatsappOrchestratorService } from '../ai/ai-whatsapp-orchestrator.se
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { ErrorRecoveryService } from '../ai/error-recovery.service';
+import { SkipThrottle } from '@nestjs/throttler';
 
 @Controller(['messaging/whatsapp', ''])
 export class WhatsappController {
@@ -24,10 +35,7 @@ export class WhatsappController {
    * Path should be unique per company or use a query param.
    */
   @Get('webhook/:companyId')
-  async verify(
-    @Param('companyId') companyId: string,
-    @Query() query: any
-  ) {
+  async verify(@Param('companyId') companyId: string, @Query() query: any) {
     return this.whatsappService.verifyWebhook(companyId, query);
   }
 
@@ -35,6 +43,7 @@ export class WhatsappController {
    * Endpoint for Meta to send message updates.
    * Supports /webhook and /webhook/:companyId
    */
+  @SkipThrottle()
   @Post(['webhook', 'webhook/:companyId'])
   async handleIncoming(
     @Body() body: any,
@@ -51,7 +60,9 @@ export class WhatsappController {
         const cacheKey = `wa_msg_${messageId}`;
         const isProcessing = await this.cacheManager.get(cacheKey);
         if (isProcessing) {
-          console.log(`[WhatsappController] Duplicate message detected (wamid: ${messageId}), skipping.`);
+          console.log(
+            `[WhatsappController] Duplicate message detected (wamid: ${messageId}), skipping.`,
+          );
           return { status: 'duplicate' };
         }
         // Mark as processing for 5 minutes (retries usually happen within seconds/minutes)
@@ -66,7 +77,7 @@ export class WhatsappController {
       if (type === 'interactive') {
         const interactive = message.interactive;
         if (interactive.type === 'list_reply') {
-          text = interactive.list_reply.id; 
+          text = interactive.list_reply.id;
         } else if (interactive.type === 'button_reply') {
           text = interactive.button_reply.id;
         }
@@ -82,25 +93,37 @@ export class WhatsappController {
       if (text || mediaId) {
         // Run AI processing in background to return 200 OK to Meta immediately
         // This prevents Meta from retrying due to timeouts (e.g. slow report generation)
-        this.orchestrator.handleIncomingWhatsapp(
-          message.from, 
-          text, 
-          mediaId, 
-          mimeType,
-          messageId
-        ).catch(async error => {
-          console.error(`[WhatsappController] Background process error:`, error);
-          try {
-            const recoveryMsg = this.recovery.buildErrorRecovery('default', error, {});
-            await this.whatsappService.sendTextMessage({ 
-              to: message.from, 
-              text: recoveryMsg 
-            });
-          } catch (sendError) {
-            console.error(`[WhatsappController] Failed to send recovery message:`, sendError);
-          }
-        });
-        
+        this.orchestrator
+          .handleIncomingWhatsapp(
+            message.from,
+            text,
+            mediaId,
+            mimeType,
+            messageId,
+          )
+          .catch(async (error: any) => {
+            console.error(
+              `[WhatsappController] Background process error:`,
+              error,
+            );
+            try {
+              const recoveryMsg = this.recovery.buildErrorRecovery(
+                'default',
+                error,
+                {},
+              );
+              await this.whatsappService.sendTextMessage({
+                to: message.from,
+                text: recoveryMsg,
+              });
+            } catch (sendError) {
+              console.error(
+                `[WhatsappController] Failed to send recovery message:`,
+                sendError,
+              );
+            }
+          });
+
         return { status: 'accepted', messageId };
       }
     }
@@ -115,7 +138,13 @@ export class WhatsappController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.COMPANY_ADMIN, UserRole.SUPER_ADMIN)
   async testSend(
-    @Body() body: { companyId: string; to: string; templateName: string; components?: any[] }
+    @Body()
+    body: {
+      companyId: string;
+      to: string;
+      templateName: string;
+      components?: any[];
+    },
   ) {
     return this.whatsappService.sendMessage(body);
   }

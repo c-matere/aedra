@@ -11,6 +11,8 @@ export interface ActionResult<T = any> {
   data: T;
   error?: string;
   action: string;
+  requires_authorization?: boolean;
+  actionId?: string;
 }
 
 @Injectable()
@@ -20,7 +22,12 @@ export class NextStepOrchestrator {
    */
   computeNextStep(
     result: ActionResult,
-    context: { companyName?: string; propertyCount?: number; collectionRate?: number; language: 'en' | 'sw' }
+    context: {
+      companyName?: string;
+      propertyCount?: number;
+      collectionRate?: number;
+      language: 'en' | 'sw';
+    },
   ): NextStep | null {
     const { action, success } = result;
     const isSw = context.language === 'sw';
@@ -31,7 +38,7 @@ export class NextStepOrchestrator {
       case 'select_company': {
         const companyName = context.companyName || 'the company';
         const isEmpty = (context.propertyCount || 0) === 0;
-        
+
         if (isSw) {
           return {
             type: 'menu',
@@ -41,18 +48,42 @@ export class NextStepOrchestrator {
             options: isEmpty
               ? [
                   { key: '1', label: 'Ongeza mali', action: 'create_property' },
-                  { key: '2', label: 'Ingiza wapangaji kutoka spreadsheet', action: 'import_tenants' },
-                  { key: '3', label: 'Rudi kwa kampuni zote', action: 'list_companies' },
+                  {
+                    key: '2',
+                    label: 'Ingiza wapangaji kutoka spreadsheet',
+                    action: 'import_tenants',
+                  },
+                  {
+                    key: '3',
+                    label: 'Rudi kwa kampuni zote',
+                    action: 'list_companies',
+                  },
                 ]
               : [
-                  { key: '1', label: 'Angalia hali ya kodi', action: 'get_portfolio_arrears' },
-                  { key: '2', label: 'Onyesha wapangaji', action: 'list_tenants' },
-                  { key: '3', label: 'Tengeneza ripoti', action: 'generate_report_file' },
-                  { key: '4', label: 'Rudi kwa kampuni zote', action: 'list_companies' },
-                ]
+                  {
+                    key: '1',
+                    label: 'Angalia hali ya kodi',
+                    action: 'get_portfolio_arrears',
+                  },
+                  {
+                    key: '2',
+                    label: 'Onyesha wapangaji',
+                    action: 'list_tenants',
+                  },
+                  {
+                    key: '3',
+                    label: 'Tengeneza ripoti',
+                    action: 'generate_report_file',
+                  },
+                  {
+                    key: '4',
+                    label: 'Rudi kwa kampuni zote',
+                    action: 'list_companies',
+                  },
+                ],
           };
         }
-        
+
         return {
           type: 'menu',
           message: isEmpty
@@ -60,16 +91,40 @@ export class NextStepOrchestrator {
             : `✅ Switched to ${companyName}.\n\n📊 ${context.propertyCount} properties · ${context.collectionRate}% collected this month.`,
           options: isEmpty
             ? [
-                { key: '1', label: 'Add a property', action: 'create_property' },
-                { key: '2', label: 'Import tenants from spreadsheet', action: 'import_tenants' },
-                { key: '3', label: 'Back to all companies', action: 'list_companies' },
+                {
+                  key: '1',
+                  label: 'Add a property',
+                  action: 'create_property',
+                },
+                {
+                  key: '2',
+                  label: 'Import tenants from spreadsheet',
+                  action: 'import_tenants',
+                },
+                {
+                  key: '3',
+                  label: 'Back to all companies',
+                  action: 'list_companies',
+                },
               ]
             : [
-                { key: '1', label: 'Check rent collection', action: 'get_portfolio_arrears' },
+                {
+                  key: '1',
+                  label: 'Check rent collection',
+                  action: 'get_portfolio_arrears',
+                },
                 { key: '2', label: 'View tenants', action: 'list_tenants' },
-                { key: '3', label: 'Generate report', action: 'generate_report_file' },
-                { key: '4', label: 'Back to all companies', action: 'list_companies' },
-              ]
+                {
+                  key: '3',
+                  label: 'Generate report',
+                  action: 'generate_report_file',
+                },
+                {
+                  key: '4',
+                  label: 'Back to all companies',
+                  action: 'list_companies',
+                },
+              ],
         };
       }
 
@@ -80,20 +135,32 @@ export class NextStepOrchestrator {
             type: 'suggestion',
             message: `Ripoti imekamilika. Ungependa:\n\n1. Kuituma kwa Landlord\n2. Kupakua (Download) pekee\n3. Kupanga utumaji kila mwezi`,
             options: [
-              { key: '1', label: `Tuma kwa Landlord`, action: 'send_report_landlord' },
+              {
+                key: '1',
+                label: `Tuma kwa Landlord`,
+                action: 'send_report_landlord',
+              },
               { key: '2', label: 'Pakua pekee', action: 'download_report' },
-              { key: '3', label: 'Panga kila mwezi', action: 'schedule_report' },
-            ]
+              {
+                key: '3',
+                label: 'Panga kila mwezi',
+                action: 'schedule_report',
+              },
+            ],
           };
         }
         return {
           type: 'suggestion',
           message: `Report ready. Would you like to:\n\n1. Send to the Landlord\n2. Download only\n3. Schedule monthly delivery`,
           options: [
-            { key: '1', label: `Send to Landlord`, action: 'send_report_landlord' },
+            {
+              key: '1',
+              label: `Send to Landlord`,
+              action: 'send_report_landlord',
+            },
             { key: '2', label: 'Download only', action: 'download_report' },
             { key: '3', label: 'Schedule monthly', action: 'schedule_report' },
-          ]
+          ],
         };
       }
 
@@ -103,34 +170,54 @@ export class NextStepOrchestrator {
         if (isSw) {
           return {
             type: 'confirmation',
-            message: failedCount > 0
-              ? `✅ Vikumbusho ${sentCount} vimetumwa. ${failedCount} vimeshindwa kuwasilishwa.\n\nUngependa nijaribu tena vilivyoshindwa?`
-              : `✅ Vikumbusho ${sentCount} vimetumwa kwa mafanikio.\n\nUngependa kutengeneza ripoti ya hali ya makusanyo sasa hivi?`,
-            options: failedCount > 0
-              ? [
-                  { key: '1', label: 'Jaribu tena', action: 'retry_reminders' },
-                  { key: '2', label: 'Imetosha', action: 'dismiss' },
-                ]
-              : [
-                  { key: '1', label: 'Ndiyo, tengeneza ripoti', action: 'generate_report_file' },
-                  { key: '2', label: 'Sio sasa', action: 'dismiss' },
-                ]
+            message:
+              failedCount > 0
+                ? `✅ Vikumbusho ${sentCount} vimetumwa. ${failedCount} vimeshindwa kuwasilishwa.\n\nUngependa nijaribu tena vilivyoshindwa?`
+                : `✅ Vikumbusho ${sentCount} vimetumwa kwa mafanikio.\n\nUngependa kutengeneza ripoti ya hali ya makusanyo sasa hivi?`,
+            options:
+              failedCount > 0
+                ? [
+                    {
+                      key: '1',
+                      label: 'Jaribu tena',
+                      action: 'retry_reminders',
+                    },
+                    { key: '2', label: 'Imetosha', action: 'dismiss' },
+                  ]
+                : [
+                    {
+                      key: '1',
+                      label: 'Ndiyo, tengeneza ripoti',
+                      action: 'generate_report_file',
+                    },
+                    { key: '2', label: 'Sio sasa', action: 'dismiss' },
+                  ],
           };
         }
         return {
           type: 'confirmation',
-          message: failedCount > 0
-            ? `✅ ${sentCount} reminders sent. ${failedCount} failed to deliver.\n\nWould you like me to retry the failed ones?`
-            : `✅ ${sentCount} reminders sent successfully.\n\nWould you like to generate a collection status report now?`,
-          options: failedCount > 0
-            ? [
-                { key: '1', label: 'Retry failed', action: 'retry_reminders' },
-                { key: '2', label: 'Done', action: 'dismiss' },
-              ]
-            : [
-                { key: '1', label: 'Yes, generate report', action: 'generate_report_file' },
-                { key: '2', label: 'Not now', action: 'dismiss' },
-              ]
+          message:
+            failedCount > 0
+              ? `✅ ${sentCount} reminders sent. ${failedCount} failed to deliver.\n\nWould you like me to retry the failed ones?`
+              : `✅ ${sentCount} reminders sent successfully.\n\nWould you like to generate a collection status report now?`,
+          options:
+            failedCount > 0
+              ? [
+                  {
+                    key: '1',
+                    label: 'Retry failed',
+                    action: 'retry_reminders',
+                  },
+                  { key: '2', label: 'Done', action: 'dismiss' },
+                ]
+              : [
+                  {
+                    key: '1',
+                    label: 'Yes, generate report',
+                    action: 'generate_report_file',
+                  },
+                  { key: '2', label: 'Not now', action: 'dismiss' },
+                ],
         };
       }
 
@@ -144,7 +231,7 @@ export class NextStepOrchestrator {
               { key: '1', label: 'Ongeza Unit', action: 'create_unit' },
               { key: '2', label: 'Weka Mpangaji', action: 'create_tenant' },
               { key: '3', label: 'Orodha ya Mali', action: 'list_properties' },
-            ]
+            ],
           };
         }
         return {
@@ -154,36 +241,56 @@ export class NextStepOrchestrator {
             { key: '1', label: 'Add Unit', action: 'create_unit' },
             { key: '2', label: 'Register Tenant', action: 'create_tenant' },
             { key: '3', label: 'Property List', action: 'list_properties' },
-          ]
+          ],
         };
       }
 
       case 'list_properties': {
-          const count = result.data?.length || 0;
-          if (count === 1) {
-              const prop = result.data[0];
-              if (isSw) {
-                  return {
-                      type: 'menu',
-                      message: `Umechagua "${prop.name}". Kitendo gani kifuatao?`,
-                      options: [
-                          { key: '1', label: 'Angalia Arrears', action: 'get_property_arrears' },
-                          { key: '2', label: 'Orodha ya Wapangaji', action: 'list_tenants' },
-                          { key: '3', label: 'Tengeneza Statement', action: 'generate_property_statement' },
-                      ]
-                  };
-              }
-              return {
-                  type: 'menu',
-                  message: `You've selected "${prop.name}". What's next?`,
-                  options: [
-                      { key: '1', label: 'Check Arrears', action: 'get_property_arrears' },
-                      { key: '2', label: 'List Tenants', action: 'list_tenants' },
-                      { key: '3', label: 'Generate Statement', action: 'generate_property_statement' },
-                  ]
-              };
+        const count = result.data?.length || 0;
+        if (count === 1) {
+          const prop = result.data[0];
+          if (isSw) {
+            return {
+              type: 'menu',
+              message: `Umechagua "${prop.name}". Kitendo gani kifuatao?`,
+              options: [
+                {
+                  key: '1',
+                  label: 'Angalia Arrears',
+                  action: 'get_property_arrears',
+                },
+                {
+                  key: '2',
+                  label: 'Orodha ya Wapangaji',
+                  action: 'list_tenants',
+                },
+                {
+                  key: '3',
+                  label: 'Tengeneza Statement',
+                  action: 'generate_property_statement',
+                },
+              ],
+            };
           }
-          return null;
+          return {
+            type: 'menu',
+            message: `You've selected "${prop.name}". What's next?`,
+            options: [
+              {
+                key: '1',
+                label: 'Check Arrears',
+                action: 'get_property_arrears',
+              },
+              { key: '2', label: 'List Tenants', action: 'list_tenants' },
+              {
+                key: '3',
+                label: 'Generate Statement',
+                action: 'generate_property_statement',
+              },
+            ],
+          };
+        }
+        return null;
       }
 
       case 'get_property_details': {
@@ -195,10 +302,22 @@ export class NextStepOrchestrator {
             message: `Pata huduma zaidi kwa ${name}:`,
             options: [
               { key: '1', label: 'Ongeza Chumba', action: `create_unit:${id}` },
-              { key: '2', label: 'Ripoti ya Madeni', action: `get_property_arrears:${id}` },
-              { key: '3', label: 'Statement ya Mali', action: `generate_report_file:${id}` },
-              { key: '4', label: 'Badili Habari', action: `update_property:${id}` },
-            ]
+              {
+                key: '2',
+                label: 'Ripoti ya Madeni',
+                action: `get_property_arrears:${id}`,
+              },
+              {
+                key: '3',
+                label: 'Statement ya Mali',
+                action: `generate_report_file:${id}`,
+              },
+              {
+                key: '4',
+                label: 'Badili Habari',
+                action: `update_property:${id}`,
+              },
+            ],
           };
         }
         return {
@@ -206,10 +325,22 @@ export class NextStepOrchestrator {
           message: `Quick Actions for ${name}:`,
           options: [
             { key: '1', label: 'Add a Unit', action: `create_unit:${id}` },
-            { key: '2', label: 'Arrears Report', action: `get_property_arrears:${id}` },
-            { key: '3', label: 'Financial Statement', action: `generate_report_file:${id}:Financial` },
-            { key: '4', label: 'Edit Details', action: `update_property:${id}` },
-          ]
+            {
+              key: '2',
+              label: 'Arrears Report',
+              action: `get_property_arrears:${id}`,
+            },
+            {
+              key: '3',
+              label: 'Financial Statement',
+              action: `generate_report_file:${id}:Financial`,
+            },
+            {
+              key: '4',
+              label: 'Edit Details',
+              action: `update_property:${id}`,
+            },
+          ],
         };
       }
 
@@ -223,7 +354,7 @@ export class NextStepOrchestrator {
               { key: '1', label: 'Weka Mpangaji', action: 'create_tenant' },
               { key: '2', label: 'Ongeza Expense', action: 'create_expense' },
               { key: '3', label: 'Angalia Mpango', action: 'get_unit_leases' },
-            ]
+            ],
           };
         }
         return {
@@ -233,7 +364,7 @@ export class NextStepOrchestrator {
             { key: '1', label: 'Register Tenant', action: 'create_tenant' },
             { key: '2', label: 'Add Expense', action: 'create_expense' },
             { key: '3', label: 'View Leases', action: 'get_unit_leases' },
-          ]
+          ],
         };
       }
 
@@ -246,22 +377,50 @@ export class NextStepOrchestrator {
             type: 'menu',
             message: `Chagua huduma kwa ajili ya ${name}:`,
             options: [
-              { key: '1', label: 'Tuma Statement', action: `get_tenant_statement:${id}` },
-              { key: '2', label: 'Toza Penalti', action: `create_penalty:${leaseId || id}` },
-              { key: '3', label: 'Badili Habari', action: `update_tenant:${id}` },
-              { key: '4', label: 'Ilani ya Kisheria', action: `create_maintenance_request:${id}:LEGAL` },
-            ]
+              {
+                key: '1',
+                label: 'Tuma Statement',
+                action: `get_tenant_statement:${id}`,
+              },
+              {
+                key: '2',
+                label: 'Toza Penalti',
+                action: `create_penalty:${leaseId || id}`,
+              },
+              {
+                key: '3',
+                label: 'Badili Habari',
+                action: `update_tenant:${id}`,
+              },
+              {
+                key: '4',
+                label: 'Ilani ya Kisheria',
+                action: `create_maintenance_request:${id}:LEGAL`,
+              },
+            ],
           };
         }
         return {
           type: 'menu',
           message: `Quick Actions for ${name}:`,
           options: [
-            { key: '1', label: 'Payment Report', action: `get_tenant_statement:${id}` },
-            { key: '2', label: 'Charge Penalty', action: `create_penalty:${leaseId || 'none'}` },
+            {
+              key: '1',
+              label: 'Payment Report',
+              action: `get_tenant_statement:${id}`,
+            },
+            {
+              key: '2',
+              label: 'Charge Penalty',
+              action: `create_penalty:${leaseId || 'none'}`,
+            },
             { key: '3', label: 'Edit Details', action: `update_tenant:${id}` },
-            { key: '4', label: 'Legal Notice', action: `create_maintenance_request:${id}:LEGAL` },
-          ]
+            {
+              key: '4',
+              label: 'Legal Notice',
+              action: `create_maintenance_request:${id}:LEGAL`,
+            },
+          ],
         };
       }
 
@@ -277,7 +436,8 @@ export class NextStepOrchestrator {
     let output = `\n\n${step.message}`;
     // If not using buttons, append the options as a numbered list
     if (step.options && step.options.length > 0) {
-      output += '\n\n' + step.options.map(o => `*${o.key}.* ${o.label}`).join('\n');
+      output +=
+        '\n\n' + step.options.map((o) => `*${o.key}.* ${o.label}`).join('\n');
     }
     return output;
   }

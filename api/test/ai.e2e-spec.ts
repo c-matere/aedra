@@ -109,7 +109,7 @@ const runIntegration = process.env.RUN_INTEGRATION_TESTS === 'true';
   it('searches companies with multiple words', async () => {
     // Requires Super Admin or being member. The test user is COMPANY_ADMIN of 'AI Test Co'.
     // However, search_companies in ai.service.ts uses context.isSuperAdmin check.
-    // Let's see if we can test it. The test user is the one who created it in beforeAll? 
+    // Let's see if we can test it. The test user is the one who created it in beforeAll?
     // No, it's COMPANY_ADMIN.
 
     const res = await request(app.getHttpServer())

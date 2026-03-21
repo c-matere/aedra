@@ -34,7 +34,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly financesService: FinancesService,
-  ) { }
+  ) {}
 
   async findAll(
     actor: AuthenticatedUser,
@@ -62,36 +62,36 @@ export class PaymentsService {
       lease: isSuperAdmin ? {} : { tenant: { companyId: actor.companyId } },
       ...(search
         ? {
-          OR: [
-            { reference: { contains: search, mode: 'insensitive' } },
-            {
-              lease: {
-                tenant: {
-                  firstName: { contains: search, mode: 'insensitive' },
+            OR: [
+              { reference: { contains: search, mode: 'insensitive' } },
+              {
+                lease: {
+                  tenant: {
+                    firstName: { contains: search, mode: 'insensitive' },
+                  },
                 },
               },
-            },
-            {
-              lease: {
-                tenant: {
-                  lastName: { contains: search, mode: 'insensitive' },
+              {
+                lease: {
+                  tenant: {
+                    lastName: { contains: search, mode: 'insensitive' },
+                  },
                 },
               },
-            },
-            {
-              lease: {
-                property: { name: { contains: search, mode: 'insensitive' } },
-              },
-            },
-            {
-              lease: {
-                unit: {
-                  unitNumber: { contains: search, mode: 'insensitive' },
+              {
+                lease: {
+                  property: { name: { contains: search, mode: 'insensitive' } },
                 },
               },
-            },
-          ],
-        }
+              {
+                lease: {
+                  unit: {
+                    unitNumber: { contains: search, mode: 'insensitive' },
+                  },
+                },
+              },
+            ],
+          }
         : {}),
     };
 
@@ -199,7 +199,7 @@ export class PaymentsService {
 
     // Automatically record commission for rent payments
     if (payment.type === PaymentType.RENT) {
-      this.financesService.recordCommission(payment.id).catch(err => {
+      this.financesService.recordCommission(payment.id).catch((err) => {
         // Log error but don't fail the payment creation
         console.error('Failed to record commission:', err);
       });

@@ -36,9 +36,14 @@ export interface UpdateUserDto {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(actor: AuthenticatedUser, page = 1, limit = 10, search?: string) {
+  async findAll(
+    actor: AuthenticatedUser,
+    page = 1,
+    limit = 10,
+    search?: string,
+  ) {
     const skip = (page - 1) * limit;
     const take = limit;
 
@@ -57,14 +62,16 @@ export class UsersService {
 
     const where: Prisma.UserWhereInput = {
       ...(isSuperAdmin ? {} : { companyId: actor.companyId }),
-      ...(search ? {
-        OR: [
-          { firstName: { contains: search, mode: 'insensitive' } },
-          { lastName: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-          { phone: { contains: search, mode: 'insensitive' } },
-        ]
-      } : {}),
+      ...(search
+        ? {
+            OR: [
+              { firstName: { contains: search, mode: 'insensitive' } },
+              { lastName: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+              { phone: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
     };
 
     const [data, total] = await Promise.all([
@@ -236,7 +243,15 @@ export class UsersService {
     };
   }
 
-  async createInvitation(actor: AuthenticatedUser, data: { email: string; role: UserRole; firstName?: string; lastName?: string }) {
+  async createInvitation(
+    actor: AuthenticatedUser,
+    data: {
+      email: string;
+      role: UserRole;
+      firstName?: string;
+      lastName?: string;
+    },
+  ) {
     if (actor.role === UserRole.COMPANY_STAFF) {
       throw new ForbiddenException('Staff members cannot invite users.');
     }
@@ -279,7 +294,10 @@ export class UsersService {
     return invitation;
   }
 
-  async acceptInvitation(token: string, data: { firstName: string; lastName: string; password: string }) {
+  async acceptInvitation(
+    token: string,
+    data: { firstName: string; lastName: string; password: string },
+  ) {
     const invitation = await this.verifyInvitation(token);
     const hashedPassword = await bcrypt.hash(data.password, 10);
 

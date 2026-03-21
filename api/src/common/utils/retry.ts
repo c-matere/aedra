@@ -16,14 +16,14 @@ const logger = new Logger('RetryUtility');
 /**
  * Execute a function with exponential backoff retry logic.
  * Specifically handles network-level failures and specific HTTP status codes.
- * 
+ *
  * @param fn The function to execute (must return a Promise)
  * @param options Retry configuration options
  * @returns The result of the function
  */
 export async function withRetry<T>(
   fn: () => Promise<T>,
-  options: RetryOptions = {}
+  options: RetryOptions = {},
 ): Promise<T> {
   const {
     maxRetries = 3,
@@ -40,13 +40,16 @@ export async function withRetry<T>(
       return await fn();
     } catch (error: any) {
       lastError = error;
-      
-      const status = error?.status || error?.response?.status || error?.response?.data?.error?.code;
+
+      const status =
+        error?.status ||
+        error?.response?.status ||
+        error?.response?.data?.error?.code;
       const errorMessage = error?.message || 'Unknown error';
-      
+
       // Check if it's a network-level failure or a retryable HTTP status
-      const isNetworkError = 
-        /fetch failed/i.test(errorMessage) || 
+      const isNetworkError =
+        /fetch failed/i.test(errorMessage) ||
         error?.code === 'UND_ERR_CONNECT_TIMEOUT' ||
         error?.code === 'ECONNREFUSED' ||
         error?.code === 'ETIMEDOUT' ||
@@ -57,15 +60,20 @@ export async function withRetry<T>(
 
       if (isNetworkError || isRetryableStatus) {
         if (i < maxRetries - 1) {
-          const backoff = Math.min(initialDelay * Math.pow(factor, i), maxDelay);
+          const backoff = Math.min(
+            initialDelay * Math.pow(factor, i),
+            maxDelay,
+          );
           const jitter = Math.random() * 1000;
           const delay = backoff + jitter;
           logger.warn(
             `[RetryDiag] Error: ${errorMessage} | Status: ${status || 'N/A'} | Code: ${error?.code || 'N/A'}. ` +
-            `Retrying sequence ${i + 1}/${maxRetries} in ${(delay / 1000).toFixed(2)}s...`
+              `Retrying sequence ${i + 1}/${maxRetries} in ${(delay / 1000).toFixed(2)}s...`,
           );
           if (isNetworkError) {
-             logger.verbose(`[RetryDiag] Stack trace for network error: ${error.stack}`);
+            logger.verbose(
+              `[RetryDiag] Stack trace for network error: ${error.stack}`,
+            );
           }
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;

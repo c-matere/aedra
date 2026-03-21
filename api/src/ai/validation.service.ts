@@ -8,9 +8,12 @@ export class ValidationService {
    * Gap 5: Output Schema Validation
    * Ensures structured JSON matches the AedraSkill outputSchema.
    */
-  validateSchema(schema: any, data: any): { valid: boolean; errors?: string[] } {
+  validateSchema(
+    schema: any,
+    data: any,
+  ): { valid: boolean; errors?: string[] } {
     const errors: string[] = [];
-    
+
     if (schema.type === 'object' && schema.properties) {
       if (typeof data !== 'object' || data === null) {
         errors.push('Data must be an object');
@@ -22,8 +25,10 @@ export class ValidationService {
             }
           }
         }
-        
-        for (const [key, propSchema] of Object.entries(schema.properties as Record<string, any>)) {
+
+        for (const [key, propSchema] of Object.entries(
+          schema.properties as Record<string, any>,
+        )) {
           if (key in data) {
             const val = data[key];
             const expectedType = propSchema.type;
@@ -41,7 +46,7 @@ export class ValidationService {
 
     return {
       valid: errors.length === 0,
-      errors: errors.length > 0 ? errors : undefined
+      errors: errors.length > 0 ? errors : undefined,
     };
   }
 
@@ -50,16 +55,22 @@ export class ValidationService {
    * Ensures any numerical figure in the assistant response exists in tool results.
    * Prevents financial hallucinations.
    */
-  crossCheckFinancials(responseText: string, toolResults: any[]): { consistent: boolean; hallucinations: number[] } {
+  crossCheckFinancials(
+    responseText: string,
+    toolResults: any[],
+  ): { consistent: boolean; hallucinations: number[] } {
     const responseNumbers = this.extractNumbers(responseText);
     const toolNumbers = new Set(this.extractNumbersFromObject(toolResults));
 
     // Allow some common small numbers (0, 1, 100 etc if they are not specifically amounts)
     // But for aedra, we should be strict.
-    const hallucinations = responseNumbers.filter(n => !toolNumbers.has(n) && n > 10); // Simple heuristic: skip small indices/zeros
-    
+    const hallucinations = responseNumbers.filter(
+      (n) => !toolNumbers.has(n) && n > 10,
+    ); // Simple heuristic: skip small indices/zeros
+
     return {
-      consistent: hallucinations.length === 0, hallucinations
+      consistent: hallucinations.length === 0,
+      hallucinations,
     };
   }
 
@@ -67,7 +78,7 @@ export class ValidationService {
     // Matches numbers with commas or dots
     const matches = text.match(/\d+(?:,\d{3})*(?:\.\d+)?/g);
     if (!matches) return [];
-    return matches.map(m => Number(m.replace(/,/g, '')));
+    return matches.map((m) => Number(m.replace(/,/g, '')));
   }
 
   private extractNumbersFromObject(obj: any): number[] {

@@ -1,4 +1,9 @@
-import { Injectable, Logger, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SenderType } from '@prisma/client';
 import { UserRole } from '../auth/roles.enum';
@@ -11,13 +16,62 @@ export class WhatsappService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  private getDefaultTemplateLanguageCode(): string {
+    return (
+      (process.env.WA_DEFAULT_TEMPLATE_LANGUAGE_CODE || 'en_US').trim() ||
+      'en_US'
+    );
+  }
+
+  private normalizeTemplateLanguageCode(languageCode?: string): string {
+    const raw = (languageCode || '').trim();
+    if (!raw) return this.getDefaultTemplateLanguageCode();
+
+    // Accept both `en-US` and `en_US`.
+    const normalized = raw.replace('-', '_');
+    const lower = normalized.toLowerCase();
+
+    // App-level language codes commonly used across the codebase.
+    if (lower === 'en') return 'en_US';
+    if (lower === 'sw') return 'sw';
+
+    return normalized;
+  }
+
+  private getTemplateLanguageAttempts(primary: string): string[] {
+    const fallbacksRaw = (
+      process.env.WA_TEMPLATE_LANGUAGE_FALLBACKS || ''
+    ).trim();
+    const fallbacks = fallbacksRaw
+      ? fallbacksRaw
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
+
+    const attempts = [
+      primary,
+      ...fallbacks.map((code) => this.normalizeTemplateLanguageCode(code)),
+      this.getDefaultTemplateLanguageCode(),
+    ];
+
+    // Keep order, remove duplicates.
+    const seen = new Set<string>();
+    return attempts.filter((code) => {
+      if (!code) return false;
+      if (seen.has(code)) return false;
+      seen.add(code);
+      return true;
+    });
+  }
+
   /**
    * Identify a person by their phone number across Users, Landlords, and Tenants.
    */
   async identifySenderByPhone(phone: string): Promise<AuthenticatedUser> {
     const rawDigits = phone.replace(/\D/g, ''); // 254712345678
     const last9 = rawDigits.slice(-9); // 712345678
-    
+
     const possibleFormats = [
       rawDigits, // 254712345678
       `+${rawDigits}`, // +254712345678
@@ -36,7 +90,9 @@ export class WhatsappService {
       select: { id: true, companyId: true, role: true },
     });
     if (user) {
-      this.logger.log(`Found User: ${user.id} (Role: ${user.role}, Company: ${user.companyId || 'NONE'})`);
+      this.logger.log(
+        `Found User: ${user.id} (Role: ${user.role}, Company: ${user.companyId || 'NONE'})`,
+      );
       return user as any as AuthenticatedUser;
     }
 
@@ -49,7 +105,9 @@ export class WhatsappService {
       select: { id: true, companyId: true },
     });
     if (landlord) {
-      this.logger.log(`Found Landlord: ${landlord.id} (Company: ${landlord.companyId})`);
+      this.logger.log(
+        `Found Landlord: ${landlord.id} (Company: ${landlord.companyId})`,
+      );
       return {
         id: landlord.id,
         companyId: landlord.companyId,
@@ -66,7 +124,9 @@ export class WhatsappService {
       select: { id: true, companyId: true },
     });
     if (tenant) {
-      this.logger.log(`Found Tenant: ${tenant.id} (Company: ${tenant.companyId})`);
+      this.logger.log(
+        `Found Tenant: ${tenant.id} (Company: ${tenant.companyId})`,
+      );
       return {
         id: tenant.id,
         companyId: tenant.companyId,
@@ -102,7 +162,10 @@ export class WhatsappService {
   /**
    * Update WhatsAppProfile state.
    */
-  async updateWhatsAppProfile(phone: string, data: Partial<{ language: string; onboarded: boolean }>) {
+  async updateWhatsAppProfile(
+    phone: string,
+    data: Partial<{ language: string; onboarded: boolean }>,
+  ) {
     return this.prisma.whatsAppProfile.update({
       where: { phone },
       data,
@@ -136,7 +199,13 @@ export class WhatsappService {
     languageCode?: string;
     components?: any[];
   }) {
-    const { companyId, to, templateName, languageCode = 'en_US', components = [] } = params;
+    const {
+      companyId,
+      to,
+      templateName,
+      languageCode,
+      components = [],
+    } = params;
 
     let accessToken = process.env.META_ACCESS_TOKEN;
     let phoneNumberId = process.env.META_PHONE_NUMBER_ID;
@@ -159,8 +228,12 @@ export class WhatsappService {
     }
 
     if (!accessToken || !phoneNumberId) {
-      this.logger.error(`WhatsApp credentials missing (System fallback failed)`);
-      throw new InternalServerErrorException('WhatsApp messaging is not configured.');
+      this.logger.error(
+        `WhatsApp credentials missing (System fallback failed)`,
+      );
+      throw new InternalServerErrorException(
+        'WhatsApp messaging is not configured.',
+      );
     }
 
     const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
@@ -172,29 +245,46 @@ export class WhatsappService {
       template: {
         name: templateName,
         language: {
-          code: languageCode,
+          code: this.normalizeTemplateLanguageCode(languageCode),
         },
         components,
       },
     };
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
-
     try {
-      const response = await withRetry(() => fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-          'Connection': 'keep-alive',
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal as any,
-      })).finally(() => clearTimeout(timeoutId));
+      const languageAttempts = this.getTemplateLanguageAttempts(
+        payload.template.language.code,
+      );
+      let response: Response | null = null;
+      let result: any = null;
 
-      const result = await response.json();
-      const status = response.ok ? 'SENT' : 'FAILED';
+      for (const code of languageAttempts) {
+        payload.template.language.code = code;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+        response = await withRetry(() =>
+          fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+              Connection: 'keep-alive',
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal as any,
+          }),
+        ).finally(() => clearTimeout(timeoutId));
+
+        result = await response.json();
+
+        if (response.ok) break;
+        // 132001: template exists but not for this language translation
+        if (result?.error?.code === 132001) continue;
+        break;
+      }
+
+      const status = response?.ok ? 'SENT' : 'FAILED';
       const metaMessageId = result?.messages?.[0]?.id;
 
       // Log the message
@@ -209,9 +299,11 @@ export class WhatsappService {
         },
       });
 
-      if (!response.ok) {
+      if (!response?.ok) {
         this.logger.error(`Meta API error: ${JSON.stringify(result)}`);
-        throw new InternalServerErrorException(result?.error?.message || 'Failed to send WhatsApp message');
+        throw new InternalServerErrorException(
+          result?.error?.message || 'Failed to send WhatsApp message',
+        );
       }
 
       return { ...result, senderType };
@@ -252,7 +344,9 @@ export class WhatsappService {
     }
 
     if (!accessToken || !phoneNumberId) {
-      throw new InternalServerErrorException('WhatsApp messaging is not configured.');
+      throw new InternalServerErrorException(
+        'WhatsApp messaging is not configured.',
+      );
     }
 
     const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
@@ -269,16 +363,18 @@ export class WhatsappService {
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     try {
-      const response = await withRetry(() => fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-          'Connection': 'keep-alive',
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal as any,
-      })).finally(() => clearTimeout(timeoutId));
+      const response = await withRetry(() =>
+        fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            Connection: 'keep-alive',
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal as any,
+        }),
+      ).finally(() => clearTimeout(timeoutId));
 
       const result = await response.json();
       const status = response.ok ? 'SENT' : 'FAILED';
@@ -297,14 +393,44 @@ export class WhatsappService {
       });
 
       if (!response.ok) {
-        this.logger.error(`Meta API interactive error: ${JSON.stringify(result)}`);
+        this.logger.error(
+          `Meta API interactive error: ${JSON.stringify(result)}`,
+        );
       }
 
       return { ...result, senderType };
     } catch (error) {
-      this.logger.error(`Failed to send WhatsApp interactive: ${error.message}`);
+      this.logger.error(
+        `Failed to send WhatsApp interactive: ${error.message}`,
+      );
       throw error;
     }
+  }
+
+  /**
+   * Send an interactive message with buttons.
+   */
+  async sendInteractiveButtons(params: {
+    companyId?: string;
+    to: string;
+    text: string;
+    buttons: { id: string; title: string }[];
+  }) {
+    const { companyId, to, text, buttons } = params;
+    return await this.sendInteractiveMessage({
+      companyId,
+      to,
+      interactive: {
+        type: 'button',
+        body: { text },
+        action: {
+          buttons: buttons.map((b) => ({
+            type: 'reply',
+            reply: { id: b.id, title: b.title },
+          })),
+        },
+      },
+    });
   }
 
   /**
@@ -347,14 +473,16 @@ export class WhatsappService {
     };
 
     try {
-      await withRetry(() => fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(payload),
-      }));
+      await withRetry(() =>
+        fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(payload),
+        }),
+      );
     } catch (e) {
       this.logger.warn(`Failed to send reaction: ${e.message}`);
     }
@@ -413,7 +541,9 @@ export class WhatsappService {
     }
 
     if (!accessToken || !phoneNumberId) {
-      throw new InternalServerErrorException('WhatsApp messaging is not configured.');
+      throw new InternalServerErrorException(
+        'WhatsApp messaging is not configured.',
+      );
     }
 
     const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
@@ -430,16 +560,18 @@ export class WhatsappService {
     const timeoutId = setTimeout(() => controller.abort(), 45000);
 
     try {
-      const response = await withRetry(() => fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-          'Connection': 'keep-alive',
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal as any,
-      })).finally(() => clearTimeout(timeoutId));
+      const response = await withRetry(() =>
+        fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            Connection: 'keep-alive',
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal as any,
+        }),
+      ).finally(() => clearTimeout(timeoutId));
 
       const result = await response.json();
       const status = response.ok ? 'SENT' : 'FAILED';
@@ -501,7 +633,9 @@ export class WhatsappService {
     }
 
     if (!accessToken || !phoneNumberId) {
-      throw new InternalServerErrorException('WhatsApp messaging is not configured.');
+      throw new InternalServerErrorException(
+        'WhatsApp messaging is not configured.',
+      );
     }
 
     const metaUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
@@ -522,16 +656,18 @@ export class WhatsappService {
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     try {
-      const response = await withRetry(() => fetch(metaUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-          'Connection': 'keep-alive',
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal as any,
-      })).finally(() => clearTimeout(timeoutId));
+      const response = await withRetry(() =>
+        fetch(metaUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            Connection: 'keep-alive',
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal as any,
+        }),
+      ).finally(() => clearTimeout(timeoutId));
 
       const result = await response.json();
       const status = response.ok ? 'SENT' : 'FAILED';
@@ -572,10 +708,19 @@ export class WhatsappService {
     fileName: string;
     components?: any[];
   }) {
-    const { companyId, to, templateName, languageCode = 'en_US', url, fileName, components = [] } = params;
+    const {
+      companyId,
+      to,
+      templateName,
+      languageCode,
+      url,
+      fileName,
+      components = [],
+    } = params;
 
     let accessToken = process.env.META_ACCESS_TOKEN;
     let phoneNumberId = process.env.META_PHONE_NUMBER_ID;
+    let senderType: SenderType = SenderType.SYSTEM;
 
     if (companyId) {
       const company: any = await this.prisma.company.findUnique({
@@ -585,11 +730,14 @@ export class WhatsappService {
       if (company?.waAccessToken && company?.waPhoneNumberId) {
         accessToken = company.waAccessToken;
         phoneNumberId = company.waPhoneNumberId;
+        senderType = SenderType.COMPANY;
       }
     }
 
     if (!accessToken || !phoneNumberId) {
-      throw new InternalServerErrorException('WhatsApp messaging is not configured.');
+      throw new InternalServerErrorException(
+        'WhatsApp messaging is not configured.',
+      );
     }
 
     const metaUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
@@ -614,28 +762,44 @@ export class WhatsappService {
       type: 'template',
       template: {
         name: templateName,
-        language: { code: languageCode },
+        language: { code: this.normalizeTemplateLanguageCode(languageCode) },
         components: finalComponents,
       },
     };
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
-
     try {
-      const response = await withRetry(() => fetch(metaUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-          'Connection': 'keep-alive',
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal as any,
-      })).finally(() => clearTimeout(timeoutId));
+      const languageAttempts = this.getTemplateLanguageAttempts(
+        payload.template.language.code,
+      );
+      let response: Response | null = null;
+      let result: any = null;
 
-      const result = await response.json();
-      const status = response.ok ? 'SENT' : 'FAILED';
+      for (const code of languageAttempts) {
+        payload.template.language.code = code;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+        response = await withRetry(() =>
+          fetch(metaUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+              Connection: 'keep-alive',
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal as any,
+          }),
+        ).finally(() => clearTimeout(timeoutId));
+
+        result = await response.json();
+
+        if (response.ok) break;
+        if (result?.error?.code === 132001) continue;
+        break;
+      }
+
+      const status = response?.ok ? 'SENT' : 'FAILED';
       const metaMessageId = result?.messages?.[0]?.id;
 
       await this.prisma.whatsAppLog.create({
@@ -643,19 +807,23 @@ export class WhatsappService {
           companyId,
           to,
           templateName: `${templateName}_DOC`,
-          senderType: SenderType.SYSTEM,
+          senderType,
           status,
           metaMessageId: metaMessageId || null,
         },
       });
 
-      if (!response.ok) {
-        this.logger.error(`Meta API document template error: ${JSON.stringify(result)}`);
+      if (!response?.ok) {
+        this.logger.error(
+          `Meta API document template error: ${JSON.stringify(result)}`,
+        );
       }
 
       return result;
     } catch (error) {
-      this.logger.error(`Failed to send WhatsApp document template: ${error.message}`);
+      this.logger.error(
+        `Failed to send WhatsApp document template: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -663,7 +831,14 @@ export class WhatsappService {
   /**
    * Verify Meta Webhook subscription.
    */
-  async verifyWebhook(companyId: string, query: { 'hub.mode': string; 'hub.verify_token': string; 'hub.challenge': string }) {
+  async verifyWebhook(
+    companyId: string,
+    query: {
+      'hub.mode': string;
+      'hub.verify_token': string;
+      'hub.challenge': string;
+    },
+  ) {
     let expectedToken = process.env.META_VERIFY_TOKEN;
 
     if (companyId !== 'system') {
@@ -679,12 +854,17 @@ export class WhatsappService {
       expectedToken = company.waVerifyToken;
     }
 
-    if (query['hub.mode'] === 'subscribe' && query['hub.verify_token'] === expectedToken) {
+    if (
+      query['hub.mode'] === 'subscribe' &&
+      query['hub.verify_token'] === expectedToken
+    ) {
       this.logger.log(`Webhook verified successfully for ${companyId}`);
       return query['hub.challenge'];
     }
 
-    this.logger.error(`Webhook verification failed for ${companyId}. Expected: ${expectedToken}, Got: ${query['hub.verify_token']}`);
+    this.logger.error(
+      `Webhook verification failed for ${companyId}. Expected: ${expectedToken}, Got: ${query['hub.verify_token']}`,
+    );
     throw new InternalServerErrorException('Verification failed');
   }
 
@@ -692,8 +872,10 @@ export class WhatsappService {
    * Handle incoming data from Meta Webhook.
    */
   async handleWebhook(body: any) {
-    this.logger.log(`Received WhatsApp Webhook: ${JSON.stringify(body, null, 2)}`);
-    
+    this.logger.log(
+      `Received WhatsApp Webhook: ${JSON.stringify(body, null, 2)}`,
+    );
+
     const entry = body?.entry?.[0];
     const changes = entry?.changes?.[0];
     const value = changes?.value;
@@ -701,8 +883,10 @@ export class WhatsappService {
 
     if (message?.from) {
       const sender = await this.identifySenderByPhone(message.from);
-      this.logger.log(`Incoming WhatsApp from ${message.from} identified as ${sender.role} (Company: ${sender.companyId || 'N/A'})`);
-      
+      this.logger.log(
+        `Incoming WhatsApp from ${message.from} identified as ${sender.role} (Company: ${sender.companyId || 'N/A'})`,
+      );
+
       // In next steps, we would trigger AiService.chat with this synthetic sender context
     }
 
@@ -712,7 +896,10 @@ export class WhatsappService {
   /**
    * Download media from Meta (Voice notes, images, documents).
    */
-  async downloadMedia(mediaId: string, companyId?: string): Promise<{ data: string; mimeType: string }> {
+  async downloadMedia(
+    mediaId: string,
+    companyId?: string,
+  ): Promise<{ data: string; mimeType: string }> {
     let accessToken = process.env.META_ACCESS_TOKEN;
 
     if (companyId) {
@@ -735,33 +922,41 @@ export class WhatsappService {
     try {
       // 1. Get media URL
       const url = `https://graph.facebook.com/v21.0/${mediaId}`;
-      const res = await withRetry(() => fetch(url, {
-        headers: { 
-          Authorization: `Bearer ${accessToken}`,
-          'Connection': 'keep-alive',
-        },
-        signal: controller.signal as any,
-      }));
-      
+      const res = await withRetry(() =>
+        fetch(url, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Connection: 'keep-alive',
+          },
+          signal: controller.signal as any,
+        }),
+      );
+
       if (!res.ok) {
         const error = await res.json();
         this.logger.error(`Failed to get media URL: ${JSON.stringify(error)}`);
-        throw new InternalServerErrorException('Failed to fetch media metadata from Meta.');
+        throw new InternalServerErrorException(
+          'Failed to fetch media metadata from Meta.',
+        );
       }
 
       const { url: downloadUrl, mime_type: mimeType } = await res.json();
 
       // 2. Download actual content
-      const mediaRes = await withRetry(() => fetch(downloadUrl, {
-        headers: { 
-          Authorization: `Bearer ${accessToken}`,
-          'Connection': 'keep-alive',
-        },
-        signal: controller.signal as any,
-      }));
+      const mediaRes = await withRetry(() =>
+        fetch(downloadUrl, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Connection: 'keep-alive',
+          },
+          signal: controller.signal as any,
+        }),
+      );
 
       if (!mediaRes.ok) {
-        throw new InternalServerErrorException('Failed to download media content from Meta.');
+        throw new InternalServerErrorException(
+          'Failed to download media content from Meta.',
+        );
       }
 
       const buffer = await mediaRes.arrayBuffer();

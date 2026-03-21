@@ -28,10 +28,25 @@ export class ReportsGeneratorService {
     }
   }
 
+  async publishFile(localPath: string, fileName: string): Promise<string> {
+    try {
+      const destPath = path.join(this.reportsDir, fileName);
+      fs.copyFileSync(localPath, destPath);
+      return this.getFileUrl(fileName);
+    } catch (err) {
+      this.logger.error(`Error publishing file ${fileName}`, err);
+      throw err;
+    }
+  }
+
   /**
    * Basic PDF generation using Puppeteer (Legacy wrap)
    */
-  async generatePdf(data: any, title: string, fileName: string): Promise<string> {
+  async generatePdf(
+    data: any,
+    title: string,
+    fileName: string,
+  ): Promise<string> {
     const html = `
       <html>
         <head>
@@ -55,12 +70,29 @@ export class ReportsGeneratorService {
   /**
    * Premium PDF generation for McKinsey-grade reports
    */
-  async generatePremiumPdf(insights: any, propertiesData: any, fileName: string): Promise<string> {
+  async generatePremiumPdf(
+    insights: any,
+    propertiesData: any,
+    fileName: string,
+  ): Promise<string> {
     const html = this.renderPremiumHtml(insights, propertiesData);
     return this.generatePdfFromHtml(html, fileName);
   }
 
-  private async generatePdfFromHtml(html: string, fileName: string): Promise<string> {
+  async generateHistoryPdf(
+    entity: string,
+    targetId: string,
+    history: any[],
+    fileName: string,
+  ): Promise<string> {
+    const html = this.renderHistoryHtml(entity, targetId, history);
+    return this.generatePdfFromHtml(html, fileName);
+  }
+
+  private async generatePdfFromHtml(
+    html: string,
+    fileName: string,
+  ): Promise<string> {
     const filePath = path.join(this.reportsDir, fileName);
     let browser;
     try {
@@ -70,9 +102,9 @@ export class ReportsGeneratorService {
       });
       const page = await browser.newPage();
       this.logger.log(`Generating PDF for ${fileName} to path: ${filePath}...`);
-      await page.setContent(html, { 
+      await page.setContent(html, {
         waitUntil: 'load',
-        timeout: 60000 
+        timeout: 60000,
       });
       await page.pdf({
         path: filePath,
@@ -80,11 +112,13 @@ export class ReportsGeneratorService {
         margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' },
         printBackground: true,
       });
-      
+
       if (fs.existsSync(filePath)) {
-          this.logger.log(`Successfully verified file exists at: ${filePath}`);
+        this.logger.log(`Successfully verified file exists at: ${filePath}`);
       } else {
-          this.logger.error(`CRITICAL: File missing immediately after generation at: ${filePath}`);
+        this.logger.error(
+          `CRITICAL: File missing immediately after generation at: ${filePath}`,
+        );
       }
 
       return this.getFileUrl(fileName);
@@ -103,43 +137,53 @@ export class ReportsGeneratorService {
       <table style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr style="background: #eee;">
-            ${headers.map(h => `<th style="border: 1px solid #ccc; padding: 8px; text-align: left;">${h}</th>`).join('')}
+            ${headers.map((h) => `<th style="border: 1px solid #ccc; padding: 8px; text-align: left;">${h}</th>`).join('')}
           </tr>
         </thead>
         <tbody>
-          ${data.map(row => `
+          ${data
+            .map(
+              (row) => `
             <tr>
-              ${headers.map(h => `<td style="border: 1px solid #ccc; padding: 8px;">${row[h] || ''}</td>`).join('')}
+              ${headers.map((h) => `<td style="border: 1px solid #ccc; padding: 8px;">${row[h] || ''}</td>`).join('')}
             </tr>
-          `).join('')}
+          `,
+            )
+            .join('')}
         </tbody>
       </table>
     `;
   }
 
   private renderPremiumHtml(insights: any, propertiesData: any): string {
-    const { 
-      execBadge, 
-      execSummary, 
-      waterfall = [], 
-      heatmap = [], 
-      patterns = [], 
-      risks = [], 
-      recommendations = [] 
+    const {
+      execBadge,
+      execSummary,
+      waterfall = [],
+      heatmap = [],
+      patterns = [],
+      risks = [],
+      recommendations = [],
     } = insights;
 
     const totals = propertiesData.totals || {};
     const maintenance = propertiesData.maintenance || {};
     const occupancyRate = totals.occupancy || 0;
-    const collectionRate = totals.invoices ? Math.round((totals.payments / totals.invoices) * 100) : 0;
+    const collectionRate = totals.invoices
+      ? Math.round((totals.payments / totals.invoices) * 100)
+      : 0;
     const outstanding = Math.max(0, totals.invoices - totals.payments);
-    
+
     // Formatters
-    const fmtK = (n: number) => n >= 1000 ? `${Math.round(n / 1000)}K` : n.toLocaleString();
+    const fmtK = (n: number) =>
+      n >= 1000 ? `${Math.round(n / 1000)}K` : n.toLocaleString();
     const fmt = (n: number) => n.toLocaleString();
 
-    const badgeClass = execBadge?.toLowerCase().includes('strong') ? 'b-green' : 
-                       execBadge?.toLowerCase().includes('risk') ? 'b-red' : 'b-amber';
+    const badgeClass = execBadge?.toLowerCase().includes('strong')
+      ? 'b-green'
+      : execBadge?.toLowerCase().includes('risk')
+        ? 'b-red'
+        : 'b-amber';
 
     return `
       <!DOCTYPE html>
@@ -305,12 +349,23 @@ export class ReportsGeneratorService {
                 </div>
                 <div class="narrative">Data-driven waterfall breakdown from gross rent to net yield, accounting for operational leakage and maintenance spend.</div>
                 <div class="waterfall-list">
-                  ${waterfall.map((row: any) => {
-                    const maxVal = Math.max(...waterfall.map((r: any) => Math.abs(r.value)));
-                    const widthPct = Math.max(8, Math.round((Math.abs(row.value) / maxVal) * 90));
-                    const isNeg = row.value < 0;
-                    const color = row.type === 'total' ? 'b-green' : isNeg ? 'b-red' : 'b-blue';
-                    return `
+                  ${waterfall
+                    .map((row: any) => {
+                      const maxVal = Math.max(
+                        ...waterfall.map((r: any) => Math.abs(r.value)),
+                      );
+                      const widthPct = Math.max(
+                        8,
+                        Math.round((Math.abs(row.value) / maxVal) * 90),
+                      );
+                      const isNeg = row.value < 0;
+                      const color =
+                        row.type === 'total'
+                          ? 'b-green'
+                          : isNeg
+                            ? 'b-red'
+                            : 'b-blue';
+                      return `
                       <div class="wf-row">
                         <div class="wf-lbl">${row.label}</div>
                         <div class="wf-bar ${color}" style="width: ${widthPct}%">
@@ -319,7 +374,8 @@ export class ReportsGeneratorService {
                         ${row.note ? `<div class="wf-val">${row.note}</div>` : ''}
                       </div>
                     `;
-                  }).join('')}
+                    })
+                    .join('')}
                 </div>
               </div>
 
@@ -327,7 +383,7 @@ export class ReportsGeneratorService {
               <div class="section">
                 <div class="s-hdr">
                   <div class="s-title">Tenant payment heatmap</div>
-                  <div class="badge b-amber">${heatmap.length > 0 ? (heatmap.filter((h: any) => h.ltv < 80).length + ' Flags') : 'No Flags'}</div>
+                  <div class="badge b-amber">${heatmap.length > 0 ? heatmap.filter((h: any) => h.ltv < 80).length + ' Flags' : 'No Flags'}</div>
                 </div>
                 <div class="heat-wrap">
                   <table class="heat-table">
@@ -340,16 +396,24 @@ export class ReportsGeneratorService {
                       </tr>
                     </thead>
                     <tbody>
-                      ${heatmap.map((row: any) => `
+                      ${heatmap
+                        .map(
+                          (row: any) => `
                         <tr>
                           <td>${row.name}</td>
                           <td>${row.unit}</td>
-                          ${(row.payments || []).map((p: any) => `
+                          ${(row.payments || [])
+                            .map(
+                              (p: any) => `
                             <td><span class="${p.status === 'ok' ? 'hc-g' : p.status === 'late' ? 'hc-a' : 'hc-r'}">${p.status}</span></td>
-                          `).join('')}
+                          `,
+                            )
+                            .join('')}
                           <td><span class="hc-g" style="background:${row.ltv > 85 ? '#eaf3de' : '#faeeda'}; color:${row.ltv > 85 ? '#3b6d11' : '#854f0b'}">${row.ltv}</span></td>
                         </tr>
-                      `).join('')}
+                      `,
+                        )
+                        .join('')}
                     </tbody>
                   </table>
                 </div>
@@ -361,12 +425,16 @@ export class ReportsGeneratorService {
                   <div class="s-title">Deep pattern analysis</div>
                   <div class="badge b-blue">AI Insight Layer</div>
                 </div>
-                ${patterns.map((p: any) => `
+                ${patterns
+                  .map(
+                    (p: any) => `
                   <div class="pattern-card">
                     <div class="p-tag">${p.tag}</div>
                     <div>${p.body}</div>
                   </div>
-                `).join('')}
+                `,
+                  )
+                  .join('')}
               </div>
 
               <!-- RISKS & RECS -->
@@ -374,7 +442,9 @@ export class ReportsGeneratorService {
                 <div class="section">
                   <div class="s-hdr"><div class="s-title">Risk flags</div><div class="badge b-red">${risks.length} Flags</div></div>
                   <ul class="risk-list">
-                    ${risks.map((r: any) => `
+                    ${risks
+                      .map(
+                        (r: any) => `
                       <li class="risk-item">
                         <div class="rdot ${r.level}"></div>
                         <div>
@@ -382,18 +452,24 @@ export class ReportsGeneratorService {
                           <div class="r-body">${r.detail}</div>
                         </div>
                       </li>
-                    `).join('')}
+                    `,
+                      )
+                      .join('')}
                   </ul>
                 </div>
                 <div class="section">
                   <div class="s-hdr"><div class="s-title">Recommendations</div><div class="badge b-blue">Actions</div></div>
                   <ul class="rec-list">
-                    ${recommendations.map((rec: any, i: number) => `
+                    ${recommendations
+                      .map(
+                        (rec: any, i: number) => `
                       <li class="rec-item">
                         <div class="rec-num">0${i + 1}</div>
                         <div class="rec-body">${rec.action} <br> <span style="color:#d85a30; font-size:11px; font-family:'DM Mono'">→ ${rec.deadline}</span></div>
                       </li>
-                    `).join('')}
+                    `,
+                      )
+                      .join('')}
                   </ul>
                 </div>
               </div>
@@ -463,5 +539,89 @@ export class ReportsGeneratorService {
       : baseUrl;
 
     return `${normalizedBase}/documents/files/${fileName}`;
+  }
+
+  private renderHistoryHtml(
+    entity: string,
+    targetId: string,
+    history: any[],
+  ): string {
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+          <meta charset="UTF-8">
+          <title>Aedra · Entity History</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+            body { font-family: 'Outfit', sans-serif; padding: 40px; color: #0f1923; line-height: 1.6; }
+            .header { border-bottom: 2px solid #0f1923; padding-bottom: 20px; margin-bottom: 30px; }
+            .title { font-size: 24px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; }
+            .subtitle { font-family: 'DM Mono', monospace; font-size: 12px; color: #637285; margin-top: 5px; }
+            .log-entry { border-left: 2px solid #e2e8f0; padding-left: 20px; position: relative; margin-bottom: 30px; }
+            .log-entry::before { content: ''; width: 10px; height: 10px; background: #0f1923; border-radius: 50%; position: absolute; left: -6px; top: 0; }
+            .log-time { font-family: 'DM Mono', monospace; font-size: 11px; color: #637285; }
+            .log-action { font-weight: 600; font-size: 14px; margin: 4px 0; }
+            .log-actor { font-size: 11px; color: #637285; margin-bottom: 8px; }
+            .diff-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+            .diff-table th { text-align: left; font-size: 11px; text-transform: uppercase; color: #637285; padding: 8px; border-bottom: 1px solid #f1f5f9; }
+            .diff-table td { padding: 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+            .field-name { font-weight: 500; width: 25%; }
+            .old-val { color: #d85a30; text-decoration: line-through; }
+            .new-val { color: #1d9e75; font-weight: 500; }
+            .footer { margin-top: 50px; font-size: 10px; color: #637285; text-align: center; font-family: 'DM Mono', monospace; }
+          </style>
+      </head>
+      <body>
+          <div class="header">
+              <div class="title">${entity} History Log</div>
+              <div class="subtitle">Entity ID: ${targetId} · Generated by Aedra Version Control</div>
+          </div>
+
+          ${history
+            .map(
+              (entry) => `
+            <div class="log-entry">
+                <div class="log-time">${new Date(entry.timestamp).toLocaleString()}</div>
+                <div class="log-action">${entry.action}</div>
+                <div class="log-actor">By: ${entry.actor.role} (${entry.actor.id})</div>
+                
+                ${
+                  Object.keys(entry.diff).length > 0
+                    ? `
+                <table class="diff-table">
+                    <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Previous State</th>
+                            <th>New State</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${Object.entries(entry.diff)
+                          .map(
+                            ([field, delta]: [string, any]) => `
+                        <tr>
+                            <td class="field-name">${field}</td>
+                            <td class="old-val">${delta.old !== null ? delta.old : '<em>null</em>'}</td>
+                            <td class="new-val">${delta.new !== null ? delta.new : '<em>null</em>'}</td>
+                        </tr>
+                        `,
+                          )
+                          .join('')}
+                    </tbody>
+                </table>
+                `
+                    : '<div style="font-size: 12px; font-style: italic; color: #637285;">No field-level changes recorded.</div>'
+                }
+            </div>
+          `,
+            )
+            .join('')}
+
+          <div class="footer">Confidential · Internal Version Control Report · Aedra AI</div>
+      </body>
+      </html>
+    `;
   }
 }

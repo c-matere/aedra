@@ -31,7 +31,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       timeout: Number(process.env.PRISMA_TX_TIMEOUT_MS ?? 20_000),
     };
 
-
     // Initialize the extended client
     this._extended = this.initExtendedClient();
 
@@ -41,7 +40,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       get: (target, prop, receiver) => {
         if (prop === 'onModuleInit') return target.onModuleInit.bind(target);
         if (prop === '$connect') return target.$connect.bind(target);
-        return Reflect.get(target._extended, prop, receiver) || Reflect.get(target, prop, receiver);
+        return (
+          Reflect.get(target._extended, prop, receiver) ||
+          Reflect.get(target, prop, receiver)
+        );
       },
     });
   }
@@ -70,67 +72,76 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
   private initExtendedClient() {
     const base = this; // Base PrismaClient
-    return base.$extends({
-      query: {
-        $allModels: {
-          async findMany({ model, args, query }) {
-            if (base.softDeleteModels.includes(model)) {
-              (args as any).where = { ...(args as any).where, deletedAt: null };
-            }
-            return query(args);
-          },
-          async findFirst({ model, args, query }) {
-            if (base.softDeleteModels.includes(model)) {
-              (args as any).where = { ...(args as any).where, deletedAt: null };
-            }
-            return query(args);
-          },
-          async delete({ model, args, query }) {
-            if (base.softDeleteModels.includes(model)) {
-              return (this as any).update({
-                where: (args as any).where,
-                data: { deletedAt: new Date() },
-              });
-            }
-            return query(args);
-          },
-          async deleteMany({ model, args, query }) {
-            if (base.softDeleteModels.includes(model)) {
-              return (this as any).updateMany({
-                where: (args as any).where,
-                data: { deletedAt: new Date() },
-              });
-            }
-            return query(args);
-          },
-        },
-      },
-    }).$extends({
-      query: {
-        $allModels: {
-          async $allOperations({ model, operation, args, query }) {
-            const context = tenantContext.getStore();
-            // Bypass RLS if no context is found (seeds, startup, etc) or for certain system operations
-            if (!context || model === 'AuditLog') {
+    return base
+      .$extends({
+        query: {
+          $allModels: {
+            async findMany({ model, args, query }) {
+              if (base.softDeleteModels.includes(model)) {
+                (args as any).where = {
+                  ...(args as any).where,
+                  deletedAt: null,
+                };
+              }
               return query(args);
-            }
-
-            // Using transaction to set session variables then execute the operation.
-            // We use the base service to avoid recursion.
-            return base.$transaction(async (tx) => {
-              await tx.$executeRaw`SELECT set_config('app.current_company_id', ${context.companyId || ''}, TRUE)`;
-              await tx.$executeRaw`SELECT set_config('app.is_super_admin', ${context.isSuperAdmin ? 'true' : 'false'}, TRUE)`;
-              await tx.$executeRaw`SELECT set_config('app.current_user_id', ${context.userId || ''}, TRUE)`;
-
-              // Now we need a way to run the query via THIS transaction context.
-              // Note: query(args) from an extension might not automatically use the 'tx' here.
-              // We transform model name (e.g. 'AuditLog') to camelCase ('auditLog') to match Prisma properties.
-              const modelProp = model.charAt(0).toLowerCase() + model.slice(1);
-              return (tx as any)[modelProp][operation](args);
-            }, this.txOptions);
+            },
+            async findFirst({ model, args, query }) {
+              if (base.softDeleteModels.includes(model)) {
+                (args as any).where = {
+                  ...(args as any).where,
+                  deletedAt: null,
+                };
+              }
+              return query(args);
+            },
+            async delete({ model, args, query }) {
+              if (base.softDeleteModels.includes(model)) {
+                return this.update({
+                  where: (args as any).where,
+                  data: { deletedAt: new Date() },
+                });
+              }
+              return query(args);
+            },
+            async deleteMany({ model, args, query }) {
+              if (base.softDeleteModels.includes(model)) {
+                return this.updateMany({
+                  where: (args as any).where,
+                  data: { deletedAt: new Date() },
+                });
+              }
+              return query(args);
+            },
           },
         },
-      },
-    });
+      })
+      .$extends({
+        query: {
+          $allModels: {
+            async $allOperations({ model, operation, args, query }) {
+              const context = tenantContext.getStore();
+              // Bypass RLS if no context is found (seeds, startup, etc) or for certain system operations
+              if (!context || model === 'AuditLog') {
+                return query(args);
+              }
+
+              // Using transaction to set session variables then execute the operation.
+              // We use the base service to avoid recursion.
+              return base.$transaction(async (tx) => {
+                await tx.$executeRaw`SELECT set_config('app.current_company_id', ${context.companyId || ''}, TRUE)`;
+                await tx.$executeRaw`SELECT set_config('app.is_super_admin', ${context.isSuperAdmin ? 'true' : 'false'}, TRUE)`;
+                await tx.$executeRaw`SELECT set_config('app.current_user_id', ${context.userId || ''}, TRUE)`;
+
+                // Now we need a way to run the query via THIS transaction context.
+                // Note: query(args) from an extension might not automatically use the 'tx' here.
+                // We transform model name (e.g. 'AuditLog') to camelCase ('auditLog') to match Prisma properties.
+                const modelProp =
+                  model.charAt(0).toLowerCase() + model.slice(1);
+                return (tx as any)[modelProp][operation](args);
+              }, this.txOptions);
+            },
+          },
+        },
+      });
   }
 }

@@ -18,7 +18,7 @@ export class TemporalContextService {
     const now = new Date();
     // Offset for EAT if needed, but JS Date uses system time.
     // In production, we ensure server runs in EAT or we offset.
-    
+
     return this.buildFromDate(now);
   }
 
@@ -36,7 +36,10 @@ export class TemporalContextService {
     const billingCycleStart = `${year}-${pad(month + 1)}-01`;
     const billingCycleEnd = `${year}-${pad(month + 1)}-${pad(daysInMonth)}`;
 
-    const monthName = date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    const monthName = date.toLocaleString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    });
 
     const endOfMonth = new Date(year, month, daysInMonth, 23, 59, 59, 999);
     const diff = endOfMonth.getTime() - date.getTime();
@@ -47,7 +50,7 @@ export class TemporalContextService {
       billingCycleStart,
       billingCycleEnd,
       daysUntilCycleEnd: daysUntilEnd,
-      snapshotTimestamp: date.getTime()
+      snapshotTimestamp: date.getTime(),
     };
   }
 }

@@ -29,7 +29,7 @@ import { Public } from '../auth/public.decorator';
 @Controller('documents')
 @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF)
 export class DocumentsController {
-  constructor(private readonly documentsService: DocumentsService) { }
+  constructor(private readonly documentsService: DocumentsService) {}
 
   @Get()
   findAll(

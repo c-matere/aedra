@@ -17,7 +17,7 @@ export class ReportIntelligenceService {
     private prisma: PrismaService,
     @Inject(forwardRef(() => CriticService))
     private critic: CriticService,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
     this.modelName = (process.env.GEMINI_MODEL || 'gemini-2.0-flash').trim();
@@ -32,21 +32,28 @@ export class ReportIntelligenceService {
 
     // Detect if we have a fresh cached version
     const propertyId = data.property?.id || 'portfolio';
-    const dataHash = crypto.createHash('md5').update(JSON.stringify(data.totals || {})).digest('hex');
+    const dataHash = crypto
+      .createHash('md5')
+      .update(JSON.stringify(data.totals || {}))
+      .digest('hex');
     const cacheKey = `premium_insights:${data.companyId}:${propertyId}:${dataHash}`;
 
     try {
       const cached = await this.cacheManager.get(cacheKey);
       if (cached) {
-        this.logger.log(`Serving Premium Insights from cache for key: ${cacheKey}`);
+        this.logger.log(
+          `Serving Premium Insights from cache for key: ${cacheKey}`,
+        );
         return cached;
       }
     } catch (e) {
       this.logger.warn(`Failed to read report cache: ${e.message}`);
     }
 
-    this.logger.log(`Starting Consolidated McKinsey-grade intelligence using model: ${selectedModel}...`);
-    
+    this.logger.log(
+      `Starting Consolidated McKinsey-grade intelligence using model: ${selectedModel}...`,
+    );
+
     // Minify data to save tokens and reduce LLM providers spam
     const minifiedData = minifyReportData(data);
 
@@ -97,33 +104,39 @@ Produce a high-fidelity, McKinsey-grade portfolio intelligence report. Output yo
 - Do NOT provide prose outside the JSON object.
 `;
 
-    const model = this.genAI.getGenerativeModel({ 
-        model: selectedModel,
-        generationConfig: { 
-          responseMimeType: "application/json",
-          temperature: 0.4
-        }
+    const model = this.genAI.getGenerativeModel({
+      model: selectedModel,
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.4,
+      },
     });
 
     try {
-      this.logger.log(`Running premium analysis with model ${selectedModel}...`);
+      this.logger.log(
+        `Running premium analysis with model ${selectedModel}...`,
+      );
       const result = await model.generateContent(prompt);
       const text = result.response.text();
       const parsed = JSON.parse(text);
 
       // Generator-Critic Loop: Validate report consistency
-      this.logger.log('Strategic analysis complete. Initiating Critic evaluation...');
+      this.logger.log(
+        'Strategic analysis complete. Initiating Critic evaluation...',
+      );
       const verdict = await this.critic.evaluate(
-        'PORTFOLIO_REPORT', 
+        'PORTFOLIO_REPORT',
         JSON.stringify(parsed),
-        `Portfolio report for ${data.property?.name || 'the portfolio'}. Data summary: Occupancy ${data.totals?.occupancy}%`
+        `Portfolio report for ${data.property?.name || 'the portfolio'}. Data summary: Occupancy ${data.totals?.occupancy}%`,
       );
 
       if (!verdict.pass) {
-        this.logger.warn(`Critic flagged report. feedback: ${verdict.feedback.join(', ')}`);
+        this.logger.warn(
+          `Critic flagged report. feedback: ${verdict.feedback.join(', ')}`,
+        );
         parsed.criticNote = verdict.feedback.join(' | ');
       }
-      
+
       this.logger.log('Strategic analysis complete.');
       const finalReport = {
         ...parsed,
@@ -131,28 +144,54 @@ Produce a high-fidelity, McKinsey-grade portfolio intelligence report. Output yo
       };
 
       // Cache for 24 hours to reduce LLM spamming
-      await this.cacheManager.set(cacheKey, finalReport, 86400 * 1000).catch(() => {});
-      
+      await this.cacheManager
+        .set(cacheKey, finalReport, 86400 * 1000)
+        .catch(() => {});
+
       return finalReport;
     } catch (err) {
-      this.logger.error(`Error in strategic analysis: ${err.message}`, err.stack);
+      this.logger.error(
+        `Error in strategic analysis: ${err.message}`,
+        err.stack,
+      );
       // Fallback to basic summary if AI fails
       return {
-        execBadge: "Data Overview",
+        execBadge: 'Data Overview',
         execSummary: `This report analyzes ${data.totals?.units || 0} units for ${data.property?.name || 'the portfolio'}. Total monthly revenue is approximately KES ${data.totals?.payments?.toLocaleString() || 0}.`,
         waterfall: [
-          { label: "Gross rent", value: data.totals?.invoices || 0, type: "positive" },
-          { label: "Arrears", value: -(data.totals?.invoices - data.totals?.payments) || 0, type: "negative", note: "Outstanding balance" },
-          { label: "Maintenance", value: -(data.totals?.expenses || 0), type: "negative", note: "Recorded expenses" },
-          { label: "Net yield", value: (data.totals?.payments || 0) - (data.totals?.expenses || 0), type: "total" }
+          {
+            label: 'Gross rent',
+            value: data.totals?.invoices || 0,
+            type: 'positive',
+          },
+          {
+            label: 'Arrears',
+            value: -(data.totals?.invoices - data.totals?.payments) || 0,
+            type: 'negative',
+            note: 'Outstanding balance',
+          },
+          {
+            label: 'Maintenance',
+            value: -(data.totals?.expenses || 0),
+            type: 'negative',
+            note: 'Recorded expenses',
+          },
+          {
+            label: 'Net yield',
+            value: (data.totals?.payments || 0) - (data.totals?.expenses || 0),
+            type: 'total',
+          },
         ],
         heatmap: [],
         patterns: [
-          { tag: "Financial Snapshot", body: `Revenue: KES ${data.totals?.payments?.toLocaleString()}. Expenses: KES ${data.totals?.expenses?.toLocaleString()}.` }
+          {
+            tag: 'Financial Snapshot',
+            body: `Revenue: KES ${data.totals?.payments?.toLocaleString()}. Expenses: KES ${data.totals?.expenses?.toLocaleString()}.`,
+          },
         ],
         risks: [],
         recommendations: [
-          { action: "Follow up on overdue invoices", deadline: "Immediately" }
+          { action: 'Follow up on overdue invoices', deadline: 'Immediately' },
         ],
         timestamp: new Date().toISOString(),
       };

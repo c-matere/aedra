@@ -8,7 +8,7 @@ export interface VerificationResult {
 @Injectable()
 export class FinancialCrossChecker {
   /**
-   * Verifies that all financial figures in the response text can be traced 
+   * Verifies that all financial figures in the response text can be traced
    * back to specific tool results to prevent hallucinations (BS-08).
    */
   verify(response: string, toolResults: any[]): VerificationResult {
@@ -18,30 +18,33 @@ export class FinancialCrossChecker {
     }
 
     const sourceNumbers = this.extractSourceNumbers(toolResults);
-    const unverifiedNumbers = responseNumbers.filter(rn => 
-      !sourceNumbers.some(sn => this.isMatch(rn, sn))
+    const unverifiedNumbers = responseNumbers.filter(
+      (rn) => !sourceNumbers.some((sn) => this.isMatch(rn, sn)),
     );
 
     return {
       passed: unverifiedNumbers.length === 0,
-      unverifiedNumbers
+      unverifiedNumbers,
     };
   }
 
   private extractNumbers(text: string): number[] {
-    // Basic number extraction, ignoring small numbers like dates or counts < 100 
+    // Basic number extraction, ignoring small numbers like dates or counts < 100
     // unless they look like percentages
     const matches = text.match(/[\d,.]+/g) || [];
     return matches
-      .map(m => {
+      .map((m) => {
         const cleaned = m.replace(/,/g, '');
         const val = parseFloat(cleaned);
         return { val, original: m };
       })
-      .filter(({ val, original }) => 
-        !isNaN(val) && (val > 100 || (val > 0 && val <= 100 && text.includes(original + '%')))
+      .filter(
+        ({ val, original }) =>
+          !isNaN(val) &&
+          (val > 100 ||
+            (val > 0 && val <= 100 && text.includes(original + '%'))),
       )
-      .map(item => item.val);
+      .map((item) => item.val);
   }
 
   private extractSourceNumbers(results: any[]): number[] {
@@ -55,7 +58,7 @@ export class FinancialCrossChecker {
         Object.values(obj).forEach(walk);
       }
     };
-    results.forEach(r => walk(r.result || r));
+    results.forEach((r) => walk(r.result || r));
     return numbers;
   }
 

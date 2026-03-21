@@ -32,11 +32,15 @@ export class MpesaService {
 
   async handleC2BWebhook(data: MpesaWebhookDto) {
     const startTime = Date.now();
-    this.logger.log(`[M-Pesa] Webhook received: ${data.TransID} | ${data.MSISDN} | KES ${data.TransAmount}`);
+    this.logger.log(
+      `[M-Pesa] Webhook received: ${data.TransID} | ${data.MSISDN} | KES ${data.TransAmount}`,
+    );
 
     const amount = parseFloat(data.TransAmount);
     const mpesaCode = data.TransID;
-    const phone = data.MSISDN.startsWith('254') ? data.MSISDN : `254${data.MSISDN.slice(-9)}`;
+    const phone = data.MSISDN.startsWith('254')
+      ? data.MSISDN
+      : `254${data.MSISDN.slice(-9)}`;
     const reference = data.BillRefNumber;
 
     // STEP 1 — Idempotency guard (exact-match duplicate detection)
@@ -51,7 +55,9 @@ export class MpesaService {
     // STEP 2 — Identity resolution
     const tenant = await this.findTenantByPhone(phone, reference);
     if (!tenant) {
-      this.logger.warn(`[M-Pesa] Unmatched payment: ${mpesaCode} from ${phone} KES ${amount}`);
+      this.logger.warn(
+        `[M-Pesa] Unmatched payment: ${mpesaCode} from ${phone} KES ${amount}`,
+      );
       await this.alertAgentUnmatchedPayment(phone, amount, mpesaCode);
       return { ResultCode: 0, ResultDesc: 'Accepted but unmatched' };
     }
@@ -83,25 +89,33 @@ export class MpesaService {
         lease: {
           include: {
             tenant: true,
-            unit: { include: { property: { include: { company: true } } } }
-          }
-        }
-      }
+            unit: { include: { property: { include: { company: true } } } },
+          },
+        },
+      },
     });
 
     // STEP 5 — Commission (fire-and-forget, non-blocking)
-    this.financesService.recordCommission(payment.id).catch(err =>
-      this.logger.error(`[M-Pesa] Commission record failed for ${payment.id}: ${err.message}`)
-    );
+    this.financesService
+      .recordCommission(payment.id)
+      .catch((err) =>
+        this.logger.error(
+          `[M-Pesa] Commission record failed for ${payment.id}: ${err.message}`,
+        ),
+      );
 
     // STEP 6 — Receipt + agent notification (atomic)
     await this.processReceipt(payment, matchStatus);
 
     const elapsed = Date.now() - startTime;
     if (elapsed > 3000) {
-      this.logger.warn(`[M-Pesa] ⚠️  SLA BREACH: ${mpesaCode} took ${elapsed}ms (target < 3000ms)`);
+      this.logger.warn(
+        `[M-Pesa] ⚠️  SLA BREACH: ${mpesaCode} took ${elapsed}ms (target < 3000ms)`,
+      );
     } else {
-      this.logger.log(`[M-Pesa] ✅ Processed ${mpesaCode} in ${elapsed}ms (${matchStatus})`);
+      this.logger.log(
+        `[M-Pesa] ✅ Processed ${mpesaCode} in ${elapsed}ms (${matchStatus})`,
+      );
     }
 
     return { ResultCode: 0, ResultDesc: 'Accepted and processed' };
@@ -110,13 +124,8 @@ export class MpesaService {
   private async findTenantByPhone(phone: string, reference?: string) {
     const rawDigits = phone.replace(/\D/g, '');
     const last9 = rawDigits.slice(-9);
-    
-    const possibleFormats = [
-      rawDigits,
-      `+${rawDigits}`,
-      `0${last9}`,
-      last9,
-    ];
+
+    const possibleFormats = [rawDigits, `+${rawDigits}`, `0${last9}`, last9];
 
     // Try finding by phone first
     let tenant = await this.prisma.tenant.findFirst({
@@ -128,52 +137,68 @@ export class MpesaService {
         leases: {
           where: { status: 'ACTIVE' },
           orderBy: { createdAt: 'desc' },
-          take: 1
-        }
-      }
+          take: 1,
+        },
+      },
     });
 
     // If reference is provided and looks like a unit number, try matching that too
     if (!tenant && reference) {
       const unit = await this.prisma.unit.findFirst({
         where: {
-            unitNumber: { equals: reference, mode: 'insensitive' },
-            deletedAt: null
+          unitNumber: { equals: reference, mode: 'insensitive' },
+          deletedAt: null,
         },
         include: {
-            leases: {
-                where: { status: 'ACTIVE' },
-                include: { tenant: { include: { leases: { where: { status: 'ACTIVE' }, take: 1 } } } },
-                orderBy: { createdAt: 'desc' },
-                take: 1
-            }
-        }
+          leases: {
+            where: { status: 'ACTIVE' },
+            include: {
+              tenant: {
+                include: { leases: { where: { status: 'ACTIVE' }, take: 1 } },
+              },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
       });
       if (unit?.leases?.[0]?.tenant) {
-          tenant = unit.leases[0].tenant as any;
+        tenant = unit.leases[0].tenant as any;
       }
     }
 
     return tenant;
   }
 
-  private async alertAgentUnmatchedPayment(phone: string, amount: number, mpesaCode: string) {
-    this.logger.warn(`COULD NOT MATCH PAYMENT: KES ${amount} from ${phone} (${mpesaCode})`);
-    
+  private async alertAgentUnmatchedPayment(
+    phone: string,
+    amount: number,
+    mpesaCode: string,
+  ) {
+    this.logger.warn(
+      `COULD NOT MATCH PAYMENT: KES ${amount} from ${phone} (${mpesaCode})`,
+    );
+
     // Find all global SUPER_ADMINs to notify (since we don't know the company for an unmatched payment)
     const admins = await this.prisma.user.findMany({
       where: { role: 'SUPER_ADMIN' },
-      select: { phone: true }
+      select: { phone: true },
     });
 
     const message = `⚠️ *UNMATCHED PAYMENT* ⚠️\nAmount: KES ${amount.toLocaleString()}\nFrom: ${phone}\nM-Pesa Ref: ${mpesaCode}\n\nPlease check the dashboard or ask the tenant to confirm their details.`;
 
     for (const admin of admins) {
       if (admin.phone) {
-        await this.whatsappService.sendTextMessage({
-          to: admin.phone, // Sent via SYSTEM sender type
-          text: message
-        }).catch(err => this.logger.error(`Failed to alert admin ${admin.phone}: ${err.message}`));
+        await this.whatsappService
+          .sendTextMessage({
+            to: admin.phone, // Sent via SYSTEM sender type
+            text: message,
+          })
+          .catch((err) =>
+            this.logger.error(
+              `Failed to alert admin ${admin.phone}: ${err.message}`,
+            ),
+          );
       }
     }
   }
@@ -193,13 +218,13 @@ export class MpesaService {
     const isSwahili = (tenant.language || 'en').toLowerCase() === 'sw';
 
     if (matchStatus === 'OVERPAYMENT') {
-        receiptNote = isSwahili 
-            ? `\nKumbuka: KES ${overage.toLocaleString()} imeingizwa mwezi ujao`
-            : `\nNote: KES ${overage.toLocaleString()} credit applied to next month`;
+      receiptNote = isSwahili
+        ? `\nKumbuka: KES ${overage.toLocaleString()} imeingizwa mwezi ujao`
+        : `\nNote: KES ${overage.toLocaleString()} credit applied to next month`;
     } else if (matchStatus === 'PARTIAL') {
-        receiptNote = isSwahili
-            ? `\nMalipo ya sehemu. Bado KES ${shortfall.toLocaleString()} inadaiwa kwa mwezi huu`
-            : `\nPartial payment. Balance of KES ${shortfall.toLocaleString()} remains due for this month`;
+      receiptNote = isSwahili
+        ? `\nMalipo ya sehemu. Bado KES ${shortfall.toLocaleString()} inadaiwa kwa mwezi huu`
+        : `\nPartial payment. Balance of KES ${shortfall.toLocaleString()} remains due for this month`;
     }
 
     const receiptContent = `
@@ -218,29 +243,41 @@ Thank you!
     `.trim();
 
     // STEP 8 — Deliver to tenant
-    await this.whatsappService.sendTextMessage({
+    await this.whatsappService
+      .sendTextMessage({
         companyId: company.id,
         to: tenant.phone,
-        text: receiptContent
-    }).catch(err => this.logger.error(`Receipt delivery failed to tenant ${tenant.phone}: ${err.message}`));
+        text: receiptContent,
+      })
+      .catch((err) =>
+        this.logger.error(
+          `Receipt delivery failed to tenant ${tenant.phone}: ${err.message}`,
+        ),
+      );
 
     // STEP 9 — Notify agent
     const agentMessage = isSwahili
-        ? `✓ ${tenant.firstName} Kitengo ${unit.unitNumber} — KES ${amount.toLocaleString()} imepokelewa. Risiti imetumwa.`
-        : `✓ ${tenant.firstName} Unit ${unit.unitNumber} — KES ${amount.toLocaleString()} received. Receipt sent. ${matchStatus !== 'EXACT' ? `[${matchStatus}]` : ''}`;
+      ? `✓ ${tenant.firstName} Kitengo ${unit.unitNumber} — KES ${amount.toLocaleString()} imepokelewa. Risiti imetumwa.`
+      : `✓ ${tenant.firstName} Unit ${unit.unitNumber} — KES ${amount.toLocaleString()} received. Receipt sent. ${matchStatus !== 'EXACT' ? `[${matchStatus}]` : ''}`;
 
     // Find company owner/admin for notification
     const admin = await this.prisma.user.findFirst({
-        where: { companyId: company.id, role: 'COMPANY_ADMIN' },
-        select: { phone: true }
+      where: { companyId: company.id, role: 'COMPANY_ADMIN' },
+      select: { phone: true },
     });
 
     if (admin?.phone) {
-        await this.whatsappService.sendTextMessage({
-            companyId: company.id,
-            to: admin.phone,
-            text: agentMessage
-        }).catch(err => this.logger.error(`Agent notification failed to ${admin.phone}: ${err.message}`));
+      await this.whatsappService
+        .sendTextMessage({
+          companyId: company.id,
+          to: admin.phone,
+          text: agentMessage,
+        })
+        .catch((err) =>
+          this.logger.error(
+            `Agent notification failed to ${admin.phone}: ${err.message}`,
+          ),
+        );
     }
   }
 }

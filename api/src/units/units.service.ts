@@ -31,7 +31,7 @@ export interface UpdateUnitDto {
 
 @Injectable()
 export class UnitsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async findAll(
     actor: AuthenticatedUser,
@@ -59,41 +59,41 @@ export class UnitsService {
       property: isSuperAdmin ? {} : { companyId: actor.companyId },
       ...(search
         ? {
-          OR: [
-            { unitNumber: { contains: search, mode: 'insensitive' } },
-            { floor: { contains: search, mode: 'insensitive' } },
-            { property: { name: { contains: search, mode: 'insensitive' } } },
-            {
-              property: {
-                address: { contains: search, mode: 'insensitive' },
-              },
-            },
-            {
-              property: {
-                landlord: {
-                  OR: [
-                    { firstName: { contains: search, mode: 'insensitive' } },
-                    { lastName: { contains: search, mode: 'insensitive' } },
-                  ],
+            OR: [
+              { unitNumber: { contains: search, mode: 'insensitive' } },
+              { floor: { contains: search, mode: 'insensitive' } },
+              { property: { name: { contains: search, mode: 'insensitive' } } },
+              {
+                property: {
+                  address: { contains: search, mode: 'insensitive' },
                 },
               },
-            },
-            {
-              leases: {
-                some: {
-                  tenant: {
+              {
+                property: {
+                  landlord: {
                     OR: [
-                      {
-                        firstName: { contains: search, mode: 'insensitive' },
-                      },
+                      { firstName: { contains: search, mode: 'insensitive' } },
                       { lastName: { contains: search, mode: 'insensitive' } },
                     ],
                   },
                 },
               },
-            },
-          ],
-        }
+              {
+                leases: {
+                  some: {
+                    tenant: {
+                      OR: [
+                        {
+                          firstName: { contains: search, mode: 'insensitive' },
+                        },
+                        { lastName: { contains: search, mode: 'insensitive' } },
+                      ],
+                    },
+                  },
+                },
+              },
+            ],
+          }
         : {}),
     };
 
@@ -271,10 +271,10 @@ export class UnitsService {
     const companyId = actor.companyId;
     const isSuperAdmin = actor.role === 'SUPER_ADMIN';
 
-    // Critical: If not super admin, must have companyId. 
+    // Critical: If not super admin, must have companyId.
     // If super admin, should have companyId or propertyId to avoid scanning the entire database.
     if (!companyId && !propertyId && !isSuperAdmin) {
-      return {}; 
+      return {};
     }
 
     const startOfMonth = new Date();
@@ -286,12 +286,12 @@ export class UnitsService {
       ...(propertyId ? { id: propertyId } : {}),
       deletedAt: null,
     };
-    
+
     // Safety check for SUPER_ADMIN without specific scope
-    if (Object.keys(where).filter(k => k !== 'deletedAt').length === 0) {
+    if (Object.keys(where).filter((k) => k !== 'deletedAt').length === 0) {
       this.prisma.$connect(); // Ensure connection is warm
       // If no scope, we limit to 5 properties max to prevent 30s timeouts
-      (where as any).id = { not: undefined }; 
+      (where as any).id = { not: undefined };
     }
 
     const properties = await this.prisma.property.findMany({
@@ -303,9 +303,22 @@ export class UnitsService {
             leases: {
               where: { status: 'ACTIVE', deletedAt: null },
               include: {
-                tenant: { select: { id: true, firstName: true, lastName: true, phone: true } },
+                tenant: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    phone: true,
+                  },
+                },
                 payments: {
                   where: { paidAt: { gte: startOfMonth }, deletedAt: null },
+                },
+                invoices: {
+                  where: { deletedAt: null, status: { not: 'CANCELLED' } },
+                },
+                penalties: {
+                  where: { deletedAt: null, status: { not: 'WAIVED' } },
                 },
               },
             },
@@ -326,30 +339,37 @@ export class UnitsService {
 
       for (const unit of prop.units) {
         const activeLease = unit.leases[0];
-        if (!activeLease) {
-          if (unit.status === 'VACANT') {
-            // Skip vacant units if needed or track them separately
-          }
-          continue;
-        }
+        if (!activeLease) continue;
 
-        const rent = activeLease.rentAmount;
-        const collected = activeLease.payments.reduce((sum, p) => sum + p.amount, 0);
+        // Arrears Logic:
+        // Expected = Current Month Rent + All Pending/Historical Unpaid Invoices + All Pending Penalties
+        // Collected = Payments made this month (or total payments against those items?)
         
-        totalExpected += rent;
+        // Let's stick to the service's "Collection Rate" definition: 
+        // How much of the TOTAL DEBT (Rent + Penalties + Invoices) has been covered by TOTAL PAYMENTS.
+        
+        const rentAmount = activeLease.rentAmount;
+        const penaltiesAmount = activeLease.penalties.reduce((sum, p) => sum + p.amount, 0);
+        const invoicesAmount = activeLease.invoices.reduce((sum, i) => sum + i.amount, 0);
+        
+        const expected = rentAmount + penaltiesAmount + invoicesAmount;
+        const collected = activeLease.payments.reduce((sum, p) => sum + p.amount, 0);
+
+        totalExpected += expected;
         totalCollected += collected;
 
         const unitInfo = {
           id: unit.id,
           number: unit.unitNumber,
           tenant: `${activeLease.tenant.firstName} ${activeLease.tenant.lastName}`,
-          expected: rent,
-          collected: collected,
+          expected,
+          collected,
+          balance: expected - collected
         };
 
         all_units.push(unitInfo);
 
-        if (collected >= rent) {
+        if (collected >= expected) {
           paid_this_month.push(unitInfo);
         } else if (collected > 0) {
           partial_payments.push(unitInfo);
@@ -367,7 +387,10 @@ export class UnitsService {
         partial_payments,
         total_expected: totalExpected,
         total_collected: totalCollected,
-        collection_rate: totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0,
+        collection_rate:
+          totalExpected > 0
+            ? Math.round((totalCollected / totalExpected) * 100)
+            : 0,
       };
     }
 

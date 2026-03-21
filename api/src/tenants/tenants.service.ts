@@ -29,7 +29,7 @@ export interface UpdateTenantDto {
 
 @Injectable()
 export class TenantsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async findAll(
     actor: AuthenticatedUser,
@@ -57,29 +57,29 @@ export class TenantsService {
       ...(isSuperAdmin ? {} : { companyId: actor.companyId }),
       ...(search
         ? {
-          OR: [
-            { firstName: { contains: search, mode: 'insensitive' } },
-            { lastName: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } },
-            { phone: { contains: search, mode: 'insensitive' } },
-            { idNumber: { contains: search, mode: 'insensitive' } },
-            { property: { name: { contains: search, mode: 'insensitive' } } },
-            {
-              property: {
-                address: { contains: search, mode: 'insensitive' },
+            OR: [
+              { firstName: { contains: search, mode: 'insensitive' } },
+              { lastName: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+              { phone: { contains: search, mode: 'insensitive' } },
+              { idNumber: { contains: search, mode: 'insensitive' } },
+              { property: { name: { contains: search, mode: 'insensitive' } } },
+              {
+                property: {
+                  address: { contains: search, mode: 'insensitive' },
+                },
               },
-            },
-            {
-              leases: {
-                some: {
-                  unit: {
-                    unitNumber: { contains: search, mode: 'insensitive' },
+              {
+                leases: {
+                  some: {
+                    unit: {
+                      unitNumber: { contains: search, mode: 'insensitive' },
+                    },
                   },
                 },
               },
-            },
-          ],
-        }
+            ],
+          }
         : {}),
     };
 
