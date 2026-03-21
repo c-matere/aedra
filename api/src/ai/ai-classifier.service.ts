@@ -94,16 +94,6 @@ export class AiClassifierService {
     history: string[] = [],
     attachmentsCount: number = 0,
   ): Promise<ClassificationResult> {
-    // 1. Tier 0 - Fast LLM Pre-Classifier (Llama 8B)
-    let fastIntent: string | null = null;
-    if (this.apiKey && message.length < 200) {
-      fastIntent = await this.fastIntentClassify(message);
-      if (fastIntent && fastIntent !== 'unknown') {
-        this.logger.log(`[Tier 0] Fast intent resolution: ${fastIntent}`);
-        return this.localClassify(message, role, fastIntent, attachmentsCount);
-      }
-    }
-
     // Offline, deterministic classifier for test and dev environments without API keys
     if (!this.apiKey) {
       return this.localClassify(message, role, undefined, attachmentsCount);
@@ -114,11 +104,23 @@ export class AiClassifierService {
       User Role: ${role}
       
       Classify the user's message and return a JSON object with these fields:
-      - intent: string (e.g. "add_tenant", "check_arrears", "record_payment", "general_query")
+      - intent: string (one of the supported intents below)
       - complexity: number 1-5 (1=simple lookup, 5=complex planning)
       - executionMode: one of DIRECT_LOOKUP | LIGHT_COMPOSE | ORCHESTRATED | INTELLIGENCE | PLANNING
       - language: "en" | "sw" | "mixed"
       - reason: string (brief explanation)
+
+      SUPPORTED INTENTS:
+      - list_companies, select_company, list_tenants, get_tenant_details, get_property_details
+      - generate_mckinsey_report, check_rent_status, send_bulk_reminder, check_vacancy
+      - report_maintenance, log_maintenance, record_payment, emergency_escalation
+      - request_receipt, add_tenant, bulk_create_tenants, onboard_property, update_property, create_unit, create_lease, collection_status, general_query
+
+      CRITICAL CLASSIFICATION RULES:
+      1. If the user mentions a specific property name or house number (e.g. "House 32", "Sunset Villa") and wants to add tenants, use "bulk_create_tenants" or "add_tenant", NOT "onboard_property". 
+      2. Use "onboard_property" ONLY when they explicitly want to create/add a NEW property to the system.
+      3. If they are providing data for an existing property, use "update_property" or the specific operational intent (like "add_tenant").
+      4. "registering tenants" to an existing house is an operational act (bulk_create_tenants), not an onboarding act.
 
       User message: "${message}"
 
@@ -182,37 +184,7 @@ export class AiClassifierService {
     }
   }
 
-  private async fastIntentClassify(message: string): Promise<string | null> {
-    try {
-      const prompt = `Identify the property management intent for this message: "${message}"
 
-Supported intents:
-- list_companies, select_company, list_tenants, get_tenant_details, get_property_details
-- generate_mckinsey_report, check_rent_status, send_bulk_reminder, check_vacancy
-- report_maintenance, log_maintenance, record_payment, emergency_escalation
-- request_receipt, add_tenant, bulk_create_tenants, onboard_property, update_property, create_unit, create_lease, collection_status, general_query
-
-CRITICAL RULE:
-1. If the user mentions a specific property name or house number (e.g. "House 32", "Sunset Villa") and wants to add tenants, use "bulk_create_tenants" or "add_tenant", NOT "onboard_property". 
-2. Use "onboard_property" ONLY when they explicitly want to create/add a NEW property to the system.
-3. If they are providing data for an existing property, use "update_property" or the specific operational intent (like "add_tenant").
-
-Reply ONLY with the best slug from the list. If unsure, reply 'unknown'.`;
-
-      const completion = await this.groq.chat.completions.create({
-        model: this.groqModel,
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 15,
-        temperature: 0,
-      });
-
-      const intent = completion.choices[0]?.message?.content?.trim() || 'unknown';
-      return intent.toLowerCase().replace(/[^a-z0-9_]/g, '');
-    } catch (e) {
-      this.logger.error(`Fast intent classification failed: ${e.message}`);
-      return null;
-    }
-  }
 
   private processClassificationResult(
     data: any,
