@@ -1075,6 +1075,7 @@ export class AiWhatsappOrchestratorService {
             'record_payment',
             'add_tenant',
             'onboard_property',
+            'update_property',
             'create_unit',
             'create_lease',
             'bulk_create_tenants',
@@ -1112,6 +1113,10 @@ export class AiWhatsappOrchestratorService {
                 lang === 'sw'
                   ? 'Kuingiza orodha ya wapangaji'
                   : 'Importing tenant list',
+              update_property:
+                lang === 'sw'
+                  ? 'Kusasisha taarifa za jengo'
+                  : 'Updating property details',
             };
             const intentDesc =
               humanIntents[classification.intent] ||

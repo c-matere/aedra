@@ -117,10 +117,12 @@ export class AiClassifierService {
       - request_receipt, add_tenant, bulk_create_tenants, onboard_property, update_property, create_unit, create_lease, collection_status, general_query
 
       CRITICAL CLASSIFICATION RULES:
-      1. If the user mentions a specific property name or house number (e.g. "House 32", "Sunset Villa") and wants to add tenants, use "bulk_create_tenants" or "add_tenant", NOT "onboard_property". 
+      1. If the user mentions a specific property name or house number (e.g. "House 32", "Sunset Villa") and wants to add tenants, use "bulk_create_tenants" or "add_tenant", NOT "onboard_property".
       2. Use "onboard_property" ONLY when they explicitly want to create/add a NEW property to the system.
-      3. If they are providing data for an existing property, use "update_property" or the specific operational intent (like "add_tenant").
+      3. If they are providing data or "passing data" to an existing property without mentioning tenants, use "update_property".
       4. "registering tenants" to an existing house is an operational act (bulk_create_tenants), not an onboarding act.
+      5. DO NOT use "bulk_create_tenants" unless the user explicitly mentions "tenants", "register", "onboard", or "import" in the context of people/residents.
+      6. "Pass data to House 32" -> "update_property". "Pass the tenant data to House 32" -> "bulk_create_tenants".
 
       User message: "${message}"
 
@@ -173,14 +175,8 @@ export class AiClassifierService {
         attachmentsCount,
       );
     } catch (e) {
-      this.logger.error(`Classification failed: ${e.message}`);
-      return {
-            intent: 'unknown',
-            complexity: 1,
-            executionMode: 'DIRECT_LOOKUP',
-            language: 'en',
-            reason: 'Fallback due to error',
-          };
+      this.logger.error(`Classification failed: ${e.message}. Using local fallback...`);
+      return this.localClassify(message, role, undefined, attachmentsCount);
     }
   }
 
