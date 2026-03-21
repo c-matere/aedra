@@ -184,12 +184,18 @@ export class AiClassifierService {
 
   private async fastIntentClassify(message: string): Promise<string | null> {
     try {
-      const prompt = `Identify the property management intent. Message: "${message}"
+      const prompt = `Identify the property management intent for this message: "${message}"
+
 Supported intents:
 - list_companies, select_company, list_tenants, get_tenant_details, get_property_details
 - generate_mckinsey_report, check_rent_status, send_bulk_reminder, check_vacancy
 - report_maintenance, log_maintenance, record_payment, emergency_escalation
-- request_receipt, add_tenant, onboard_property, update_property, create_unit, create_lease, collection_status, general_query
+- request_receipt, add_tenant, bulk_create_tenants, onboard_property, update_property, create_unit, create_lease, collection_status, general_query
+
+CRITICAL RULE:
+1. If the user mentions a specific property name or house number (e.g. "House 32", "Sunset Villa") and wants to add tenants, use "bulk_create_tenants" or "add_tenant", NOT "onboard_property". 
+2. Use "onboard_property" ONLY when they explicitly want to create/add a NEW property to the system.
+3. If they are providing data for an existing property, use "update_property" or the specific operational intent (like "add_tenant").
 
 Reply ONLY with the best slug from the list. If unsure, reply 'unknown'.`;
 
@@ -449,14 +455,16 @@ Reply ONLY with the best slug from the list. If unsure, reply 'unknown'.`;
     }
 
     // Add tenant
-    if (/add new tenant|create tenant|new tenant/i.test(text)) {
-      const intent = 'add_tenant';
+    if (/add new tenant|create tenant|new tenant|register.*tenant/i.test(text)) {
+      const intent = text.includes('tenant') && (text.includes('list') || text.includes('multiple') || text.includes('plural') || text.endsWith('s')) 
+        ? 'bulk_create_tenants' 
+        : 'add_tenant';
       return this.result(
         intent,
         2,
         mode(intent),
         lang,
-        'Add tenant',
+        'Add tenant (regex)',
         isLong,
         sentences.length,
         hasAttachments,

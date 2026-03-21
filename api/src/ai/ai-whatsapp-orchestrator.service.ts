@@ -1077,6 +1077,8 @@ export class AiWhatsappOrchestratorService {
             'onboard_property',
             'create_unit',
             'create_lease',
+            'bulk_create_tenants',
+            'import_tenants',
           ];
           const isWriteAction =
             writeIntents.includes(classification.intent) ||
@@ -1102,6 +1104,14 @@ export class AiWhatsappOrchestratorService {
                 lang === 'sw'
                   ? 'Kuunda mkataba mpya wa upangaji'
                   : 'Creating a new lease agreement',
+              bulk_create_tenants:
+                lang === 'sw'
+                  ? 'Kusajili wapangaji wengi'
+                  : 'Registering multiple tenants',
+              import_tenants:
+                lang === 'sw'
+                  ? 'Kuingiza orodha ya wapangaji'
+                  : 'Importing tenant list',
             };
             const intentDesc =
               humanIntents[classification.intent] ||
