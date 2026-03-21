@@ -28,7 +28,7 @@ User Message:
 
 // Use the same base model everywhere; allow override via GEMINI_MODEL, otherwise default to gemini-2.5-flash
 const ROUTER_MODEL =
-  (process.env.GEMINI_MODEL || '').trim() || 'gemini-1.5-flash';
+  (process.env.GEMINI_MODEL || '').trim() || 'gemini-2.5-flash';
 const GROQ_ROUTER_MODEL = 'llama-3.1-8b-instant';
 
 export interface RouteResult {

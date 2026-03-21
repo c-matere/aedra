@@ -67,7 +67,7 @@ export class AiService implements OnModuleInit {
   private groq: Groq;
   private models: Record<'read' | 'write' | 'report' | 'gemma', any>;
   private readonly fallbackModel =
-    (process.env.GEMINI_MODEL || '').trim() || 'gemini-1.5-flash';
+    (process.env.GEMINI_MODEL || '').trim() || 'gemini-2.5-flash';
   private readonly primaryModel = 'llama-3.1-8b-instant';
   private readonly llamaModel = 'llama-3.1-8b-instant';
   private modelName = this.primaryModel;
