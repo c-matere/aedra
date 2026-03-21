@@ -24,7 +24,7 @@ export class AiClassifierService {
   private readonly logger = new Logger(AiClassifierService.name);
   private genAI: GoogleGenerativeAI;
 
-  private readonly modelName = 'gemini-2.5-flash'; // Fallback model
+  private readonly modelName = 'gemini-1.5-flash'; // Fallback model
   private readonly groqModel = 'llama-3.1-8b-instant'; // Tier 1 model
   private readonly apiKey: string;
   private groq: Groq;

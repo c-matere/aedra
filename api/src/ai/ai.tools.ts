@@ -4,7 +4,7 @@ import { WorkflowType } from '@prisma/client';
 // Pick a model that is guaranteed to exist for the configured API key.
 // Allow override via GEMINI_MODEL, otherwise prefer gemini-2.5-flash.
 export const BASE_MODEL =
-  (process.env.GEMINI_MODEL || '').trim() || 'gemini-2.5-flash';
+  (process.env.GEMINI_MODEL || '').trim() || 'gemini-1.5-flash';
 
 export const buildTools = (tools: any[]) =>
   [{ functionDeclarations: tools }] as Tool[];
