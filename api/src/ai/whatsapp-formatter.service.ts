@@ -3,6 +3,12 @@ import * as formatters from './ai.formatters';
 
 @Injectable()
 export class WhatsAppFormatterService {
+  private stripMarkdownLinks(text: string): string {
+    if (!text) return text;
+    // Convert Markdown links [label](url) to plain URLs (WhatsApp often shows raw Markdown).
+    return text.replace(/\[(?:[^\]]*?)\]\((https?:\/\/[^\s)]+)\)/g, '$1');
+  }
+
   /**
    * Formats a raw result into a WhatsApp-friendly string and optional interactive payload.
    */
@@ -141,16 +147,24 @@ export class WhatsAppFormatterService {
         text = formatters.formatPortfolioHistory(data);
         break;
 
+      case 'rollback_change':
+        text = data.message || (language === 'sw' ? '✅ Marekebisho yamekamilika.' : '✅ Rollback successful.');
+        break;
+
       default:
         text =
           typeof data === 'string'
             ? data
-            : data?.data || JSON.stringify(data, null, 2);
+            : data?.message || data?.error || data?.data || JSON.stringify(data, null, 2);
+        break;
     }
 
     const { text: formattedText, interactive: formattedInteractive } =
       this.convertTablesToLists(text);
-    return { text: formattedText, interactive: interactive || formattedInteractive };
+    return {
+      text: this.stripMarkdownLinks(formattedText),
+      interactive: interactive || formattedInteractive,
+    };
   }
 
   /**

@@ -1,0 +1,509 @@
+[
+  {
+    "workflow_id": "wf_landlord_01_financial_transparency",
+    "name": "Landlord: Financial Transparency",
+    "description": "Cross-check income/expenses for a specific property.",
+    "actor": "LANDLORD",
+    "steps": [
+      {
+        "input": "Show me my financial summary (income vs expenses) for Palms Grove for the last 30 days.",
+        "expected_intent": "get_financial_summary",
+        "expected_response_patterns": ["50000", "5000", "Palms Grove"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_landlord_02_asset_preservation",
+    "name": "Landlord: Asset Preservation",
+    "description": "Verify maintenance with before/after photos.",
+    "actor": "LANDLORD",
+    "steps": [
+      {
+        "input": "Can I see the before and after photos for the sink repair at Unit A1?",
+        "expected_intent": "get_maintenance_photos",
+        "expected_response_patterns": ["before-sink.jpg", "after-sink.jpg", "A1"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_landlord_03_automated_reporting",
+    "name": "Landlord: Automated Reporting",
+    "description": "Automate routine document generation.",
+    "actor": "LANDLORD",
+    "steps": [
+      {
+        "input": "Generate a tax-ready monthly statement for my portfolio and email it to me.",
+        "expected_intent": "generate_report",
+        "expected_response_patterns": ["statement", "ready", ".pdf"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_landlord_04_portfolio_analytics",
+    "name": "Landlord: Portfolio Analytics",
+    "description": "Cross-property performance comparison.",
+    "actor": "LANDLORD",
+    "steps": [
+      {
+        "input": "Compare the occupancy and revenue of Palms Grove vs Lakeside Ridge.",
+        "expected_intent": "get_financial_summary",
+        "expected_response_patterns": ["Palms Grove", "Lakeside Ridge", "50000", "45000"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_landlord_05_tenant_onboarding",
+    "name": "Landlord: Tenant Onboarding",
+    "description": "Streamlined screening and KYC.",
+    "actor": "LANDLORD",
+    "steps": [
+      {
+        "input": "What is the payment history and risk score for Mary Atieno?",
+        "expected_intent": "get_tenant_score",
+        "expected_response_patterns": ["Mary Atieno", "50000"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_landlord_06_compliance_assurance",
+    "name": "Landlord: Compliance Assurance",
+    "description": "Peace of mind regarding taxes and laws.",
+    "actor": "LANDLORD",
+    "steps": [
+      {
+        "input": "Check if all my leases at Palms Grove are compliant with KRA tax regulations.",
+        "expected_intent": "check_compliance",
+        "expected_response_patterns": ["compliant", "tax", "kra", "status"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_landlord_07_direct_communication",
+    "name": "Landlord: Direct Communication",
+    "description": "Frictionless access to property managers.",
+    "actor": "LANDLORD",
+    "steps": [
+      {
+        "input": "I need to talk to the property manager of Palms Grove about an urgent plumbing bill.",
+        "expected_intent": "contact_manager",
+        "expected_response_patterns": ["connecting", "manager", "notified", "contact"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_landlord_08_occupancy_optimization",
+    "name": "Landlord: Occupancy Optimization",
+    "description": "Minimize vacancy and proactive renewals.",
+    "actor": "LANDLORD",
+    "steps": [
+      {
+        "input": "Show me the vacancy trend for the last 6 months and list upcoming lease renewals.",
+        "expected_intent": "get_occupancy_insights",
+        "expected_response_patterns": ["vacancy", "trend", "renewal", "upcoming"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_tenant_01_payment_convenience",
+    "name": "Tenant: Payment Convenience",
+    "description": "Digital payment options with instant receipts.",
+    "actor": "TENANT",
+    "steps": [
+      {
+        "input": "I want to pay my rent via M-Pesa. Can you send me the push?",
+        "expected_intent": "trigger_stk_push",
+        "expected_response_patterns": ["mpesa", "push", "phone", "sent"],
+        "expected_vc": null
+      },
+      {
+        "input": "I've paid. Give me my receipt for March.",
+        "expected_intent": "get_receipt",
+        "expected_response_patterns": ["receipt", "pdf", "link", "march"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_tenant_02_maintenance_tracking",
+    "name": "Tenant: Maintenance Tracking",
+    "description": "Simple reporting and real-time updates.",
+    "actor": "TENANT",
+    "steps": [
+      {
+        "input": "The toilet is overflowing! Send help please.",
+        "expected_intent": "report_maintenance",
+        "expected_response_patterns": ["logged", "emergency", "maintenance", "technician"],
+        "expected_vc": {
+          "action": "CREATE",
+          "entity": "MaintenanceRequest"
+        }
+      },
+      {
+        "input": "Who is the technician and when will they arrive?",
+        "expected_intent": "check_maintenance_status",
+        "expected_response_patterns": ["technician", "eta", "status", "arriving"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_tenant_03_digital_records",
+    "name": "Tenant: Digital Records",
+    "description": "24/7 access to tenancy documents.",
+    "actor": "TENANT",
+    "steps": [
+      {
+        "input": "Can I see my current lease agreement and my last 3 payment history?",
+        "expected_intent": "get_tenant_documents",
+        "expected_response_patterns": ["lease", "agreement", "history", "payment", "link"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_tenant_04_fast_communication",
+    "name": "Tenant: Fast Communication",
+    "description": "Rapid response for inquiries or emergencies.",
+    "actor": "TENANT",
+    "steps": [
+      {
+        "input": "Is there anyone I can talk to about a noise complaint right now?",
+        "expected_intent": "general_inquiry",
+        "expected_response_patterns": ["noise", "complaint", "manager", "support"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_tenant_05_privacy_security",
+    "name": "Tenant: Privacy & Security",
+    "description": "Verified identities for visiting staff.",
+    "actor": "TENANT",
+    "steps": [
+      {
+        "input": "Who is coming to fix the sink? Show me their profile or ID.",
+        "expected_intent": "verify_staff",
+        "expected_response_patterns": ["technician", "profile", "id", "verified"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_tenant_06_incentive_programs",
+    "name": "Tenant: Incentive Programs",
+    "description": "Rewards for on-time payments.",
+    "actor": "TENANT",
+    "steps": [
+      {
+        "input": "How many loyalty points do I have for paying rent early?",
+        "expected_intent": "get_loyalty_status",
+        "expected_response_patterns": ["points", "loyalty", "reward", "on-time"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_tenant_07_paperless_onboarding",
+    "name": "Tenant: Paperless Onboarding",
+    "description": "Digital lease signing.",
+    "actor": "TENANT",
+    "steps": [
+      {
+        "input": "I'm ready to sign my lease. Send me the link.",
+        "expected_intent": "get_lease_sign_link",
+        "expected_response_patterns": ["sign", "lease", "link", "agreement"],
+        "expected_vc": {
+          "action": "UPDATE",
+          "changedFields": ["leaseStatus"]
+        }
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_tenant_08_smart_access",
+    "name": "Tenant: Smart Access",
+    "description": "Grant remote access to guests.",
+    "actor": "TENANT",
+    "steps": [
+      {
+        "input": "My sister is coming at 3pm, can you give her a guest code for the main gate?",
+        "expected_intent": "generate_guest_access",
+        "expected_response_patterns": ["code", "guest", "access", "gate"],
+        "expected_vc": {
+          "action": "CREATE",
+          "entity": "AccessCode"
+        }
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_tenant_09_automated_disputes",
+    "name": "Tenant: Automated Disputes",
+    "description": "Simplified mediation for deposit returns.",
+    "actor": "TENANT",
+    "steps": [
+      {
+        "input": "I disagree with the 5k deduction for paint damage. It was normal wear and tear.",
+        "expected_intent": "initiate_dispute",
+        "expected_response_patterns": ["dispute", "mediator", "evidence", "review"],
+        "expected_vc": {
+          "action": "CREATE",
+          "entity": "Dispute"
+        }
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_staff_01_workflow_automation",
+    "name": "Staff: Workflow Automation",
+    "description": "Automatic late fees and reminders.",
+    "actor": "STAFF",
+    "steps": [
+      {
+        "input": "Apply late fees to all overdue leases at Palms Grove for this month.",
+        "expected_intent": "batch_apply_late_fees",
+        "expected_response_patterns": ["late fees", "applied", "overdue", "batch"],
+        "expected_vc": {
+          "action": "CREATE",
+          "entity": "Penalty"
+        }
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_staff_02_centralized_database",
+    "name": "Staff: Centralized Database",
+    "description": "Single source of truth for all entities.",
+    "actor": "STAFF",
+    "steps": [
+      {
+        "input": "Search for all leases linked to the company 'Aedra Realty' that end this year.",
+        "expected_intent": "multi_entity_search",
+        "expected_response_patterns": ["leases", "ending", "aedra", "search"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_staff_03_task_orchestration",
+    "name": "Staff: Task Orchestration",
+    "description": "Unified dashboard for maintenance and lists.",
+    "actor": "STAFF",
+    "steps": [
+      {
+        "input": "What are my assigned maintenance tasks for today? Sort them by urgency.",
+        "expected_intent": "list_assigned_tasks",
+        "expected_response_patterns": ["todo", "maintenance", "urgency", "tasks"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_staff_04_document_management",
+    "name": "Staff: Document Management",
+    "description": "OCR and storage for sensitive documents.",
+    "actor": "STAFF",
+    "steps": [
+      {
+        "input": "I've uploaded John Doe's ID. Extract the ID number and expiry date please.",
+        "expected_intent": "process_ocr_document",
+        "expected_response_patterns": ["extracted", "id number", "expiry", "doe"],
+        "expected_vc": {
+          "action": "UPDATE",
+          "entity": "Tenant"
+        }
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_staff_05_communication_hub",
+    "name": "Staff: Communication Hub",
+    "description": "Unified messaging across all stakeholders.",
+    "actor": "STAFF",
+    "steps": [
+      {
+        "input": "Show me the last 5 messages from the tenant at Palms Grove A1.",
+        "expected_intent": "view_chat_history",
+        "expected_response_patterns": ["messages", "history", "tenant", "palms grove"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_staff_06_financial_accuracy",
+    "name": "Staff: Financial Accuracy",
+    "description": "Automated reconciliation of payments.",
+    "actor": "STAFF",
+    "steps": [
+      {
+        "input": "Reconcile the M-Pesa transaction MP7896 against the pending invoice for Unit B4.",
+        "expected_intent": "reconcile_payment",
+        "expected_response_patterns": ["reconciled", "matched", "balance", "mpesa"],
+        "expected_vc": {
+          "action": "UPDATE",
+          "entity": "Invoice"
+        }
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_staff_07_performance_metrics",
+    "name": "Staff: Performance Metrics",
+    "description": "Reporting on operational health.",
+    "actor": "STAFF",
+    "steps": [
+      {
+        "input": "Show me the maintenance completion time average across all properties.",
+        "expected_intent": "get_operational_metrics",
+        "expected_response_patterns": ["average", "repair", "time", "completion"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_staff_08_mobile_accessibility",
+    "name": "Staff: Mobile Accessibility",
+    "description": "Field-based updates on-the-go.",
+    "actor": "STAFF",
+    "steps": [
+      {
+        "input": "I am at Palms Grove Unit C2. I just inspected the leak. It is IN_PROGRESS.",
+        "expected_intent": "update_on_site_status",
+        "expected_response_patterns": ["updated", "progress", "inspected", "unit c2"],
+        "expected_vc": {
+          "action": "UPDATE",
+          "entity": "MaintenanceRequest"
+        }
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_admin_01_platform_scalability",
+    "name": "Admin: Platform Scalability",
+    "description": "Monitor and scale resources.",
+    "actor": "SUPER_ADMIN",
+    "steps": [
+      {
+        "input": "What is the current database connection usage and server CPU status?",
+        "expected_intent": "check_system_stats",
+        "expected_response_patterns": ["usage", "cpu", "connections", "db"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_admin_02_multi_tenant_isolation",
+    "name": "Admin: Multi-Tenant Isolation",
+    "description": "Ensure data silos are secure.",
+    "actor": "SUPER_ADMIN",
+    "steps": [
+      {
+        "input": "Run an automated test to confirm that Lakeside Realty cannot access Bahari Ridge data.",
+        "expected_intent": "verify_isolation_policy",
+        "expected_response_patterns": ["isolation", "verified", "no access", "secure"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_admin_04_revenue_management",
+    "name": "Admin: Revenue Management",
+    "description": "Manage subscription billing and tiers.",
+    "actor": "SUPER_ADMIN",
+    "steps": [
+      {
+        "input": "Show me all companies that are currently on the PRO tier and their last billing status.",
+        "expected_intent": "get_subscription_status",
+        "expected_response_patterns": ["tier", "billing", "pro", "companies"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_admin_05_support_infrastructure",
+    "name": "Admin: Support Infrastructure",
+    "description": "Impersonation and debugging tools.",
+    "actor": "SUPER_ADMIN",
+    "steps": [
+      {
+        "input": "I need to impersonate user Sarah Otieno to investigate a report generation error.",
+        "expected_intent": "impersonate_user",
+        "expected_response_patterns": ["impersonating", "sarah", "otieno", "audit"],
+        "expected_vc": {
+          "action": "AUTH",
+          "entity": "Session"
+        }
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_admin_06_global_analytics",
+    "name": "Admin: Global Analytics",
+    "description": "High-level platform growth trends.",
+    "actor": "SUPER_ADMIN",
+    "steps": [
+      {
+        "input": "What is our Total GTV (Gross Transaction Volume) for this quarter across all companies?",
+        "expected_intent": "get_global_gtv",
+        "expected_response_patterns": ["gtv", "quarter", "total", "volume"],
+        "expected_vc": null
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_admin_07_configuration_control",
+    "name": "Admin: Configuration Control",
+    "description": "Manage global templates and feature flags.",
+    "actor": "SUPER_ADMIN",
+    "steps": [
+      {
+        "input": "Enable the 'AI Vision OCR' feature flag for all Beta program companies.",
+        "expected_intent": "update_global_config",
+        "expected_response_patterns": ["enabled", "feature", "ocr", "beta"],
+        "expected_vc": {
+          "action": "UPDATE",
+          "entity": "SystemConfig"
+        }
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_admin_09_global_api_ecosystem",
+    "name": "Admin: Global API Ecosystem",
+    "description": "Integrate with external partners.",
+    "actor": "SUPER_ADMIN",
+    "steps": [
+      {
+        "input": "Register a new webhook for 'PAYMENT_RECEIVED' events that sends data to our tax partner API.",
+        "expected_intent": "register_webhook",
+        "expected_response_patterns": ["webhook", "registered", "payment", "partner"],
+        "expected_vc": {
+          "action": "CREATE",
+          "entity": "Webhook"
+        }
+      }
+    ]
+  },
+  {
+    "workflow_id": "wf_admin_10_ai_supervision",
+    "name": "Admin: AI Supervision Dashboard",
+    "description": "Monitor and audit AI agent decisions.",
+    "actor": "SUPER_ADMIN",
+    "steps": [
+      {
+        "input": "Show me the accuracy scores for the autonomous agent in Palms Grove for the last week.",
+        "expected_intent": "get_ai_audit_logs",
+        "expected_response_patterns": ["accuracy", "autonomous", "agent", "logs"],
+        "expected_vc": null
+      }
+    ]
+  }
+]

@@ -222,7 +222,7 @@ export class MenuRouterService {
           (session.lastResults || []).map((r) => ({ id: r.id, name: r.name })),
           language,
           language === 'sw'
-            ? 'Chagua kampuni kwa nambari kutoka kwenye orodha:'
+            ? 'Chagua kampuni kwa nambari hapa:'
             : 'Choose a company by replying with a number from the list:',
         ),
       };
@@ -280,7 +280,7 @@ export class MenuRouterService {
         (session.lastResults || []).map((r) => ({ id: r.id, name: r.name })),
         language,
         language === 'sw'
-          ? `Sikuona kampuni inayolingana na "${candidate}". Chagua kwa nambari kutoka orodha:`
+          ? `Sikuona kampuni inayolingana na "${candidate}". Chagua hapa kwa nambari:`
           : `I couldn't find a company matching "${candidate}". Reply with a number from the list:`,
       ),
     };

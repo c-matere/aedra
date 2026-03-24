@@ -11,6 +11,7 @@ export interface ActionResult<T = any> {
   data: T;
   error?: string;
   action: string;
+  message?: string;
   requires_authorization?: boolean;
   actionId?: string;
 }
@@ -226,11 +227,11 @@ export class NextStepOrchestrator {
         if (isSw) {
           return {
             type: 'suggestion',
-            message: `✅ Mali "${propName}" imeongezwa. Ungependa:\n\n1. Kuongeza Unit (Chumba)\n2. Kuweka mpangaji mtarajiwa\n3. Kurudi kwenye orodha ya mali`,
+            message: `✅ Mali "${propName}" imeongezwa. Ungependa:\n\n1. Kuongeza Unit (Chumba)\n2. Kuweka mpangaji mtarajiwa\n3. Kurudi kwenye list ya mali`,
             options: [
               { key: '1', label: 'Ongeza Unit', action: 'create_unit' },
               { key: '2', label: 'Weka Mpangaji', action: 'create_tenant' },
-              { key: '3', label: 'Orodha ya Mali', action: 'list_properties' },
+              { key: '3', label: 'List ya Mali', action: 'list_properties' },
             ],
           };
         }
@@ -261,7 +262,7 @@ export class NextStepOrchestrator {
                 },
                 {
                   key: '2',
-                  label: 'Orodha ya Wapangaji',
+                  label: 'Majina ya Wapangaji',
                   action: 'list_tenants',
                 },
                 {

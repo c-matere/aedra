@@ -247,6 +247,10 @@ const greetableRegex =
 const quickActionRegex = /^\d[\.?)\s]*$/;
 const yesRegex = /^(yes|y|yeah|sure|ok|okay|ndio|dio|sawa|poa)$/i;
 const noRegex = /^(no|n|nope|hapana|la)$/i;
+const houseInterestRegex =
+  /(interested|intrested|intersted|looking for|available|vacant|for rent|renting|to rent|view|visit|schedule|bei|price|nataka kupanga|ipo waz)/i;
+const houseRefRegex =
+  /(house|nyumba|unit)\s*(?:no\.?|number|#)?\s*([0-9]{1,4})/i;
 
 const SESSION_TTL_SECONDS = 60 * 60; // 1 hour session cache
 
@@ -500,6 +504,21 @@ export const tryDirectTool = async (
   const shouldSkipHijack =
     isDigit && listIntents.includes(session.lastIntent || '');
 
+  // Property selection shortcut (from a previously shown property match list)
+  if (isDigit && session.lastIntent === 'select_property' && session.lastResults) {
+    const index = parseInt(message.trim()) - 1;
+    const result = session.lastResults[index];
+    if (result?.type === 'property') {
+      session.lastIntent = 'get_property_details';
+      await saveSession(cacheManager, context, session);
+      return await executeTool(
+        'get_property_details',
+        { propertyId: result.id },
+        context,
+      );
+    }
+  }
+
   if (shouldSkipHijack && session.lastResults) {
     const index = parseInt(message.trim()) - 1;
     const result = session.lastResults[index];
@@ -659,6 +678,86 @@ export const tryDirectTool = async (
     /^how many (units are )?vacant|^vacancies|^list vacant units/i.test(text)
   ) {
     return await executeTool('list_vacant_units', {}, context);
+  }
+
+  // 2.5 Property interest (House/Unit number) — deterministic lookup to avoid LLM hallucinations
+  const houseMatch = message.match(houseRefRegex);
+  if (houseMatch && houseInterestRegex.test(message)) {
+    if (!context.companyId) {
+      return renderTemplate('company_selection_required', lang, {});
+    }
+    if ((context.role || context.userRole) === 'UNIDENTIFIED') {
+      return {
+        success: false,
+        data: null,
+        error: renderTemplate('unidentified_denial', lang, {}),
+        action: 'get_property_details',
+      };
+    }
+
+    const rawNum = houseMatch[2];
+    const n = parseInt(rawNum, 10);
+    const nStr = Number.isFinite(n) ? String(n) : rawNum;
+    const padded3 = Number.isFinite(n) ? String(n).padStart(3, '0') : rawNum;
+
+    const matches = await prisma.property.findMany({
+      where: {
+        companyId: context.companyId,
+        deletedAt: null,
+        OR: [
+          { name: { contains: padded3, mode: 'insensitive' } },
+          { name: { contains: nStr, mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true, name: true },
+      take: 10,
+    });
+
+    if (matches.length === 1) {
+      const selected = matches[0];
+      session.lastResults = [
+        { id: selected.id, name: selected.name, type: 'property' },
+      ];
+      session.lastIntent = 'get_property_details';
+      await saveSession(cacheManager, context, session);
+      return await executeTool(
+        'get_property_details',
+        { propertyId: selected.id },
+        context,
+      );
+    }
+
+    if (matches.length > 1) {
+      session.lastResults = matches.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        type: 'property',
+      }));
+      session.lastIntent = 'select_property';
+      await saveSession(cacheManager, context, session);
+
+      const lines = matches
+        .slice(0, 10)
+        .map((p: any, idx: number) => `${idx + 1}. ${p.name}`)
+        .join('\n');
+      return {
+        success: true,
+        data:
+          lang === 'SW'
+            ? `Nimepata nyumba kadhaa zinazolingana. Chagua moja kwa kujibu namba:\n\n${lines}`
+            : `I found multiple matches. Reply with a number to choose:\n\n${lines}`,
+        action: 'select_property',
+      };
+    }
+
+    return {
+      success: true,
+      data:
+        lang === 'SW'
+          ? `Sijaipata "House ${nStr}" kwenye kampuni hii. Ungependa niorodheshe nyumba zako?`
+          : `I couldn't find "House ${nStr}" in this company. Want me to list your properties?`,
+      action: 'property_not_found',
+    };
   }
 
   // 3. Company Summary

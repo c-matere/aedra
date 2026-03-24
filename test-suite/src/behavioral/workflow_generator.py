@@ -138,6 +138,85 @@ def generate_disaster_recovery(id_num):
         }
     }
 
+def generate_payment_dispute(id_num):
+    t = random.choice(TENANTS)
+    company = random.choice(COMPANIES)
+    amount = random.choice([5000, 7500, 10000])
+    
+    requests = [
+        {"message": f"I've paid {amount} but my balance didn't update. Here is the receipt."},
+        {"message": "Why was I charged a late fee? I paid on the 3rd."},
+        {"message": "Please waive the late fee this once, I had a family emergency."},
+        {"message": "Check my new balance after the waiver."},
+        {"message": "Generate a statement showing the corrected balance."}
+    ]
+    
+    return {
+        "workflow_id": f"wf_dispute_{id_num:03d}",
+        "actor": "TENANT",
+        "goal": f"Handle a payment dispute and fee waiver for {t}.",
+        "requests": requests,
+        "expected_outcome": {
+            "payment_verified": True,
+            "penalty_reviewed": True,
+            "waiver_applied": True,
+            "statement_generated": True
+        }
+    }
+
+def generate_maintenance_escalation(id_num):
+    t = random.choice(TENANTS)
+    unit = random.choice(UNITS)
+    issue = random.choice(["broken elevator", "roof leak", "security gate failure"])
+    
+    requests = [
+        {"message": f"Urgent: {issue} in {unit}. Please fix ASAP."},
+        {"message": "It's been 2 hours, no one has come. What is the status?"},
+        {"message": "I want to talk to the property manager, this is unacceptable."},
+        {"message": "Assign the most senior technician immediately."},
+        {"message": "Confirm when the parts are ordered and the ETA for completion."}
+    ]
+    
+    return {
+        "workflow_id": f"wf_escalate_{id_num:03d}",
+        "actor": "TENANT",
+        "goal": f"Escalate a maintenance issue for {issue} in {unit}.",
+        "requests": requests,
+        "expected_outcome": {
+            "issue_logged": True,
+            "manager_notified": True,
+            "technician_assigned": True,
+            "eta_provided": True
+        }
+    }
+
+def generate_tenant_move_out(id_num):
+    t = random.choice(TENANTS)
+    unit = random.choice(UNITS)
+    company = random.choice(COMPANIES)
+    
+    requests = [
+        {"message": f"I am moving out of {unit} at the end of the month."},
+        {"message": "Schedule a move-out inspection for Friday 2pm."},
+        {"message": "Generate the inspection report and list any deductions."},
+        {"message": "Calculate the deposit refund after deducting for the broken window."},
+        {"message": "Process the refund to my M-Pesa and close my lease."}
+    ]
+    
+    return {
+        "workflow_id": f"wf_moveout_{id_num:03d}",
+        "actor": "TENANT",
+        "goal": f"Handle move-out process for {t} in {unit}.",
+        "requests": requests,
+        "expected_outcome": {
+            "notice_recorded": True,
+            "inspection_scheduled": True,
+            "deductions_calculated": True,
+            "refund_processed": True,
+            "lease_closed": True
+        }
+    }
+
 def main():
     workflows = []
     
@@ -146,11 +225,14 @@ def main():
         generate_audit_investigation,
         generate_bulk_ops,
         generate_compliance_monitoring,
-        generate_disaster_recovery
+        generate_disaster_recovery,
+        generate_payment_dispute,
+        generate_maintenance_escalation,
+        generate_tenant_move_out
     ]
     
-    # Generate 10 of each (Total 50)
-    for i in range(1, 11):
+    # Generate 13 of each (Total 104)
+    for i in range(1, 14):
         for gen in generators:
             workflows.append(gen(i))
             

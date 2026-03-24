@@ -48,7 +48,8 @@ export class AiWhatsappOrchestratorService {
     private readonly crudButtons: WaCrudButtonsService,
     private readonly workflowEngine: WorkflowEngine,
   ) {
-    this.groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    const apiKey = process.env.GROQ_API_KEY;
+    this.groq = apiKey ? new Groq({ apiKey }) : (null as any);
   }
 
   async handleIncomingWhatsapp(
@@ -127,7 +128,7 @@ export class AiWhatsappOrchestratorService {
           text === '2' ||
           text === 'lang_en' ||
           text === 'lang_sw')
-      ) {
+  ) {
         const selectedLang = text === '1' || text === 'lang_en' ? 'en' : 'sw';
         await this.whatsappService.updateWhatsAppProfile(phone, {
           language: selectedLang,
@@ -640,6 +641,83 @@ export class AiWhatsappOrchestratorService {
             };
           }
 
+          // Handle intent disambiguation choice
+          if (safeText.startsWith('intent_choose:')) {
+            const chosen = safeText.split(':')[1] || '';
+            if (chosen === 'cancel') {
+              await this.staging.delete(uid, 'pending_intent_choice');
+              const cancelMsg =
+                lang === 'sw' ? '❌ Hatua imefutwa.' : '❌ Action cancelled.';
+              await sendAndLog(cancelMsg);
+              return {
+                response: cancelMsg,
+                chatId: chatId || lastChat?.id || null,
+              };
+            }
+
+            const staged = await this.staging.retrieve<any>(
+              uid,
+              'pending_intent_choice',
+            );
+            if (!staged) {
+              const expiredMsg =
+                lang === 'sw'
+                  ? 'Ombi hili limekwisha muda. Tafadhali tuma tena ujumbe wako.'
+                  : 'That choice expired. Please resend your message.';
+              await sendAndLog(expiredMsg);
+              return {
+                response: expiredMsg,
+                chatId: chatId || lastChat?.id || null,
+              };
+            }
+
+            const chosenIntent = chosen.trim();
+            const writeIntents = [
+              'record_payment',
+              'add_tenant',
+              'onboard_property',
+              'update_property',
+              'create_unit',
+              'create_lease',
+              'bulk_create_tenants',
+              'import_tenants',
+            ];
+            const isWrite = writeIntents.includes(chosenIntent);
+
+            const overrideClassification = {
+              ...(staged.classification || {}),
+              intent: chosenIntent,
+              executionMode: isWrite ? 'ORCHESTRATED' : 'DIRECT_LOOKUP',
+              complexity: isWrite ? 2 : 1,
+              confidence: 1,
+              reason: 'User selected intent',
+            };
+
+            if (messageId) {
+              await this.whatsappService.sendReaction({
+                to: phone,
+                messageId: messageId as string,
+                emoji: '⏳',
+              });
+            }
+
+            const result = await this.aiService.chat(
+              staged.history || [],
+              staged.text,
+              staged.chatId,
+              companyId,
+              undefined,
+              staged.attachments,
+              lang,
+              overrideClassification,
+              phone,
+            );
+
+            await sendAndLog(result.response, undefined, result.interactive);
+            await this.staging.delete(uid, 'pending_intent_choice');
+            return result;
+          }
+
           // Handle UUID selection (from List Message)
           if (isUuidSelection) {
             const ctx = {
@@ -1057,10 +1135,12 @@ export class AiWhatsappOrchestratorService {
           } catch (err: any) {
             classification = {
               intent: 'unknown',
+              priority: 'NORMAL',
               complexity: 2,
               executionMode: 'LIGHT_COMPOSE',
               language: 'en',
               reason: 'Timeout fallback',
+              confidence: 0.3,
             };
           }
 
@@ -1085,7 +1165,113 @@ export class AiWhatsappOrchestratorService {
             writeIntents.includes(classification.intent) ||
             classification.executionMode === 'ORCHESTRATED';
 
-          if (isWriteAction && !safeText.startsWith('correction_')) {
+          const explicitWrite =
+            /\b(add|create|record|update|delete|register|import|assign|mark|onboard)\b/i.test(
+              effectiveText,
+            ) ||
+            /\b(ongeza|tengeneza|rekodi|sasisha|futa|sajili|ingiza|weka|badilisha)\b/i.test(
+              effectiveText,
+            );
+          const confidence =
+            typeof classification.confidence === 'number'
+              ? classification.confidence
+              : 0.6;
+          const looksLikePropertyRef =
+            /house\s*(?:no\.?|number|#)?\s*\d+|house\s*\d+|unit\s*[a-z0-9]+|nyumba\s*\d+/i.test(
+              effectiveText,
+            );
+          const looksLikeInterest =
+            /interested|intrested|available|vacant|for\s+rent|renting|to\s+rent|view(ing)?|visit|schedule|nataka\s+kupanga|ipo\s*waz/i.test(
+              effectiveText.toLowerCase(),
+            );
+
+          // Dynamic disambiguation: avoid robotic "write intent" confirmations on ambiguous property messages
+          if (
+            looksLikePropertyRef &&
+            (!explicitWrite || confidence < 0.75) &&
+            (isWriteAction ||
+              classification.intent === 'general_query' ||
+              classification.intent === 'unknown')
+          ) {
+            let history: any[] = [];
+            if (lastChat?.id) {
+              const messages = await this.aiService.getChatHistory(lastChat.id);
+              history = messages.slice(-15).map((m) => ({
+                role: m.role === 'assistant' ? 'model' : 'user',
+                parts: [{ text: m.content }],
+              }));
+              while (history.length > 0 && history[0].role !== 'user')
+                history.shift();
+            }
+
+            await this.staging.stage(uid, 'pending_intent_choice', {
+              text: effectiveText,
+              classification,
+              history,
+              chatId: lastChat?.id,
+              attachments,
+            });
+
+            const ask =
+              lang === 'sw'
+                ? looksLikeInterest
+                  ? 'Unataka kufanya nini na nyumba/kitengo hiki?'
+                  : 'Unamaanisha nini kuhusu nyumba/kitengo hiki?'
+                : looksLikeInterest
+                  ? 'What would you like to do with this house/unit?'
+                  : 'What do you mean about this house/unit?';
+
+            const options =
+              lang === 'sw'
+                ? [
+                    {
+                      key: 'details',
+                      label: 'Maelezo',
+                      action: 'intent_choose:get_property_details',
+                    },
+                    {
+                      key: 'vacancy',
+                      label: 'Upatikanaji',
+                      action: 'intent_choose:check_vacancy',
+                    },
+                    {
+                      key: 'tenant',
+                      label: 'Sajili mpangaji',
+                      action: 'intent_choose:add_tenant',
+                    },
+                  ]
+                : [
+                    {
+                      key: 'details',
+                      label: 'View details',
+                      action: 'intent_choose:get_property_details',
+                    },
+                    {
+                      key: 'vacancy',
+                      label: 'Check availability',
+                      action: 'intent_choose:check_vacancy',
+                    },
+                    {
+                      key: 'tenant',
+                      label: 'Register tenant',
+                      action: 'intent_choose:add_tenant',
+                    },
+                  ];
+
+            const interactive = this.whatsappFormatter.buildButtonMessage(
+              ask,
+              options,
+              lang,
+            );
+            await sendAndLog(ask, undefined, interactive);
+            return { response: ask, chatId: lastChat?.id || null };
+          }
+
+          if (
+            isWriteAction &&
+            classification.executionMode !== 'PLANNING' &&
+            !safeText.startsWith('correction_')
+          ) {
             const humanIntents: Record<string, string> = {
               record_payment:
                 lang === 'sw'
@@ -1111,7 +1297,7 @@ export class AiWhatsappOrchestratorService {
                   : 'Registering multiple tenants',
               import_tenants:
                 lang === 'sw'
-                  ? 'Kuingiza orodha ya wapangaji'
+                  ? 'Kuweka majina ya wapangaji'
                   : 'Importing tenant list',
               update_property:
                 lang === 'sw'
@@ -1123,10 +1309,19 @@ export class AiWhatsappOrchestratorService {
               (lang === 'sw'
                 ? 'Kutekeleza ombi lako'
                 : 'Processing your request');
+            const label =
+              !explicitWrite && confidence < 0.75
+                ? lang === 'sw'
+                  ? '📝 Inawezekana unamaanisha'
+                  : '📝 Possible action'
+                : lang === 'sw'
+                  ? '📝 Kusudi'
+                  : '📝 Intent';
+
             const echoBody =
               lang === 'sw'
-                ? `🎤 Nimepokea ujumbe wako.\n✍️ Nilichosikia: "${effectiveText}"\n📝 Kusudi: ${intentDesc}`
-                : `🎤 Received your request.\n✍️ I heard: "${effectiveText}"\n📝 Intent: ${intentDesc}`;
+                ? `🎤 Nimepokea ujumbe wako.\n✍️ Nilichosikia: "${effectiveText}"\n${label}: ${intentDesc}`
+                : `🎤 Received your request.\n✍️ I heard: "${effectiveText}"\n${label}: ${intentDesc}`;
 
             let history: any[] = [];
             if (lastChat?.id) {
@@ -1223,10 +1418,13 @@ export class AiWhatsappOrchestratorService {
                   const items = justCachedList.items.slice(0, 10);
                   result.interactive = {
                     type: 'list',
-                    header: { type: 'text', text: 'Selection Required' },
+                    header: {
+                      type: 'text',
+                      text: language === 'sw' ? 'Chagua hapa' : 'Selection Required',
+                    },
                     body: { text: finalResponse.slice(0, 1024) },
                     action: {
-                      button: 'Select Option',
+                      button: language === 'sw' ? 'Chagua moja' : 'Select Option',
                       sections: [
                         {
                           title: 'Results',

@@ -24,7 +24,7 @@ export class MainMenuService {
             rows: [
               {
                 id: 'menu_companies',
-                title: isSw ? 'Orodha ya Kampuni' : 'List Companies',
+                title: isSw ? 'Majina ya Kampuni' : 'List Companies',
                 description: isSw
                   ? 'Angalia kampuni zote'
                   : 'View all registered companies',
@@ -153,7 +153,7 @@ export class MainMenuService {
                 id: 'menu_properties',
                 title: isSw ? 'Mali & Majengo' : 'Properties',
                 description: isSw
-                  ? 'Orodha ya majengo yako'
+                  ? 'Majina ya majengo yako'
                   : 'List and manage properties',
               },
               {

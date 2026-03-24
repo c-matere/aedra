@@ -9,7 +9,36 @@ export class QueryEnrichmentService {
   private readonly modelName = 'llama-3.1-8b-instant';
 
   constructor() {
-    this.groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'dummy-key' });
+    const apiKey = process.env.GROQ_API_KEY;
+    this.groq = apiKey ? new Groq({ apiKey }) : (null as any);
+  }
+
+  private shouldSkipEnrichment(message: string): boolean {
+    const text = (message || '').toLowerCase();
+
+    const hasPropertyKeyword =
+      /\bhouse\b|\bnyumba\b|\bunit\b|\bapartment\b|\bflat\b|\bproperty\b|\bplot\b/i.test(
+        text,
+      );
+    const hasNumberRef =
+      /\b\d{1,4}\b/.test(text) || /\bno\.\b|\b#\b/i.test(text);
+    const hasInterestSignal =
+      /\binterested\b|\bintrested\b|\bintersted\b|\blooking for\b|\bavailable\b|\bvacant\b|\bfor rent\b|\brenting\b|\bto rent\b|\bview\b|\bvisit\b|\bschedule\b|\bbei\b|\bprice\b|\bnataka kupanga\b|\bipo waz/i.test(
+        text,
+      );
+
+    // Property-interest queries are often already clear and are high risk for hallucination
+    // (e.g. inventing residents, payment history, or ID requests). Keep them verbatim.
+    if ((hasPropertyKeyword && hasNumberRef) || hasInterestSignal) return true;
+
+    // If message already contains a UUID, it is likely precise.
+    const hasUuid =
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(
+        text,
+      );
+    if (hasUuid) return true;
+
+    return false;
   }
 
   /**
@@ -23,10 +52,21 @@ export class QueryEnrichmentService {
       return message;
     }
 
+    if (!this.groq) {
+      return message;
+    }
+
     // Handle single characters or punctuation (e.g. "?", ".", "!")
     if (/^[?!.]+$/.test(message.trim())) {
       this.logger.log(
         `Skipping enrichment for punctuation-only message: "${message}"`,
+      );
+      return message;
+    }
+
+    if (this.shouldSkipEnrichment(message)) {
+      this.logger.log(
+        `Skipping enrichment for property-specific/interest message: "${message}"`,
       );
       return message;
     }
@@ -54,6 +94,8 @@ Expand the following vague user message into a detailed request for the AI assis
 - NEVER include explanations, summaries, or conversational filler like "I expanded this for you".
 - NEVER output "Selection Required" or internal state descriptions.
 - ONLY output the text that a user would have typed if they were being very specific.
+- DO NOT invent facts, people, residents, payment records, repairs, IDs, or document numbers that are not explicitly in the user message.
+- DO NOT ask for national/citizen ID numbers unless the user explicitly asked to update ID/KYC details.
 - If they mention a name like "maggy", assume they mean a tenant named Maggie.
 - If they mention "payment history", they want to see the payment list for that person.
 - If they say "who hasn't paid", they want an arrears report for the company.

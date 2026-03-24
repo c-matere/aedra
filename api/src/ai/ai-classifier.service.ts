@@ -26,7 +26,10 @@ export interface ClassificationResult {
     description?: string;
     subject_unit?: string;
     property_name?: string;
+    propertyId?: string;
     proposed_date?: string;
+    amount?: string | number;
+    companyId?: string;
   };
 }
 
@@ -409,14 +412,25 @@ export class AiClassifierService {
     }
 
     // Guardrail: shida/error keywords should route to system_failure.
-    if (hasSystemFailureKeywords && result.intent === 'general_query') {
+    const systemFailureSignals = [
+      /report.*fail/i,
+      /error.*fetch/i,
+      /haitaki/i,
+      /shida.*report/i,
+      /fetch.*failed/i,
+      /cannot.*load/i,
+      /failed.*generate/i,
+      /haifanyi/i,
+    ];
+
+    if ((hasSystemFailureKeywords || systemFailureSignals.some(s => s.test(text))) && result.intent === 'general_query') {
       return {
         ...result,
         intent: 'system_failure',
         complexity: 1,
         executionMode: 'DIRECT_LOOKUP',
-        confidence: Math.max(baseConfidence ?? 0.6, 0.85),
-        reason: `${result.reason} (guardrail: system failure reported)`,
+        confidence: Math.max(baseConfidence ?? 0.6, 0.95),
+        reason: `${result.reason} (guardrail: specific system failure patterns detected)`,
       };
     }
 

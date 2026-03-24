@@ -109,37 +109,70 @@ export class AiReportToolService {
           const fileName = `${reportType.toLowerCase().replace(/\s+/g, '_')}_${timestamp}.${format}`;
 
           if (format === 'csv') {
+            const toIso = (d: any) => {
+              if (!d) return '';
+              const date = d instanceof Date ? d : new Date(d);
+              return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+            };
+            const toAmount = (a: any) => (a === null || a === undefined ? '' : a?.toString?.() ?? String(a));
+
             const rows = [
               ...data.payments.map((p) => ({
                 type: 'PAYMENT',
-                amount: p.amount,
-                date: p.paidAt,
-                property: p.lease?.property?.name,
+                amount: toAmount(p.amount),
+                date: toIso(p.paidAt),
+                property: p.lease?.property?.name || '',
+                category: '',
+                status: '',
               })),
               ...data.expenses.map((e) => ({
                 type: 'EXPENSE',
-                amount: e.amount,
-                date: e.date,
-                property: e.property?.name,
-                category: e.category,
+                amount: toAmount(e.amount),
+                date: toIso(e.date),
+                property: e.property?.name || '',
+                category: e.category || '',
+                status: '',
               })),
               ...data.invoices.map((i) => ({
                 type: 'INVOICE',
-                amount: i.amount,
-                date: i.createdAt,
-                property: i.lease?.property?.name,
-                status: i.status,
+                amount: toAmount(i.amount),
+                date: toIso(i.createdAt),
+                property: i.lease?.property?.name || '',
+                category: '',
+                status: i.status || '',
               })),
             ];
-            const url = await this.reportsGenerator.generateCsv(rows, fileName);
+            const fields = [
+              'type',
+              'amount',
+              'date',
+              'property',
+              'category',
+              'status',
+            ];
+            const url = await this.reportsGenerator.generateCsv(
+              rows,
+              fileName,
+              fields,
+            );
             return { message: `CSV report generated successfully.`, url };
           } else {
             const targetPhone = context.phone || args.targetPhone;
             if (!targetPhone) {
-              return {
-                error:
-                  'Cannot generate offline PDF without a target phone number in context or args.',
-              };
+              // Non-WhatsApp clients (/ai/chat) still need a downloadable file.
+              const url = await this.reportsGenerator.generatePdf(
+                {
+                  dateRange: {
+                    from: new Date(data.start).toISOString(),
+                    to: new Date(data.end).toISOString(),
+                  },
+                  totals: data.totals,
+                  breakdown: data.breakdown,
+                },
+                `${reportType} Report`,
+                fileName,
+              );
+              return { message: `PDF report generated successfully.`, url };
             }
 
             await this.backgroundQueue.add('generate_report_pdf', {

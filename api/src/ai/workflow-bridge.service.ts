@@ -82,6 +82,12 @@ export class WorkflowBridgeService implements WorkflowHandlers, OnModuleInit {
         return { segment };
       }
 
+      case 'format_delivery': {
+        const url = context.assemble_csv?.url || context.assemble_pdf?.url;
+        if (!url) return 'Report generated, but no link found.';
+        return `Your requested report is ready. You can download it here: ${url}`;
+      }
+
       default:
         return { success: true };
     }
@@ -117,7 +123,9 @@ export class WorkflowBridgeService implements WorkflowHandlers, OnModuleInit {
       fetch_occupancy: 'list_vacant_units',
       fetch_maintenance: 'list_maintenance_requests',
       assemble_pdf: 'generate_report_file',
+      assemble_csv: 'generate_report_file',
       deliver_agent: 'send_whatsapp_message',
+      deliver_csv: 'send_whatsapp_message',
       suggest_landlord: 'send_whatsapp_message',
     };
 
@@ -125,7 +133,7 @@ export class WorkflowBridgeService implements WorkflowHandlers, OnModuleInit {
     return this.toolRegistry.executeTool(
       toolName,
       context.args || {},
-      context,
+      { ...context, isWorkflowStep: true, workflowStepId: stepId },
       context.role,
       context.language || 'en',
     );

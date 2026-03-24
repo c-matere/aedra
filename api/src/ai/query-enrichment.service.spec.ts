@@ -3,13 +3,18 @@ import { QueryEnrichmentService } from './query-enrichment.service';
 
 describe('QueryEnrichmentService', () => {
   let service: QueryEnrichmentService;
+  let moduleRef: TestingModule;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    moduleRef = await Test.createTestingModule({
       providers: [QueryEnrichmentService],
     }).compile();
 
-    service = module.get<QueryEnrichmentService>(QueryEnrichmentService);
+    service = moduleRef.get<QueryEnrichmentService>(QueryEnrichmentService);
+  });
+
+  afterEach(async () => {
+    await moduleRef?.close();
   });
 
   it('should be defined', () => {
@@ -25,21 +30,38 @@ describe('QueryEnrichmentService', () => {
     expect(result).toBe(longMessage);
   });
 
+  it('should not enrich property interest messages (avoid hallucinations)', async () => {
+    const msg = 'im intrested in house 32:"House No. 032"';
+    const spy = jest.fn();
+    (service as any).groq = {
+      chat: { completions: { create: spy } },
+    };
+
+    const result = await service.enrich(msg, [], {
+      role: 'COMPANY_ADMIN',
+      companyId: 'comp_123',
+    });
+
+    expect(result).toBe(msg);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
   it('should enrich vague messages like "payment history maggy"', async () => {
     const vagueMessage = 'payment history maggy';
 
-    // Mocking the GenAI response
-    const mockResponse = {
-      response: {
-        text: () =>
-          'Please show me the payment history for the tenant named Maggie.',
-      },
+    const spy = jest.fn().mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content:
+              'Please show me the payment history for the tenant named Maggie.',
+          },
+        },
+      ],
+    });
+    (service as any).groq = {
+      chat: { completions: { create: spy } },
     };
-    const spy = jest
-      .spyOn((service as any).genAI, 'getGenerativeModel')
-      .mockReturnValue({
-        generateContent: jest.fn().mockResolvedValue(mockResponse),
-      } as any);
 
     const result = await service.enrich(vagueMessage, [], {
       role: 'COMPANY_ADMIN',
@@ -54,15 +76,19 @@ describe('QueryEnrichmentService', () => {
   it('should handle "who hasn\'t paid"', async () => {
     const vagueMessage = "who hasn't paid";
 
-    const mockResponse = {
-      response: {
-        text: () =>
-          'Generate an arrears report for all tenants who have not paid their rent for the current month.',
-      },
+    const spy = jest.fn().mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content:
+              'Generate an arrears report for all tenants who have not paid their rent for the current month.',
+          },
+        },
+      ],
+    });
+    (service as any).groq = {
+      chat: { completions: { create: spy } },
     };
-    jest.spyOn((service as any).genAI, 'getGenerativeModel').mockReturnValue({
-      generateContent: jest.fn().mockResolvedValue(mockResponse),
-    } as any);
 
     const result = await service.enrich(vagueMessage, [], {
       role: 'COMPANY_ADMIN',

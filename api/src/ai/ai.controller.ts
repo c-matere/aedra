@@ -10,7 +10,7 @@ export class AiController {
   constructor(private readonly aiService: AiService) {}
 
   @Post('chat')
-  @Roles(UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF, UserRole.SUPER_ADMIN)
+  @Roles(UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF, UserRole.SUPER_ADMIN, UserRole.TENANT, UserRole.LANDLORD)
   async chat(
     @Body()
     body: {
@@ -87,5 +87,11 @@ export class AiController {
       body.score,
       body.note,
     );
+  }
+
+  @Post('chat/reset')
+  @Roles(UserRole.SUPER_ADMIN)
+  async resetSession(@Body() body: { userId: string; chatId: string }) {
+    return await this.aiService.resetSession(body.userId, body.chatId);
   }
 }

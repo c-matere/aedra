@@ -1,0 +1,12 @@
+[
+  {
+    "workflow_id": "maintenance_resolution",
+    "goal": "Verify the maintenance reporting flow from initial intake to photo check (cascaded).",
+    "requests": [
+      {
+        "message": "I want to report a broken sink at Palms Grove Apartments, unit A4.",
+        "expected_state": "assign_technician"
+      }
+    ]
+  }
+]

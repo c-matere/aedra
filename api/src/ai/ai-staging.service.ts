@@ -35,6 +35,14 @@ export class AiStagingService {
   }
 
   /**
+   * delete
+   * Deletes a single staged key for a job.
+   */
+  async delete(jobId: string, key: string): Promise<void> {
+    await this.cacheManager.del(this.getPrefix(jobId, key));
+  }
+
+  /**
    * inventory
    * Returns a list of all data keys currently staged for a specific job.
    */

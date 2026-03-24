@@ -4,7 +4,7 @@ import { WorkflowType } from '@prisma/client';
 // Pick a model that is guaranteed to exist for the configured API key.
 // Allow override via GEMINI_MODEL, otherwise prefer gemini-2.5-flash.
 export const BASE_MODEL =
-  (process.env.GEMINI_MODEL || '').trim() || 'gemini-2.5-flash';
+  (process.env.GEMINI_MODEL || '').trim() || 'gemini-2.0-flash';
 
 export const buildTools = (tools: any[]) =>
   [{ functionDeclarations: tools }] as Tool[];
@@ -318,15 +318,18 @@ export const coreReadTools = [
   {
     name: 'list_expenses',
     description:
-      'List expenses, optionally filtered by property or unit and date range.',
+      'List expenses, optionally filtered by property, category, or date range.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
         propertyId: {
           type: SchemaType.STRING,
-          description: 'Filter by property UUID',
+          description: 'Filter by property UUID (or name, will be resolved)',
         },
-        unitId: { type: SchemaType.STRING, description: 'Filter by unit UUID' },
+        category: {
+          type: SchemaType.STRING,
+          description: 'Filter by category (e.g. MAINTENANCE, COMMISSION_AGENT_FEE)',
+        },
         dateFrom: {
           type: SchemaType.STRING,
           description:
@@ -339,9 +342,23 @@ export const coreReadTools = [
         },
         limit: {
           type: SchemaType.NUMBER,
-          description: 'Max results (default 20)',
+          description: 'Max results (default 10)',
         },
       },
+    },
+  },
+  {
+    name: 'get_expense_details',
+    description: 'Get detailed information about a specific expense.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        expenseId: {
+          type: SchemaType.STRING,
+          description: 'The UUID of the expense',
+        },
+      },
+      required: ['expenseId'],
     },
   },
   {
@@ -451,6 +468,36 @@ export const coreReadTools = [
           type: SchemaType.STRING,
           description: 'Optional property UUID to filter results',
         },
+      },
+    },
+  },
+  {
+    name: 'get_financial_summary',
+    description:
+      'Get a high-level financial summary including income, expenses and billed totals. If dates are omitted, defaults to current month.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        propertyId: { type: SchemaType.STRING, description: 'Optional property UUID' },
+        dateFrom: {
+          type: SchemaType.STRING,
+          description: 'ISO date string (inclusive).',
+        },
+        dateTo: {
+          type: SchemaType.STRING,
+          description: 'ISO date string (inclusive).',
+        },
+      },
+    },
+  },
+  {
+    name: 'get_maintenance_photos',
+    description: 'Retrieve before and after photos for a specific maintenance request or unit.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        requestId: { type: SchemaType.STRING, description: 'Maintenance request UUID' },
+        unitId: { type: SchemaType.STRING, description: 'Unit UUID' },
       },
     },
   },
@@ -783,6 +830,31 @@ export const coreWriteTools = [
         },
       },
       required: ['leaseId', 'amount', 'description', 'dueDate', 'confirm'],
+    },
+  },
+  {
+    name: 'record_expense',
+    description: 'Record an expense or payment made (e.g. for repairs, utilities, or agent commissions). Requires confirmation.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        description: { type: SchemaType.STRING, description: 'Short description' },
+        amount: { type: SchemaType.NUMBER, description: 'Expense amount' },
+        category: { 
+          type: SchemaType.STRING, 
+          description: 'Category (e.g. MAINTENANCE, REPAIR, UTILITY, INSURANCE, TAX, MANAGEMENT_FEE, COMMISSION_AGENT_FEE, SALARY, OTHER)' 
+        },
+        propertyId: { type: SchemaType.STRING, description: 'Property UUID or Name' },
+        unitId: { type: SchemaType.STRING, description: 'Unit UUID or Number (optional)' },
+        vendor: { type: SchemaType.STRING, description: 'Vendor/recipient name (optional)' },
+        reference: { type: SchemaType.STRING, description: 'Reference number/MPESA code (optional)' },
+        date: { type: SchemaType.STRING, description: 'ISO date (optional, defaults to now)' },
+        confirm: {
+          type: SchemaType.BOOLEAN,
+          description: 'Must be true to record',
+        },
+      },
+      required: ['description', 'amount', 'confirm'],
     },
   },
   {
@@ -1415,6 +1487,53 @@ export const reportTools = [
         explain: {
           type: SchemaType.BOOLEAN,
           description: 'Include derivation details',
+        },
+      },
+    },
+  },
+  {
+    name: 'send_report_landlord',
+    description:
+      'Send the most recently generated report to the landlord via email and WhatsApp (if configured).',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        reportUrl: {
+          type: SchemaType.STRING,
+          description:
+            'Optional report URL to send. If omitted, the system will use the last generated report.',
+        },
+      },
+    },
+  },
+  {
+    name: 'download_report',
+    description: 'Re-send the download link for the last generated report.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        reportUrl: {
+          type: SchemaType.STRING,
+          description:
+            'Optional report URL. If omitted, the system will use the last generated report.',
+        },
+      },
+    },
+  },
+  {
+    name: 'schedule_report',
+    description:
+      'Schedule an automatic monthly portfolio report to be generated and delivered.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        reportType: {
+          type: SchemaType.STRING,
+          description: 'Summary | Revenue | Occupancy | Financial',
+        },
+        dayOfMonth: {
+          type: SchemaType.NUMBER,
+          description: 'Day of month to send (1-28). Default 1.',
         },
       },
     },

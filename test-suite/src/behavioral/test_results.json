@@ -1,63 +1,21 @@
 [
   {
-    "workflow_id": "wf_user_behavior_001",
-    "goal": "Simulate a new user greeting, selecting a company, adding property/tenant, deleting tenant, and sending reminders.",
+    "workflow_id": "maintenance_resolution",
+    "goal": "Verify the maintenance reporting flow from initial intake to photo check (cascaded).",
     "steps": [
       {
         "status": "PASS",
-        "latency": 5.14013934135437,
-        "response": "Hello. How can I help you?\n",
+        "latency": 2.3067212104797363,
+        "response": "[Workflow: maintenance_resolution] Current State: ASSIGNED\n\nI have initiated the multi-step process for your request. I will notify you as soon as the next step is ready.",
+        "raw": {
+          "response": "[Workflow: maintenance_resolution] Current State: ASSIGNED\n\nI have initiated the multi-step process for your request. I will notify you as soon as the next step is ready.",
+          "chatId": "959b0e8a-c5f8-406e-852d-dbaabc648386"
+        },
+        "workflow_state": "assign_technician",
         "error": null,
         "step": 1,
-        "message": "hello"
-      },
-      {
-        "status": "PASS",
-        "latency": 2.8965017795562744,
-        "response": "",
-        "error": null,
-        "step": 2,
-        "message": "list companies"
-      },
-      {
-        "status": "PASS",
-        "latency": 3.4460339546203613,
-        "response": "",
-        "error": null,
-        "step": 3,
-        "message": "select company #4"
-      },
-      {
-        "status": "PASS",
-        "latency": 4.382158279418945,
-        "response": "I can add a property to company #4. What is the name of the property? What is the address of the property? What type of property is it?\n",
-        "error": null,
-        "step": 4,
-        "message": "add a property in company #4"
-      },
-      {
-        "status": "PASS",
-        "latency": 3.256704568862915,
-        "response": "Okay, I can add a tenant. But first, I need to know the property ID where you want to add the tenant, the tenant's first name, and the tenant's last name.\n",
-        "error": null,
-        "step": 5,
-        "message": "add a tenant"
-      },
-      {
-        "status": "PASS",
-        "latency": 14.340296745300293,
-        "response": "Okay, I can delete a tenant. I will need the tenant ID to proceed. Also, please note that this is a destructive action and requires confirmation.\n",
-        "error": null,
-        "step": 6,
-        "message": "delete a tenant"
-      },
-      {
-        "status": "PASS",
-        "latency": 2.6289563179016113,
-        "response": "Can you please specify whether you would like to send a rent reminder or create an invoice?\n",
-        "error": null,
-        "step": 7,
-        "message": "send a reminder or an invoice"
+        "message": "I want to report a broken sink at Palms Grove Apartments, unit A4.",
+        "expected_state": "assign_technician"
       }
     ]
   }

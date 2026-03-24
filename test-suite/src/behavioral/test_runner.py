@@ -9,7 +9,7 @@ import argparse
 
 # Configuration
 API_BASE_URL = "http://127.0.0.1:4001" 
-SECRET = "dev-only-auth-session-secret-change-before-production-32+chars"
+SECRET = "zJ4x1QYTW9lNjvr6NniaoAHA9Kzy5zO7"
 DEFAULT_SCENARIO_FILE = "/home/chris/aedra/test-suite/src/behavioral/stress_suite.json"
 OUTPUT_FILE = "/home/chris/aedra/test-suite/src/behavioral/test_results.json"
 
@@ -36,7 +36,48 @@ def create_token(user_id, role, company_id=None):
     encoded_signature = base64url_encode(signature)
     return f"{encoded_payload}.{encoded_signature}"
 
-def run_test(message, history, token):
+def get_active_workflow(token):
+    url = f"{API_BASE_URL}/ai/workflows/active"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    try:
+        response = requests.post(url, headers=headers, json={}, timeout=10)
+        if response.status_code == 201:
+            data = response.json()
+            return data[0] if data else None
+        return None
+    except:
+        return None
+
+def reset_session(chat_id, token, user_id):
+    url = f"{API_BASE_URL}/ai/chat/reset"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "userId": user_id,
+        "chatId": chat_id
+    }
+    try:
+        response = requests.post(url, headers=headers, json=data, timeout=10)
+        if response.status_code == 201:
+            res = response.json()
+            # Assert all cleared flags are true
+            success = all([
+                res.get("clearedActiveInstance"),
+                res.get("clearedPendingState"),
+                res.get("clearedAiSession"),
+                res.get("clearedContextMemory")
+            ])
+            return success, res
+        return False, f"HTTP {response.status_code}: {response.text}"
+    except Exception as e:
+        return False, str(e)
+
+def run_test(message, history, token, expected_state=None, chat_id=None):
     url = f"{API_BASE_URL}/ai/chat"
     headers = {
         "Authorization": f"Bearer {token}",
@@ -46,27 +87,43 @@ def run_test(message, history, token):
     data = {
         "message": message,
         "history": history,
-        "attachments": [] 
+        "attachments": [],
+        "companyId": "bench-company-001"
     }
+    
+    if chat_id:
+        data["chatId"] = chat_id
     
     try:
         start_time = time.time()
-        response = requests.post(url, headers=headers, json=data, timeout=30)
+        response = requests.post(url, headers=headers, json=data, timeout=300)
         end_time = time.time()
         
         if response.status_code == 201:
             result = response.json()
+            
+            # State Verification Logic
+            active_workflow = get_active_workflow(token)
+            state_match = True
+            actual_state = active_workflow.get("currentState") if active_workflow else "NONE"
+            
+            if expected_state and actual_state != expected_state:
+                state_match = False
+                
             return {
-                "status": "PASS" if "response" in result else "FAIL",
+                "status": "PASS" if ("response" in result and state_match) else "FAIL",
                 "latency": end_time - start_time,
                 "response": result.get("response"),
-                "error": None
+                "raw": result,
+                "workflow_state": actual_state,
+                "error": f"State mismatch: expected {expected_state}, got {actual_state}" if not state_match else None
             }
         else:
             return {
                 "status": "ERROR",
                 "latency": end_time - start_time,
                 "response": None,
+                "raw": None,
                 "error": f"HTTP {response.status_code}: {response.text}"
             }
     except Exception as e:
@@ -74,20 +131,24 @@ def run_test(message, history, token):
             "status": "ERROR",
             "latency": 0,
             "response": None,
+            "raw": None,
             "error": str(e)
         }
 
 def process_workflow(workflow, token, delay):
-    print(f"\n>>> Running Workflow: {workflow['workflow_id']} - {workflow['goal']}")
+    import uuid
+    execution_id = str(uuid.uuid4())
+    print(f"\n>>> Running Workflow: {workflow['workflow_id']} - {workflow['goal']} (Exec ID: {execution_id})")
     history = []
     results = []
     
     for i, req in enumerate(workflow['requests']):
+        tagged_message = f"[BENCH_WF:{execution_id}] {req['message']}"
         print(f"  Step {i+1}/{len(workflow['requests'])}: \"{req['message']}\"...", end='\r')
-        res = run_test(req['message'], history, token)
+        res = run_test(tagged_message, history, token, expected_state=req.get('expected_state'))
         
         # Maintain history (User message + AI response)
-        history.append({"role": "user", "content": req['message']})
+        history.append({"role": "user", "content": tagged_message})
         if res["response"]:
             # Handle cases where response is a string or an object
             resp_content = res["response"]["data"] if isinstance(res["response"], dict) else res["response"]
@@ -95,6 +156,7 @@ def process_workflow(workflow, token, delay):
             
         res["step"] = i + 1
         res["message"] = req["message"]
+        res["expected_state"] = req.get("expected_state")
         results.append(res)
         
         if i < len(workflow['requests']) - 1:

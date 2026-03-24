@@ -28,7 +28,7 @@ User Message:
 
 // Use the same base model everywhere; allow override via GEMINI_MODEL, otherwise default to gemini-2.5-flash
 const ROUTER_MODEL =
-  (process.env.GEMINI_MODEL || '').trim() || 'gemini-2.5-flash';
+  (process.env.GEMINI_MODEL || '').trim() || 'gemini-2.0-flash';
 const GROQ_ROUTER_MODEL = 'llama-3.1-8b-instant';
 
 export interface RouteResult {
@@ -118,6 +118,12 @@ export const selectModelKey = async (
     'choo',
     'bomoka',
     'haribika',
+    'leta',
+    'eka',
+    'tengeneza',
+    'lipa',
+    'pay',
+    'confirm',
   ];
   const reportHints = [
     'report',
@@ -159,6 +165,9 @@ export const selectModelKey = async (
     'robo mwaka',
     'mwaka',
     'tuma',
+    'balansi',
+    'deni langu',
+    'muhtasari',
   ];
 
   if (writeHints.some((h) => text.includes(h)))

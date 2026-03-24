@@ -43,7 +43,7 @@ export class ErrorRecoveryService {
 
     if (error.message.includes('select a company workspace first')) {
       return language === 'sw'
-        ? `Kufanya hivyo, unahitaji kuchagua kampuni kwanza.\n\n1. Onyesha orodha ya kampuni\n2. Rudi menyu kuu`
+        ? `Kufanya hivyo, unahitaji kuchagua kampuni kwanza.\n\n1. Onyesha kampuni zote\n2. Rudi menyu kuu`
         : `To do that, you need to select a company first.\n\n1. Show company list\n2. Back to main menu`;
     }
 

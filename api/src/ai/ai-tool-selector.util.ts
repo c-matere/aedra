@@ -133,6 +133,9 @@ export const INTENT_TOOL_MAP: Record<string, string[]> = {
     'get_unit_details',
     'list_tenants',
     'generate_report_file',
+    'send_report_landlord',
+    'download_report',
+    'schedule_report',
   ],
   report_generation: [
     'list_properties',
@@ -141,6 +144,9 @@ export const INTENT_TOOL_MAP: Record<string, string[]> = {
     'get_portfolio_arrears',
     'list_tenants',
     'generate_report_file',
+    'send_report_landlord',
+    'download_report',
+    'schedule_report',
   ],
   yield_analysis: [
     'get_company_summary',
@@ -222,6 +228,20 @@ export const INTENT_TOOL_MAP: Record<string, string[]> = {
     'list_properties',
     'list_tenants',
     'list_units',
+    'get_company_summary',
+    'get_portfolio_arrears',
+    'run_python_script',
+  ],
+  emergency_escalation: [
+    'create_maintenance_request',
+    'list_maintenance_requests',
+    'search_tenants',
+    'list_units',
+    'get_unit_details',
+    'get_property_details',
+  ],
+  system_failure: [
+    'list_maintenance_requests',
     'get_company_summary',
     'get_portfolio_arrears',
     'run_python_script',
@@ -352,6 +372,9 @@ export interface ConversationContext {
   role?: string;
   phone?: string;
   requestId?: string;
+  maintenanceId?: string;
+  unitId?: string;
+  tenantId?: string;
 }
 
 /**
@@ -473,10 +496,11 @@ export function selectTools(
   }
 
   // 4. Boost for common operational intents if not already present
-  if (intent.includes('maintenance')) {
+  if (intent.includes('maintenance') || intent.includes('emergency')) {
     contextTools.push(
       'create_maintenance_request',
       'list_maintenance_requests',
+      'search_tenants',
     );
   }
   if (intent.includes('payment') || intent.includes('rent')) {

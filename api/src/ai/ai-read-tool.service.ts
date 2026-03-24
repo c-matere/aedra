@@ -42,6 +42,7 @@ import {
 } from './ai.constants';
 import { EmbeddingsService } from './embeddings.service';
 import { MenuRouterService } from './menu-router.service';
+import { AiEntityResolutionService } from './ai-entity-resolution.service';
 
 @Injectable()
 export class AiReadToolService {
@@ -53,6 +54,7 @@ export class AiReadToolService {
     private readonly reportsService: ReportsService,
     private readonly embeddings: EmbeddingsService,
     private readonly menuRouter: MenuRouterService,
+    private readonly resolutionService: AiEntityResolutionService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
@@ -279,10 +281,19 @@ export class AiReadToolService {
           return property;
 
         case 'get_tenant_details': {
-          await this.resolveCompanyId(context, args.tenantId, 'tenant');
+          let tenantId = args.tenantId;
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId || '');
+          if (!isUuid && (args.tenantName || tenantId)) {
+            const resolved = await this.resolutionService.resolveId('tenant', args.tenantName || tenantId, context.companyId);
+            if (resolved) tenantId = resolved;
+          }
+
+          if (!tenantId) return { error: 'Tenant ID or name is required.' };
+
+          await this.resolveCompanyId(context, tenantId, 'tenant');
           const tenant = await this.prisma.tenant.findFirst({
             where: {
-              id: args.tenantId,
+              id: tenantId,
               companyId: context.companyId ?? undefined,
               deletedAt: null,
             },
@@ -310,10 +321,9 @@ export class AiReadToolService {
             );
 
           if (!isUuid && (args.companyName || targetId)) {
-            const resolvedId = await this.resolveEntityName(
+            const resolvedId = await this.resolutionService.resolveId(
               'company',
               args.companyName || targetId,
-              'ANY', // Companies are global/top-level
             );
             if (resolvedId) targetId = resolvedId;
           }
@@ -489,10 +499,10 @@ export class AiReadToolService {
         }
 
         case 'get_unit_details': {
-          await this.resolveCompanyId(context, args.unitId, 'unit');
+          await this.resolveCompanyId(context, args?.unitId, 'unit');
           const unit = await this.prisma.unit.findFirst({
             where: {
-              id: args.unitId,
+              id: args?.unitId,
               deletedAt: null,
               property: { companyId: context.companyId, deletedAt: null },
             },
@@ -505,13 +515,13 @@ export class AiReadToolService {
           // Resolve name → ID if user passed a name instead of UUID
           let resolvedPropertyId = args?.propertyId;
           if (!resolvedPropertyId && args?.propertyName) {
-            resolvedPropertyId = await this.resolveEntityName(
+            resolvedPropertyId = await this.resolutionService.resolveId(
               'property', args.propertyName, context.companyId,
             );
           }
           let resolvedTenantId = args?.tenantId;
           if (!resolvedTenantId && args?.tenantName) {
-            resolvedTenantId = await this.resolveEntityName(
+            resolvedTenantId = await this.resolutionService.resolveId(
               'tenant', args.tenantName, context.companyId,
             );
           }
@@ -582,9 +592,9 @@ export class AiReadToolService {
         }
 
         case 'search_tenants': {
-          const isGeneric = this.isGenericQuery(args.query);
+          const isGeneric = this.isGenericQuery(args?.query);
           const vectorIds =
-            !isGeneric && args.query
+            !isGeneric && args?.query
               ? await this.vectorSearch('TENANT', args.query, context.companyId)
               : [];
           const foundTenants = await this.prisma.tenant.findMany({
@@ -597,12 +607,12 @@ export class AiReadToolService {
                     OR: [
                       {
                         firstName: {
-                          contains: args.query,
+                          contains: args?.query,
                           mode: 'insensitive',
                         },
                       },
                       {
-                        lastName: { contains: args.query, mode: 'insensitive' },
+                        lastName: { contains: args?.query, mode: 'insensitive' },
                       },
                     ],
                   }
@@ -632,40 +642,134 @@ export class AiReadToolService {
           return foundTenants;
         }
 
-        case 'get_company_summary': {
+        case 'get_financial_summary': {
           if (!context.companyId || context.companyId === 'NONE')
             return { error: 'Please select a company workspace first.' };
+          
+          this.logger.log(`[BENCH_DEBUG] get_financial_summary for companyId: ${context.companyId}, propId: ${args?.propertyId}, date: ${args?.dateFrom}-${args?.dateTo}`);
+          
+          let propId = args?.propertyId;
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(propId || '');
+          if (!isUuid && (args?.propertyName || propId)) {
+            const resolved = await this.resolutionService.resolveId('property', args?.propertyName || propId, context.companyId);
+            if (resolved) propId = resolved;
+          }
+
           const { start, end } = this.getDateRange(args);
-          const [props, units, tenants, company] = await Promise.all([
+          const [props, units, vacantUnits, tenants, company] = await Promise.all([
             this.prisma.property.count({
-              where: { companyId: context.companyId, deletedAt: null },
+              where: { companyId: context.companyId, deletedAt: null, ...(propId ? { id: propId } : {}) },
             }),
             this.prisma.unit.count({
-              where: { property: { companyId: context.companyId } },
+              where: { property: { companyId: context.companyId, ...(propId ? { id: propId } : {}) } },
+            }),
+            this.prisma.unit.count({
+              where: { property: { companyId: context.companyId, ...(propId ? { id: propId } : {}) }, status: 'VACANT' },
             }),
             this.prisma.tenant.count({
-              where: { companyId: context.companyId },
+              where: { companyId: context.companyId, deletedAt: null, ...(propId ? { propertyId: propId } : {}) },
             }),
             this.prisma.company.findUnique({
               where: { id: context.companyId },
             }),
           ]);
+
+          const [payments, expenses, invoices, overdueInvoices] = await Promise.all([
+            this.prisma.payment.aggregate({
+              _sum: { amount: true },
+              where: { lease: { property: { companyId: context.companyId, ...(propId ? { id: propId } : {}) } }, paidAt: { gte: start, lte: end }, deletedAt: null }
+            }),
+            this.prisma.expense.aggregate({
+              _sum: { amount: true },
+              where: { 
+                companyId: context.companyId, 
+                ...(propId ? { propertyId: propId } : {}),
+                date: { gte: start, lte: end }, 
+                deletedAt: null 
+              }
+            }),
+            this.prisma.invoice.aggregate({
+              _sum: { amount: true },
+              where: { lease: { property: { companyId: context.companyId, ...(propId ? { id: propId } : {}) } }, createdAt: { gte: start, lte: end }, deletedAt: null }
+            }),
+            this.prisma.invoice.aggregate({
+              _sum: { amount: true },
+              where: { lease: { property: { companyId: context.companyId, ...(propId ? { id: propId } : {}) } }, dueDate: { lt: new Date() }, status: 'PENDING', deletedAt: null }
+            })
+          ]);
+
           return {
             companyName: company?.name,
+            propertyId: propId,
             dateRange: { from: start.toISOString(), to: end.toISOString() },
             properties: props,
-            units: { total: units, occupied: 0, vacant: units }, // Simplification
+            units: { total: units, occupied: units - vacantUnits, vacant: vacantUnits },
             tenants: tenants,
-            activeLeases: 0,
+            activeLeases: tenants,
             totals: {
-              payments: 0,
-              expenses: 0,
-              invoices: 0,
-              overdueInvoices: 0,
+              payments: payments._sum.amount || 0,
+              expenses: expenses._sum.amount || 0,
+              invoices: invoices._sum.amount || 0,
+              overdueInvoices: overdueInvoices._sum.amount || 0,
             },
           };
         }
 
+        case 'get_maintenance_photos': {
+          let reqId = args?.requestId || args?.maintenanceId;
+          let unitId = args?.unitId;
+
+          // Resolve unitId if it's a number/name
+          const isUnitUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(unitId || '');
+          if (!isUnitUuid && (args?.unitNumber || unitId)) {
+            const resolvedUnit = await this.resolutionService.resolveId('unit', args?.unitNumber || unitId, context.companyId);
+            if (resolvedUnit) unitId = resolvedUnit;
+          }
+
+          if (!reqId && unitId) {
+             const latestReq = await this.prisma.maintenanceRequest.findFirst({
+               where: { unitId, companyId: context.companyId, deletedAt: null },
+               orderBy: { createdAt: 'desc' }
+             });
+             if (latestReq) reqId = latestReq.id;
+          }
+
+          if (reqId) {
+            const req = await this.prisma.maintenanceRequest.findUnique({
+              where: { id: reqId },
+              include: { property: true, unit: true }
+            });
+            if (!req) return { error: 'Maintenance request not found.' };
+
+            // Logic: Check notes for URLs first (common pattern in this system)
+            const photoMatches = (req.notes || '').match(/https?:\/\/[^\s]+/g) || [];
+            
+            // Also check Documents tied to this unit/property of type 'OTHER' or 'COMPLIANCE'
+            const docs = await this.prisma.document.findMany({
+              where: {
+                OR: [
+                  { unitId: req.unitId || 'NONE' },
+                  { propertyId: req.propertyId }
+                ],
+                companyId: context.companyId,
+                deletedAt: null
+              }
+            });
+
+            return {
+              request: { title: req.title, status: req.status },
+              photos: [
+                ...photoMatches.map(url => ({ url, label: 'From notes' })),
+                ...docs.map(d => ({ url: d.fileUrl, label: d.name }))
+              ]
+            };
+          }
+          return { error: 'No maintenance request ID provided or resolved.' };
+        }
+
+        case 'get_company_summary':
+          return await this.executeReadTool('get_financial_summary', args, context, role, language);
+        
         case 'list_maintenance_requests': {
           const statusValue = validateEnum(
             args?.status,
@@ -690,11 +794,11 @@ export class AiReadToolService {
           // Resolve names → IDs
           let payTenantId = args?.tenantId;
           if (!payTenantId && args?.tenantName) {
-            payTenantId = await this.resolveEntityName('tenant', args.tenantName, context.companyId);
+            payTenantId = await this.resolutionService.resolveId('tenant', args.tenantName, context.companyId);
           }
           let payPropertyId = args?.propertyId;
           if (!payPropertyId && args?.propertyName) {
-            payPropertyId = await this.resolveEntityName('property', args.propertyName, context.companyId);
+            payPropertyId = await this.resolutionService.resolveId('property', args.propertyName, context.companyId);
           }
 
           // Filter gate: require at least one meaningful filter
@@ -726,11 +830,11 @@ export class AiReadToolService {
           // Resolve names → IDs
           let invTenantId = args?.tenantId;
           if (!invTenantId && args?.tenantName) {
-            invTenantId = await this.resolveEntityName('tenant', args.tenantName, context.companyId);
+            invTenantId = await this.resolutionService.resolveId('tenant', args.tenantName, context.companyId);
           }
           let invPropertyId = args?.propertyId;
           if (!invPropertyId && args?.propertyName) {
-            invPropertyId = await this.resolveEntityName('property', args.propertyName, context.companyId);
+            invPropertyId = await this.resolutionService.resolveId('property', args.propertyName, context.companyId);
           }
 
           if (!args?.leaseId && !invTenantId && !invPropertyId && !args?.status) {
@@ -757,17 +861,33 @@ export class AiReadToolService {
         }
 
         case 'list_expenses': {
+          const expPropertyId = await this.resolutionService.resolveId('property', args?.propertyId, context.companyId);
           const expenses = await this.prisma.expense.findMany({
-            where: { companyId: context.companyId, deletedAt: null },
-            include: { property: true, unit: true },
-            take: args?.limit || 20,
+            where: {
+              companyId: context.companyId,
+              deletedAt: null,
+              ...(expPropertyId ? { propertyId: expPropertyId } : {}),
+              ...(args?.category ? { category: args.category } : {}),
+            },
+            include: { property: { select: { name: true } }, unit: { select: { unitNumber: true } } },
+            take: this.resolveSmartLimit(args, 10, 25),
+            orderBy: { date: 'desc' },
           });
           return expenses;
         }
 
+        case 'get_expense_details': {
+          const expense = await this.prisma.expense.findUnique({
+            where: { id: args.expenseId },
+            include: { property: true, unit: true },
+          });
+          if (!expense || expense.companyId !== context.companyId) return { error: 'Expense not found.' };
+          return expense;
+        }
+
         case 'get_tenant_statement': {
           const tenant = await this.prisma.tenant.findUnique({
-            where: { id: args.tenantId },
+            where: { id: args?.tenantId },
             include: {
               leases: {
                 include: {
@@ -787,7 +907,7 @@ export class AiReadToolService {
         }
 
         case 'search_units': {
-          const isGeneric = this.isGenericQuery(args.query);
+          const isGeneric = this.isGenericQuery(args?.query);
           const vectorIds =
             !isGeneric && args.query
               ? await this.vectorSearch('UNIT', args.query, context.companyId)
@@ -833,11 +953,11 @@ export class AiReadToolService {
           // Resolve names → IDs
           let leaseTenantId = args?.tenantId;
           if (!leaseTenantId && args?.tenantName) {
-            leaseTenantId = await this.resolveEntityName('tenant', args.tenantName, context.companyId);
+            leaseTenantId = await this.resolutionService.resolveId('tenant', args.tenantName, context.companyId);
           }
           let leasePropertyId = args?.propertyId;
           if (!leasePropertyId && args?.propertyName) {
-            leasePropertyId = await this.resolveEntityName('property', args.propertyName, context.companyId);
+            leasePropertyId = await this.resolutionService.resolveId('property', args.propertyName, context.companyId);
           }
 
           const leases = await this.prisma.lease.findMany({
@@ -858,7 +978,7 @@ export class AiReadToolService {
         case 'get_lease_details': {
           const lease = await this.prisma.lease.findFirst({
             where: {
-              id: args.leaseId,
+              id: args?.leaseId,
               deletedAt: null,
               property: { companyId: context.companyId, deletedAt: null },
             },
@@ -887,9 +1007,9 @@ export class AiReadToolService {
               companyId: context.companyId,
               deletedAt: null,
               OR: [
-                { firstName: { contains: args.query, mode: 'insensitive' } },
-                { lastName: { contains: args.query, mode: 'insensitive' } },
-                { email: { contains: args.query, mode: 'insensitive' } },
+                { firstName: { contains: args?.query, mode: 'insensitive' } },
+                { lastName: { contains: args?.query, mode: 'insensitive' } },
+                { email: { contains: args?.query, mode: 'insensitive' } },
               ],
             },
             take: args?.limit || 20,
@@ -924,9 +1044,9 @@ export class AiReadToolService {
               role: UserRole.COMPANY_STAFF,
               isActive: true,
               OR: [
-                { firstName: { contains: args.query, mode: 'insensitive' } },
-                { lastName: { contains: args.query, mode: 'insensitive' } },
-                { email: { contains: args.query, mode: 'insensitive' } },
+                { firstName: { contains: args?.query, mode: 'insensitive' } },
+                { lastName: { contains: args?.query, mode: 'insensitive' } },
+                { email: { contains: args?.query, mode: 'insensitive' } },
               ],
             },
             select: {
@@ -1122,78 +1242,6 @@ export class AiReadToolService {
   }
 
   /**
-   * Resolve a human-readable name to a database ID.
-   * Tries exact match first, then case-insensitive fuzzy match.
-   * Returns null if nothing found — caller should handle gracefully.
-   */
-  private async resolveEntityName(
-    entity: 'tenant' | 'property' | 'unit' | 'company',
-    name: string,
-    companyId: string,
-  ): Promise<string | null> {
-    if (!name?.trim()) return null;
-    const q = name.trim();
-
-    if (entity === 'tenant') {
-      const parts = q.split(/\s+/);
-      const first = parts[0];
-      const last = parts.length > 1 ? parts[parts.length - 1] : undefined;
-      const orConditions: { firstName?: any; lastName?: any }[] = [
-        { firstName: { contains: first, mode: 'insensitive' as const } },
-        { lastName: { contains: first, mode: 'insensitive' as const } },
-      ];
-      if (last) {
-        orConditions.push({ firstName: { contains: last, mode: 'insensitive' as const } });
-        orConditions.push({ lastName: { contains: last, mode: 'insensitive' as const } });
-      }
-      const match = await this.prisma.tenant.findFirst({
-        where: { companyId, deletedAt: null, OR: orConditions },
-        select: { id: true },
-      });
-      return match?.id ?? null;
-    }
-
-    if (entity === 'property') {
-      const match = await this.prisma.property.findFirst({
-        where: {
-          companyId,
-          deletedAt: null,
-          name: { contains: q, mode: 'insensitive' },
-        },
-        select: { id: true },
-      });
-      return match?.id ?? null;
-    }
-
-    if (entity === 'unit') {
-      const match = await this.prisma.unit.findFirst({
-        where: {
-          deletedAt: null,
-          property: { companyId, deletedAt: null },
-          OR: [
-            { unitNumber: { contains: q, mode: 'insensitive' } },
-            { semanticTags: { contains: q, mode: 'insensitive' } },
-          ],
-        },
-        select: { id: true },
-      });
-      return match?.id ?? null;
-    }
-
-    if (entity === 'company') {
-      const match = await this.prisma.company.findFirst({
-        where: {
-          name: { contains: q, mode: 'insensitive' },
-        },
-        select: { id: true },
-      });
-      return match?.id ?? null;
-    }
-
-    return null;
-  }
-
-  /**
    * Resolves the result limit for list queries.
    * Default is conservative (10), hard cap prevents token blowup.
    * @param args - tool args from the AI
@@ -1237,7 +1285,14 @@ export class AiReadToolService {
     const start = args?.dateFrom
       ? new Date(args.dateFrom)
       : new Date(Date.now() - defaultDays * 24 * 60 * 60 * 1000);
-    const end = args?.dateTo ? new Date(args.dateTo) : new Date();
+    
+    let end = new Date();
+    if (args?.dateTo) {
+      end = new Date(args.dateTo);
+      // Make end of day inclusive if it's a date string
+      end.setHours(23, 59, 59, 999);
+    }
+    
     return { start, end };
   }
 }
