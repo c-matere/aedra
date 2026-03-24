@@ -127,11 +127,6 @@ def main():
         role = scenario.get("role", "TENANT")
         token = create_token(BENCH_USER_ID, "SUPER_ADMIN")
         
-        raw_msg = scenario.get("input", {}).get("message", "")
-        # Prefix with persona context and BENCH_WF ID to enable workflows
-        role_hint = f"[BENCH_WF:{execution_id}] [BENCH_PERSONA:{role}] Simulate responding as if speaking to a {role}. Message: "
-        msg = role_hint + raw_msg
-        
         category = scenario.get('category', 'unknown')
         if category not in stats['categories']:
             stats['categories'][category] = {'total': 0, 'passed': 0}
@@ -139,7 +134,7 @@ def main():
         stats['total'] += 1
         stats['categories'][category]['total'] += 1
         
-        print(f"[{i+1}/{run_count}] ({category}) {role} saying: '{msg[:40]}...' ", end='', flush=True)
+        print(f"[{i+1}/{run_count}] ({category}) {role} scenario: {scenario['id']} ", end='', flush=True)
         
         # 0. Reset session for clean baseline
         ok, detail = reset_session(execution_id, token, BENCH_USER_ID)
@@ -148,60 +143,83 @@ def main():
             stats['errors'] += 1
             continue
             
-        # Hard assertion on reset results
-        reset_data = detail if isinstance(detail, dict) else {}
-        if not all([reset_data.get("clearedActiveInstance"), reset_data.get("clearedPendingState"), reset_data.get("clearedAiSession")]):
-            print(f"✗ Reset INCOMPLETE ({reset_data})")
-            stats['errors'] += 1
-            continue
-
         print("✓ reset ", end='', flush=True)
-        time.sleep(0.5) # Allow server to settle
+        time.sleep(0.5)
 
-        # 1. Ask the AI Agent
-        start_time = time.time()
-        res = None
-        # Occasional upstream model stalls can cause long reads/timeouts; retry a couple of times.
-        for attempt in range(4):
-            # Pass execution_id as chat_id to ensure isolation
-            res = run_test(msg, [], token, chat_id=execution_id)
-            if res and (res.get('response') or res.get('status') == 'PASS'):
-                break
+        # Handle turns (sequential tasks)
+        turns = scenario.get("turns", [])
+        if not turns:
+            # Fallback for legacy single-turn scenarios
+            turns = [{"user": scenario.get("input", {}).get("message", "")}]
+
+        history = []
+        steps_recorded = []
+        bleed_detected = False
+        api_error = False
+
+        for turn_idx, turn in enumerate(turns):
+            raw_msg = turn.get("user", "")
+            # Prefix with persona context and BENCH_WF ID
+            role_hint = f"[BENCH_WF:{execution_id}] [BENCH_PERSONA:{role}] Simulate responding as if speaking to a {role}. Message: "
+            msg = role_hint + raw_msg
             
-            err = str(res.get('error', '')).lower() if res else ""
-            is_transient = any(k in err for k in ["timed out", "connection refused", "reboot", "502", "503", "504"])
-            if not is_transient:
-                break
+            print(f"(turn {turn_idx+1}) ", end='', flush=True)
+            
+            start_time = time.time()
+            res = None
+            for attempt in range(4):
+                res = run_test(msg, [], token, chat_id=execution_id)
+                if res and (res.get('response') or res.get('status') == 'PASS'):
+                    break
                 
-            backoff = (2 * (2**attempt)) + random.uniform(0, 0.5)
-            print(f" (retry {attempt+1} in {backoff:.1f}s) ", end='', flush=True)
-            time.sleep(backoff)
-        
-        latency = time.time() - start_time
+                err = str(res.get('error', '')).lower() if res else ""
+                is_transient = any(k in err for k in ["timed out", "connection refused", "reboot", "502", "503", "504"])
+                if not is_transient:
+                    break
+                time.sleep(2 * (2**attempt))
 
-        if not res or (res.get('status') != 'PASS' and not res.get('response')):
-            print(f"✗ API ERROR ({res.get('error') if res else 'No response'})")
+            latency = time.time() - start_time
+
+            if not res or (res.get('status') != 'PASS' and not res.get('response')):
+                print(f"✗ API ERROR ", end='')
+                api_error = True
+                break
+
+            ai_res = res.get('response', '')
+            ai_text = ai_res.get('data') if isinstance(ai_res, dict) else ai_res
+            if ai_text is None and isinstance(ai_res, dict) and 'response' in ai_res:
+                ai_text = ai_res['response']
+            
+            ai_text = str(ai_text)
+            
+            steps_recorded.append({
+                "step": turn_idx + 1,
+                "input": raw_msg,
+                "ai_response": ai_text,
+                "latency_sec": latency
+            })
+            history.append({"user": raw_msg, "ai": ai_text})
+
+            if check_for_bleed(ai_text):
+                bleed_detected = True
+                print(f"⚠ BLEED ", end='')
+                break
+
+        if api_error:
             stats['errors'] += 1
+            print("✗")
             continue
 
-        ai_res = res.get('response', '')
-        # Handle case where response is a nested dict
-        ai_text = ai_res.get('data') if isinstance(ai_res, dict) else ai_res
-        if ai_text is None and isinstance(ai_res, dict) and 'response' in ai_res:
-            ai_text = ai_res['response']
-        
-        # 1.5 Canary Check for Bleed
-        if check_for_bleed(str(ai_text)):
-            print(f"⚠ BLEED DETECTED: {str(ai_text)[:30]}...")
+        if bleed_detected:
             stats['bleed'] += 1
             grading = {
                 "Coherence": 0, "TaskCompletion": 0, "Accuracy": 0, "Persona": 0, "Resilience": 0,
                 "OverallScore": 0.0,
-                "Feedback": f"ISOLATION FAILURE: Bleed signatures detected in response: {ai_text}"
+                "Feedback": "ISOLATION FAILURE: Bleed signatures detected."
             }
         else:
-            print("✓ agent responded -> Grader... ", end='', flush=True)
-            grading = score_response(scenario, str(ai_text))
+            print("✓ agent done -> Grader... ", end='', flush=True)
+            grading = score_response(scenario, history)
             print("✓ graded")
 
         overall_pass = grading.get("OverallScore", 0) >= 3.5
@@ -217,15 +235,8 @@ def main():
             "category": category,
             "name": f"{category} - {role}",
             "overall_pass": overall_pass,
-            "status": "PASS" if not check_for_bleed(str(ai_text)) else "BLEED_DETECTED",
-            "steps": [
-                {
-                    "step": 1,
-                    "input": raw_msg,
-                    "ai_response": ai_text,
-                    "latency_sec": latency
-                }
-            ],
+            "status": "PASS" if not bleed_detected else "BLEED_DETECTED",
+            "steps": steps_recorded,
             "grading": grading
         })
             

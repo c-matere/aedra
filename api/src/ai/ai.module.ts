@@ -11,6 +11,7 @@ import { MessagingModule } from '../messaging/messaging.module';
 import { AuthService } from '../auth/auth.service';
 import { UnitsModule } from '../units/units.module';
 import { CacheModule } from '@nestjs/cache-manager';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 import { AuditModule } from '../audit/audit.module';
 import { ValidationService } from './validation.service';
@@ -44,6 +45,16 @@ import { TodoModule } from '../todo/todo.module';
 import { AiPythonExecutorService } from './ai-python-executor.service';
 import { WaCrudButtonsService } from './wa-crud-buttons.service';
 import { AutonomousAgentService } from './autonomous-agent.service';
+import { AiEntityResolutionService } from './ai-entity-resolution.service';
+import { ContextMemoryService } from './context-memory.service';
+import { AiDecisionSpineService } from './ai-decision-spine.service';
+import { AiSecurityService } from './ai-security.service';
+import { AiHistoryService } from './ai-history.service';
+import { AiBenchmarkService } from './ai-benchmark.service';
+import { AiPromptService } from './ai-prompt.service';
+import { AiFormatterService } from './ai-formatter.service';
+import { AiStateEngineService } from './ai-state-engine.service';
+import { AiResponseValidatorService } from './ai-response-validator.service';
 
 @Module({
   imports: [
@@ -94,8 +105,22 @@ import { AutonomousAgentService } from './autonomous-agent.service';
     AiPythonExecutorService,
     WaCrudButtonsService,
     AutonomousAgentService,
+    AiEntityResolutionService,
+    ContextMemoryService,
+    AiDecisionSpineService,
+    AiSecurityService,
+    AiHistoryService,
+    AiBenchmarkService,
+    AiPromptService,
+    AiFormatterService,
+    AiStateEngineService,
+    AiResponseValidatorService,
+    {
+      provide: GoogleGenerativeAI,
+      useFactory: () =>
+        new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy-key'),
+    },
   ],
-
   exports: [
     AiService,
     ResponsePipelineService,
@@ -127,6 +152,16 @@ import { AutonomousAgentService } from './autonomous-agent.service';
     AiPythonExecutorService,
     WaCrudButtonsService,
     AutonomousAgentService,
+    AiEntityResolutionService,
+    ContextMemoryService,
+    AiDecisionSpineService,
+    AiSecurityService,
+    AiHistoryService,
+    AiBenchmarkService,
+    AiPromptService,
+    AiFormatterService,
+    AiStateEngineService,
+    AiResponseValidatorService,
   ],
 })
 export class AiModule {}
