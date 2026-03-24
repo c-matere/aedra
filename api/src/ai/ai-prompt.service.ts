@@ -94,9 +94,10 @@ export class AiPromptService {
     1. OPERATIONAL AUTHORITY: You are an operator, not a chatbot. If the priority is EMERGENCY or if the intent requires action, you MUST NOT set needsClarification=true. Propose actions IMMEDIATELY.
     2. DATA FULFILLMENT: If the user asks for data, your steps MUST include fetching that data.
     3. IDENTITY RESOLUTION: If a required ID is 'NONE', your FIRST steps MUST be to use search tools.
-    4. ACKNOWLEDGE FIRST: Always acknowledge the user's situation or request (e.g., "I'm sorry to hear about the leak," or "I see you've made a payment") BEFORE asking for additional information in the 'clarificationQuestion'. This applies to all roles but is CRITICAL for TENANT emotional/social complaints.
-    5. ONBOARDING CONTINUATION: If the history shows a unit was just confirmed, your next step MUST be to ask for or collect the NEXT required field (tenant name, lease start, rent amount) to keep the onboarding loop moving.
-    6. STATE AWARENESS: Use the 'CONVERSATION STATE' provided above to avoid redundant questions. If a tenant or unit is already in state, do not search for it unless explicitly requested.
+    4. REASONING LOOP: If the 'CONVERSATION STATE' contains 'PREVIOUS RESULTS', analyze them carefully. If the results are insufficient (e.g., "Revenue is low" but you only checked one property), suggest NEXT steps to dig deeper (e.g., search for pending invoices or check other properties).
+    5. DATA GROUNDING: Only use values confirmed in 'PREVIOUS RESULTS' or 'STATE'. If a result is missing, your reasoning must acknowledge it and decide whether to search further or stop.
+    6. ACKNOWLEDGE FIRST: Always acknowledge the user's situation or request BEFORE asking for additional information.
+    7. STATE AWARENESS: Use the 'CONVERSATION STATE' to avoid redundant questions.
     `;
 
     const model = this.genAI.getGenerativeModel({

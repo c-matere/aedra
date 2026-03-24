@@ -17,16 +17,29 @@ export class AiStateEngineService {
    * This is a "pre-planning" step to ensure the planner has a current view of the conversation subject.
    */
   async extractState(chatId: string, message: string, history: any[]): Promise<void> {
-    const prompt = `Analyze the following user message and conversation history. 
-    Identify if the user has confirmed or mentioned a specific Tenant Name, Unit Number (e.g. A1, 101), or a Maintenance Issue type.
+    const context = await this.contextMemory.getContext(chatId);
     
-    Current Message: "${message}"
+    // INTENT ANCHORING: Provide the last intent to help the model resolve fragments (e.g. "C2" -> Unit selection for "Report Leak")
+    const prompt = `Analyze the user message. 
+    CURRENT CONTEXT:
+    - Last Intent: ${context.lastIntent || 'NONE'}
+    - Active Unit: ${context.activeUnitId || 'NONE'}
+    - Active Tenant: ${context.activeTenant?.name || 'NONE'}
+    
+    User Message: "${message}"
+    
+    EXTRACT:
+    - tenantName: if mentioned or confirmed
+    - unitNumber: if mentioned (even if just "C2" or "unit 5")
+    - issueType: if mentioned
+    - intent: if the user is switching topics, or "CONTINUE" if they are providing details for the Last Intent.
     
     RESPONSE FORMAT: JSON only.
     {
       "tenantName": string | null,
       "unitNumber": string | null,
-      "issueType": string | null
+      "issueType": string | null,
+      "intent": string | "CONTINUE"
     }
     `;
 
@@ -39,9 +52,13 @@ export class AiStateEngineService {
       const extracted = JSON.parse(result.response.text());
 
       const updates: Partial<SessionContext> = {};
-      if (extracted.tenantName) updates.activeTenant = { id: 'PENDING', name: extracted.tenantName };
-      if (extracted.unitNumber) updates.activeUnitId = extracted.unitNumber; // We use unitNumber as ID temporarily or for lookup
-      if (extracted.issueType) updates.activeIssue = { id: 'PENDING', type: extracted.issueType, status: 'identified' };
+      if (extracted.tenantName) updates.activeTenant = { ...context.activeTenant, id: context.activeTenant?.id || 'PENDING', name: extracted.tenantName };
+      if (extracted.unitNumber) updates.activeUnitId = extracted.unitNumber;
+      if (extracted.issueType) updates.activeIssue = { ...context.activeIssue, id: context.activeIssue?.id || 'PENDING', type: extracted.issueType, status: context.activeIssue?.status || 'identified' };
+      
+      if (extracted.intent && extracted.intent !== 'CONTINUE') {
+        updates.lastIntent = extracted.intent;
+      }
 
       if (Object.keys(updates).length > 0) {
         await this.contextMemory.setContext(chatId, updates);
@@ -50,6 +67,21 @@ export class AiStateEngineService {
     } catch (e) {
       this.logger.error(`[StateEngine] Failed to extract state: ${e.message}`);
     }
+  }
+
+  /**
+   * Resolves the primary intent by combining message classification and state history.
+   */
+  async resolveIntent(chatId: string, message: string, classification: any): Promise<string> {
+    const context = await this.contextMemory.getContext(chatId);
+    
+    // If classification is weak but we have a lastIntent, favor the lastIntent (Intent Continuity)
+    if (classification.confidence < 0.6 && context.lastIntent) {
+      this.logger.log(`[StateEngine] Weak classification (${classification.intent}), anchoring to last intent: ${context.lastIntent}`);
+      return context.lastIntent;
+    }
+    
+    return classification.intent;
   }
 
   /**

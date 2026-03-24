@@ -130,6 +130,24 @@ export class AiToolRegistryService {
     );
   }
 
+  /**
+   * Identifies tools that provide "LOCKED" ground-truth data (e.g. financial or core property status).
+   * These outputs must be strictly bound to the final response to prevent hallucinations.
+   */
+  isAuthoritative(name: string): boolean {
+    const authoritativeTools = [
+      'get_tenant_arrears',
+      'list_payments',
+      'get_unit_details',
+      'get_lease_details',
+      'get_collection_rate',
+      'get_maintenance_status',
+      'get_occupancy_stats',
+      'search_tenants',
+    ];
+    return authoritativeTools.includes(name);
+  }
+
   private isReadTool(name: string): boolean {
     const readPrefixes = ['list_', 'get_', 'search_', 'view_'];
     const isRead =

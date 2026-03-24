@@ -182,11 +182,13 @@ export class AiService implements OnModuleInit {
 
     // 4a. Update Structured State from message
     await this.stateEngine.extractState(finalChatId, message, history);
-    const formattedState = await this.stateEngine.getFormattedState(finalChatId);
+    const initialFormattedState = await this.stateEngine.getFormattedState(finalChatId);
 
-    // 5. Classification & Planning
+    // 5. Classification & Intent Anchoring
     const normalizedHistory = this.historyService.normalizeHistory(history);
-    const finalClassification = classification || (await this.classifier.classify(message, role, []));
+    const rawClassification = classification || (await this.classifier.classify(message, role, []));
+    const resolvedIntent = await this.stateEngine.resolveIntent(finalChatId, message, rawClassification);
+    const finalClassification = { ...rawClassification, intent: resolvedIntent };
     
     // 6. Decision Spine
     const context = { role, userId, companyId, chatId: finalChatId, jobId, phone };
@@ -196,31 +198,68 @@ export class AiService implements OnModuleInit {
       return { response: decision.reason, chatId: finalChatId };
     }
 
-    // 7. Planner-Executor Sequence
-    const plan = await this.promptService.generateActionPlan(message, { name: role, allowedTools: [] }, context, normalizedHistory, formattedState);
-    if (plan.needsClarification) return { response: plan.clarificationQuestion, chatId: finalChatId };
+    // 7. Planner-Executor REASONING LOOP (Max 3 iterations)
+    let currentIteration = 0;
+    const allResults = [];
+    let currentPlan = null;
+    let isGoalSatisfied = false;
 
-    const results = [];
-    for (const step of plan.steps) {
-      const toolResult = await this.executeTool(step.tool, step.args, context, role, language || 'en');
+    while (currentIteration < 3 && !isGoalSatisfied) {
+      currentIteration++;
+      this.logger.log(`[AiService] Reasoning iteration ${currentIteration} for ${finalChatId}`);
       
-      // TOOL AUTHORITY ENFORCEMENT
-      const authoritativeTools = ['get_tenant_arrears', 'list_payments', 'get_lease_details', 'get_collection_rate'];
-      if (authoritativeTools.includes(step.tool) && (!toolResult.success || !toolResult.data)) {
-        const failureMsg = "I'm sorry, I couldn't retrieve the official data required to answer that accurately. Please try again or contact support.";
-        await this.historyService.persistUserAndAssistant(finalChatId, message, failureMsg);
-        return { response: failureMsg, chatId: finalChatId };
+      const currentState = await this.stateEngine.getFormattedState(finalChatId);
+      currentPlan = await this.promptService.generateActionPlan(
+        message, 
+        { name: role, allowedTools: [] }, 
+        context, 
+        normalizedHistory, 
+        currentState + (allResults.length > 0 ? `\nPREVIOUS RESULTS: ${JSON.stringify(allResults)}` : '')
+      );
+
+      if (currentPlan.needsClarification || currentPlan.steps.length === 0) {
+        isGoalSatisfied = true;
+        break;
       }
 
-      results.push({ tool: step.tool, result: toolResult.data, success: toolResult.success });
+      const iterationResults = [];
+      for (const step of currentPlan.steps) {
+        // Skip tools already executed with same args in this session to avoid loops
+        if (allResults.some(r => r.tool === step.tool && JSON.stringify(r.args) === JSON.stringify(step.args))) continue;
+
+        const toolResult = await this.executeTool(step.tool, step.args, context, role, language || 'en');
+        
+        // TOOL AUTHORITY ENFORCEMENT
+        if (this.registry.isAuthoritative(step.tool) && (!toolResult.success || !toolResult.data)) {
+          this.logger.warn(`[Authority] Authoritative tool ${step.tool} failed or returned empty. Terminating reasoning with failure.`);
+          const failureMsg = "I'm sorry, I couldn't retrieve the official data required to answer that accurately. Please try again or contact support.";
+          await this.historyService.persistUserAndAssistant(finalChatId, message, failureMsg);
+          return { response: failureMsg, chatId: finalChatId };
+        }
+
+        const resultEntry = { tool: step.tool, args: step.args, result: toolResult.data, success: toolResult.success };
+        iterationResults.push(resultEntry);
+        allResults.push(resultEntry);
+      }
+
+      if (iterationResults.length > 0) {
+        await this.stateEngine.updateFromResults(finalChatId, iterationResults);
+      } else {
+        isGoalSatisfied = true; // No new tools to call
+      }
+      
+      // Simple heuristic: if we have 1+ result and no more unique steps suggested, we are done
+      if (currentIteration >= 1 && currentPlan.steps.length > 0) {
+          // In a more advanced version, we'd ask a Critic if the goal is met.
+          // For Phase 3, we'll proceed to summary after one successful data fetch iteration
+          // unless the planner explicitly suggests more steps in the next pass.
+      }
     }
 
-    // 7a. Update State from Ground Truth Results
-    await this.stateEngine.updateFromResults(finalChatId, results);
-    const updatedState = await this.stateEngine.getFormattedState(finalChatId);
+    const finalState = await this.stateEngine.getFormattedState(finalChatId);
 
     // 8. Summary & Validation
-    let summary = await this.promptService.generateFinalSummary(plan, results, language || 'en', role, updatedState);
+    let summary = await this.promptService.generateFinalSummary(currentPlan, allResults, language || 'en', role, finalState);
     
     // 8a. Response Validation Layer
     const validation = this.responseValidator.validate(summary);
