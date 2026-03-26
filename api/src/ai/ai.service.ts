@@ -20,30 +20,27 @@ import {
   AiClassifierService,
   ClassificationResult,
 } from './ai-classifier.service';
-import {
-  getSessionUid,
-} from './ai-tool-selector.util';
-import {
-  ActionResult,
-} from './next-step-orchestrator.service';
+import { getSessionUid } from './ai-tool-selector.util';
+import { ActionResult } from './next-step-orchestrator.service';
 import { AiToolRegistryService } from './ai-tool-registry.service';
 import { ContextMemoryService } from './context-memory.service';
-import { AiDecisionSpineService } from './ai-decision-spine.service';
-import { AiSecurityService } from './ai-security.service';
-import { AiHistoryService } from './ai-history.service';
-import { AiBenchmarkService } from './ai-benchmark.service';
+import { AiEntityResolutionService } from './ai-entity-resolution.service';
 import { AiPromptService } from './ai-prompt.service';
-import { AiFormatterService } from './ai-formatter.service';
-import { WhatsAppFormatterService } from './whatsapp-formatter.service';
-import { AiWhatsappOrchestratorService } from './ai-whatsapp-orchestrator.service';
-import { ConsistencyValidatorService } from './consistency-validator.service';
 import { AiNextStepController } from './ai-next-step-controller.service';
-import { AiFactCheckerService } from './ai-fact-checker.service';
-import { AiValidatorService } from './ai-validator.service';
+import { AiFormatterService } from './ai-formatter.service';
+import { AiSecurityService } from './ai-security.service';
+import { AiIntentNormalizerService } from './ai-intent-normalizer.service';
+import { AiHistoryService } from './ai-history.service';
 import { AiIntentFirewallService } from './ai-intent-firewall.service';
 import { AiStateEngineService } from './ai-state-engine.service';
+import { AiBenchmarkService } from './ai-benchmark.service';
+import { WhatsAppFormatterService } from './whatsapp-formatter.service';
+import { AiFactCheckerService } from './ai-fact-checker.service';
+import { AiValidatorService } from './ai-validator.service';
 import { AiResponseValidatorService } from './ai-response-validator.service';
-import { AiIntentNormalizerService } from './ai-intent-normalizer.service';
+import { AiDecisionSpineService } from './ai-decision-spine.service';
+import { AiWhatsappOrchestratorService } from './ai-whatsapp-orchestrator.service';
+import { ConsistencyValidatorService } from './consistency-validator.service';
 
 @Injectable()
 export class AiService implements OnModuleInit {
@@ -127,6 +124,14 @@ export class AiService implements OnModuleInit {
     }
   }
 
+  private readonly WORKFLOW_MAP: Record<string, string[]> = {
+    'FINANCIAL_QUERY': ['kernel_search', 'get_tenant_arrears', 'render_financial_dashboard'],
+    'LATE_PAYMENT': ['kernel_search', 'get_tenant_arrears', 'log_payment_promise'],
+    'MAINTENANCE': ['kernel_search', 'kernel_validation', 'log_maintenance_request'],
+    'ONBOARDING': ['kernel_validation', 'register_tenant', 'create_lease'],
+    'FINANCIAL_REPORTING': ['get_revenue_summary', 'get_collection_rate', 'manual_aggregation']
+  };
+
   async chat(
     history: any[],
     message: string,
@@ -166,6 +171,9 @@ export class AiService implements OnModuleInit {
       const firewallDecision = this.firewall.intercept(message);
       const semanticHint = this.normalizer.normalize(message);
       resolvedIntent = firewallDecision.intent || semanticHint.intentHint || 'GENERAL_QUERY';
+      if (message.toLowerCase().includes('report') || message.toLowerCase().includes('summary') || message.toLowerCase().includes('portfolio')) {
+        resolvedIntent = 'FINANCIAL_REPORTING';
+      }
       
       if (firewallDecision.isIntercepted && firewallDecision.message) {
         return { response: firewallDecision.message, chatId: finalChatId };
@@ -179,14 +187,34 @@ export class AiService implements OnModuleInit {
 
       const normalizedHistory = await this.historyService.getMessageHistory(finalChatId);
       const sessionContext = await this.contextMemory.getContext(finalChatId);
-      // 1. AEDRA EXECUTION KERNEL v1 (Deterministic Orchestration)
-      const kernelResult = await this.runKernel(message, sessionContext, resolvedIntent, resolvedCompanyId, phone, userId, role, language);
+      
+      // 1b. Workflow Resumption (State Continuity - Phase 14)
+      let activeWorkflow = sessionContext.activeWorkflow;
+      if (activeWorkflow && activeWorkflow.status === 'IN_PROGRESS') {
+        this.logger.log(`[WSE] Resuming active workflow: ${activeWorkflow.intent}`);
+        resolvedIntent = activeWorkflow.intent;
+      } else if (this.WORKFLOW_MAP[resolvedIntent]) {
+        this.logger.log(`[WSE] Initializing new workflow: ${resolvedIntent}`);
+        activeWorkflow = {
+          intent: resolvedIntent,
+          status: 'IN_PROGRESS',
+          steps: this.WORKFLOW_MAP[resolvedIntent].map(s => ({ name: s, status: 'PENDING' })),
+          currentStepIndex: 0,
+          entities: {},
+          bufferedData: {},
+          updatedAt: new Date().toISOString()
+        };
+      }
 
+      // 2. AEDRA EXECUTION KERNEL v1 (Deterministic Orchestration)
+      const kernelResult = await this.runKernel(message, sessionContext, resolvedIntent, resolvedCompanyId, phone, userId, role, language);
+      
       const dynamicContext: any = {
         role,
         userId,
         companyId: resolvedCompanyId,
         ...kernelResult.context,
+        activeWorkflow,
         virtualLedger: kernelResult.virtualLedger,
         activeTransaction: kernelResult.activeTransaction,
         executionMode: kernelResult.executionMode
@@ -224,7 +252,16 @@ export class AiService implements OnModuleInit {
           let toolRes = await this.registry.executeTool(toolName, toolArgs, dynamicContext, role, language || 'en');
           allResults.push({ tool: toolName, args: toolArgs, result: toolRes.data, success: toolRes.success });
 
-          // 3. Execution Pipeline (Reconciliation & Resolution)
+          // 3. Workflow Tracking (Phase 14)
+          if (activeWorkflow) {
+            const stepIdx = activeWorkflow.steps.findIndex(s => s.name === toolName);
+            if (stepIdx !== -1) {
+              activeWorkflow.steps[stepIdx].status = toolRes.success ? 'COMPLETED' : 'FAILED';
+              activeWorkflow.steps[stepIdx].result = toolRes.data;
+            }
+          }
+
+          // 3b. Execution Pipeline (Reconciliation)
           if (toolName === 'get_tenant_arrears' && toolRes.success) {
             const arrears = toolRes.data?.totalArrears || 0;
             dynamicContext.virtualLedger.recordedArrears = arrears;
@@ -235,20 +272,11 @@ export class AiService implements OnModuleInit {
           if (toolRes.entities) await this.contextMemory.stitch(finalChatId, toolRes.entities);
         }
 
-        if (currentPlan.response || allResults.length > 0) {
-          // Phase 8: Intent-First Guard (Acknowledge before Blocking)
-          const highConfidenceIntents = ['LATE_PAYMENT', 'NOISE_COMPLAINT', 'EMERGENCY', 'TENANT_DISPUTE'];
-          const hasActionInResults = allResults.some(r => 
-            r.success || 
-            r.tool === 'manual_aggregation' || 
-            r.tool === 'disambiguation_candidates' ||
-            r.tool === 'log_tenant_incident'
-          );
-          
-          if (highConfidenceIntents.includes(resolvedIntent) && (currentPlan.response || hasActionInResults)) break;
-          
-          if (allResults.length > 0) break;
-        }
+        // 4. Execution Governor (Zero-Veto Check)
+        const mandatorySteps = activeWorkflow?.steps.filter(s => s.status !== 'COMPLETED').map(s => s.name) || [];
+        const hasUnmetContract = mandatorySteps.length > 0 && iteration < 2;
+        
+        if (!hasUnmetContract && (currentPlan.response || allResults.length > 0)) break;
       }
 
       // 4. Outcome Synthesis (Zero-Failure Financial Engine)
@@ -290,25 +318,23 @@ export class AiService implements OnModuleInit {
         }
       }
 
-      // 5. Context Persistence (System of Record - Phase 12)
+      // 5. Truth Aggregation (Phase 15 - Hardening)
+      const truthObject = await this.aggregateTruth(resolvedIntent, allResults, dynamicContext, message);
+
+      // 6. Context Persistence (System of Record - Phase 14/15)
       await this.contextMemory.stitch(finalChatId, allResults.filter(r => r.success).map(r => ({ type: r.tool, id: r.result?.id || r.result?.tenantId })));
-      if (dynamicContext.virtualLedger) {
+      if (activeWorkflow) {
+        const allDone = activeWorkflow.steps.every(s => s.status === 'COMPLETED');
+        if (allDone) activeWorkflow.status = 'COMPLETED';
+        await this.contextMemory.setContext(finalChatId, { activeWorkflow, virtualLedger: dynamicContext.virtualLedger });
+      } else if (dynamicContext.virtualLedger) {
         await this.contextMemory.setContext(finalChatId, { virtualLedger: dynamicContext.virtualLedger });
       }
 
-      const summary = await this.promptService.generateFinalResponse(resolvedIntent, allResults, language || 'en', dynamicContext.virtualLedger);
+      const summary = await this.promptService.generateFinalResponse(resolvedIntent, allResults, language || 'en', dynamicContext.virtualLedger, activeWorkflow, truthObject);
 
-      // 5. Final Response
-      const finalState = await this.stateEngine.getFormattedState(finalChatId);
-      let finalResponse = currentPlan?.response || summary || await this.promptService.generateFinalSummary(
-        currentPlan || { intent: resolvedIntent, steps: [] }, 
-        allResults, 
-        language || 'en', 
-        role,
-        finalState,
-        temperature,
-        message
-      );
+      // 6. Final Response
+      let finalResponse = currentPlan?.response || summary;
 
       finalResponse = this.safeUserResponse(finalResponse, resolvedIntent);
       if (finalChatId) await this.historyService.persistUserAndAssistant(finalChatId, message, finalResponse);
@@ -489,19 +515,32 @@ export class AiService implements OnModuleInit {
     return this.promptService.getSystemInstruction(context);
   }
 
-  private async runKernel(message: string, sessionContext: any, intent: string, companyId?: string): Promise<any> {
+  private async runKernel(
+    message: string, 
+    sessionContext: any, 
+    intent: string, 
+    companyId?: string, 
+    phone?: string, 
+    userId?: string, 
+    role?: string, 
+    language?: string
+  ): Promise<any> {
     const preResults: any[] = [];
     let executionMode = 'CONFIRMED';
     const kernelContext: any = { ...sessionContext };
     const virtualLedger = sessionContext.virtualLedger || { recordedArrears: 0, recordedPayments: 0, balance: 0 };
     const activeTransaction = sessionContext.activeTransaction || {};
 
-    // 1. Zero-Trust Financial Intercept
-    const amountMatch = message.match(/(\d+[,.]?\d*)\s*(k|kil?o?|m|milli?o?n?|usd|ksh|sh)?/i);
-    const dateMatch = message.match(/(monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}(st|nd|rd|th)?|\d{1,2}\/\d{1,2})/i);
+    // 1. Zero-Trust Financial Intercept (Intent-Gated)
+    const interceptableIntents = ['LATE_PAYMENT', 'FINANCIAL_LOG'];
+    const isReportRequest = message.toLowerCase().includes('report') || message.toLowerCase().includes('summary') || message.toLowerCase().includes('portfolio');
+    const effectiveIntent = isReportRequest ? 'FINANCIAL_REPORTING' : intent;
+
+    const amountMatch = message.match(/\b(\d{2,}|[1-9])\b\s*(k|kil?o?|m|milli?o?n?|usd|ksh|sh)?/i);
+    const dateMatch = message.match(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}(st|nd|rd|th)?|\d{1,2}\/\d{1,2})\b/i);
     
-    if (amountMatch || dateMatch) {
-      if (amountMatch) {
+    if (interceptableIntents.includes(effectiveIntent) && !isReportRequest && (amountMatch || dateMatch)) {
+      if (amountMatch && !message.includes('A' + amountMatch[1]) && !message.includes('B' + amountMatch[1])) {
         let val = parseFloat(amountMatch[1].replace(',', ''));
         if (amountMatch[2]?.toLowerCase().startsWith('k')) val *= 1000;
         activeTransaction.amount = val;
@@ -514,9 +553,12 @@ export class AiService implements OnModuleInit {
 
     // 2. Three-Stage Search Pipeline (Exact -> Fuzzy -> Candidates)
     const normalizedIntents = ['FINANCIAL_QUERY', 'LATE_PAYMENT', 'TENANT_QUERY', 'MAINTENANCE', 'FINANCIAL_REPORTING'];
+    const strictIntents = ['FINANCIAL_QUERY', 'ONBOARDING', 'FINANCIAL_REPORTING'];
+    const isStrict = strictIntents.includes(intent);
+
     if (normalizedIntents.includes(intent)) {
       const name = message.match(/(?:for|from|ni)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/)?.[1] || message;
-      let res = await this.entityResolver.resolveId('tenant', name, companyId);
+      let res = await this.entityResolver.resolveId('tenant', name, companyId, undefined, isStrict);
       
       if (res.mode === 'NOT_FOUND' && name.length > 3) {
           res = await this.entityResolver.resolveId('tenant', name.substring(0, 4), companyId);
@@ -543,11 +585,11 @@ export class AiService implements OnModuleInit {
         try {
           const unit = await this.prisma.unit.findUnique({ 
             where: { id: unitId }, 
-            include: { leases: { where: { terminatedAt: null } } } 
+            include: { leases: { where: { deletedAt: null } } } 
           });
-          if (unit) {
-            kernelContext.unitStatus = unit.leases.length > 0 ? 'OCCUPIED' : 'VACANT';
-            preResults.push({ tool: 'kernel_validation', result: { unitId, status: kernelContext.unitStatus, leaseCount: unit.leases.length }, success: true });
+          if (unit && (unit as any).leases) {
+            kernelContext.unitStatus = (unit as any).leases.length > 0 ? 'OCCUPIED' : 'VACANT';
+            preResults.push({ tool: 'kernel_validation', result: { unitId, status: kernelContext.unitStatus, leaseCount: (unit as any).leases.length }, success: true });
           }
         } catch (e) {
           this.logger.error(`[Kernel] Validation failed: ${e.message}`);
@@ -556,5 +598,102 @@ export class AiService implements OnModuleInit {
     }
 
     return { preResults, executionMode, context: kernelContext, virtualLedger, activeTransaction };
+  }
+
+  private async aggregateTruth(intent: string, results: any[], context: any, message: string): Promise<any> {
+    const truthObject: any = {
+      computedAt: new Date().toISOString(),
+      intent,
+      data: {}
+    };
+
+    // 0. Perception Layer (Raw Extraction -> Grounding)
+    const rawCandidates = message.match(/(?:for|from|ni|weka|add|register|at|in|about)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+    const unitMatch = message.match(/\b([A-Z][a-z]?\d{1,3})\b/);
+    
+    const inputTruth: any = {};
+    if (rawCandidates) {
+      const entity = rawCandidates[1].replace(/\b(please|thanks|thank you)\b/gi, '').trim();
+      const matchText = rawCandidates[0].toLowerCase();
+      
+      // Grounding Rules
+      const isPropertyIntent = ['FINANCIAL_QUERY', 'FINANCIAL_REPORTING'].includes(intent);
+      const isOnboardingIntent = intent === 'ONBOARDING';
+      const hasPropertyKeyword = ['at', 'in', 'for'].some(k => matchText.startsWith(k));
+
+      if (isPropertyIntent || (hasPropertyKeyword && !isOnboardingIntent)) {
+        inputTruth.propertyName = entity;
+      } else {
+        inputTruth.tenantName = entity;
+      }
+    }
+    if (unitMatch) inputTruth.unitNumber = unitMatch[1];
+    truthObject.data.inputTruth = inputTruth;
+
+    // 1. Financial Truth (Revenue Fallback)
+    if (intent === 'FINANCIAL_REPORTING' || intent === 'FINANCIAL_QUERY') {
+      let revenue = results.find(r => r.tool === 'get_revenue_summary' && r.success)?.result?.totalRevenue;
+      
+      if (revenue === undefined || revenue === null) {
+        this.logger.log(`[TruthAggregator] Missing revenue. Triggering manual fallback summing.`);
+        let propertyId = results.find(r => r.tool === 'kernel_search' && r.success)?.result?.id || context.activePropertyId;
+        
+        // Phase 17: Grounding-based property resolution
+        if (!propertyId && inputTruth.propertyName) {
+          const prop = await this.prisma.property.findFirst({
+            where: { name: { contains: inputTruth.propertyName, mode: 'insensitive' }, companyId: context.companyId || undefined }
+          });
+          propertyId = prop?.id;
+        }
+
+        const cid = context.companyId || results.find(r => r.args?.companyId)?.args?.companyId;
+
+        if (propertyId) {
+          const payments = await this.prisma.payment.findMany({
+            where: { lease: { unit: { propertyId } }, deletedAt: null },
+            select: { amount: true }
+          });
+          revenue = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+          truthObject.data.revenueOrigin = 'PROPERTY_SUM';
+        } else if (cid) {
+          const payments = await this.prisma.payment.findMany({
+            where: { lease: { unit: { property: { companyId: cid } } }, deletedAt: null },
+            select: { amount: true }
+          });
+          revenue = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+          
+          const totalArrears = await this.prisma.invoice.aggregate({
+            where: { lease: { unit: { property: { companyId: cid } } }, status: 'UNPAID', deletedAt: null },
+            _sum: { amount: true }
+          });
+          
+          truthObject.data.portfolioArrears = totalArrears?._sum?.amount || 0;
+          truthObject.data.collectionRate = await this.getCollectionRate(cid);
+          truthObject.data.revenueOrigin = 'PORTFOLIO_SUM';
+        }
+      }
+      truthObject.data.totalRevenue = revenue;
+      truthObject.data.arrears = truthObject.data.portfolioArrears || context.virtualLedger?.recordedArrears || 0;
+      truthObject.data.balance = context.virtualLedger?.balance || 0;
+    }
+
+    // 2. Identity Truth (Merging Input with DB)
+    if (intent === 'ONBOARDING' || intent === 'TENANT_QUERY' || intent === 'FINANCIAL_QUERY') {
+      const dbMatch = results.find(r => r.tool === 'kernel_search' && r.success)?.result;
+      truthObject.data.tenantIdentity = {
+        name: dbMatch?.name || inputTruth.tenantName,
+        unit: dbMatch?.unit?.unitNumber || dbMatch?.unitNumber || inputTruth.unitNumber,
+        status: dbMatch ? 'VERIFIED' : (inputTruth.tenantName ? 'UNVERIFIED_CLAIM' : 'MISSING')
+      };
+    }
+
+    // 3. Maintenance Truth
+    if (intent === 'MAINTENANCE' || intent === 'EMERGENCY') {
+      truthObject.data.priority = intent === 'EMERGENCY' ? 'CRITICAL' : 'NORMAL';
+      truthObject.data.escalationRequired = intent === 'EMERGENCY';
+    }
+
+    this.logger.log(`[TruthAggregator] Outcome for ${intent}: ${JSON.stringify(truthObject.data)}`);
+    return truthObject;
   }
 }

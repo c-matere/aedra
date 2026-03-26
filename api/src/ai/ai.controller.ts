@@ -20,16 +20,26 @@ export class AiController {
       companyId?: string;
       companyName?: string;
       attachments?: any[];
+      temperature?: number;
     },
   ) {
-    return await this.aiService.chat(
-      body.history,
-      body.message,
-      body.chatId,
-      body.companyId,
-      body.companyName,
-      body.attachments,
-    );
+    try {
+      return await this.aiService.chat(
+        body.history,
+        body.message,
+        body.chatId,
+        body.companyId,
+        body.companyName,
+        body.attachments,
+        undefined, // language
+        undefined, // classification
+        undefined, // phone
+        body.temperature,
+      );
+    } catch (e) {
+      console.error(`[AiController] Critical Error: ${e.message}`, e.stack);
+      throw e;
+    }
   }
 
   @Post('chat/sessions')

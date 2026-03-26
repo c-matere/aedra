@@ -8,9 +8,8 @@ import { withRetry } from '../common/utils/retry';
 @Injectable()
 export class AiPromptService {
   private readonly logger = new Logger(AiPromptService.name);
-  private readonly primaryModel = 'gemini-1.5-pro'; // Use actual Gemini model for Gemini SDK
-  private readonly tier2Model = 'openai/gpt-oss-20b'; // Use gpt-oss-20b as the high-reliability tier on Groq
-  private readonly fallbackModel = 'llama-3.1-8b-instant';
+  private readonly primaryModel = 'openai/gpt-oss-20b';
+  private readonly fallbackModel = 'gemini-2.0-flash';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -170,10 +169,11 @@ export class AiPromptService {
        2. If unit is unknown, call search_tenants first.
     - FINANCIAL / REVENUE: 
        1. PLAN: [get_revenue_summary, list_properties].
-       2. If property check fails, retry with list_properties to find a fuzzy match.
-    - ONBOARDING:
-       1. PLAN: [check_plan_status, register_tenant]. 
-       2. You MUST call check_plan_status BEFORE register_tenant.
+       2. If propertyId is missing, call list_properties to find the target.
+    - ONBOARDING / "Add Tenant":
+       1. If you have a Unit number (e.g. A1) and Names (e.g. Sarah), PROPOSE [register_tenant].
+       2. If Unit ID is missing, the kernel will attempt to resolve it during execution.
+       3. You MUST call check_plan_status BEFORE register_tenant.
     - REVENUE / FINANCIAL SUMMARY: "revenue", "monthly summary", "how much collected", "collection rate", "total income" → call 'get_revenue_summary' or 'get_collection_rate'. NEVER call 'get_tenant_arrears' for portfolio-level queries.
     - LATE PAYMENT NOTICE FROM TENANT (LOCKED): When [LOCKED INTENT: LATE_PAYMENT] is active, the [Acknowledgment] MUST come before anything else. Do NOT ask for IDs. Set steps: []. Note the date/amount and respond warmly.
     - "LET THEM KNOW" / "NOTIFY TENANT": If STAFF says "let them know", "tell them", "notify Fatuma" → call 'send_notification' or 'log_maintenance_issue' with category NOTICE. Send the message TO THE TENANT, never to the landlord.
@@ -182,28 +182,14 @@ export class AiPromptService {
     - PENALTY DISPUTE / "WRONG CHARGE": User disputing a fee → call 'get_lease_details' to check contract terms and 'get_tenant_arrears' for breakdown. Explain late fee policy from lease.
     - DATA INCONSISTENCY (property-level): "zero leases but units full", "Ocean View inconsistency", "check X for discrepancies" → call 'get_property_details' with the property name, then 'generate_rent_roll' to cross-check unit vs lease data. Do NOT call get_tenant_details for a property name.
     - DATA INCONSISTENCY (tenant-level): "is Sarah in A1 and F2?", "duplicate unit assignment" → call 'search_tenants' with the tenant name, then use the result ID to call 'get_tenant_details'.
-    - ONBOARDING / "WEKA X KWA Y": "weka Amina Hassan kwa A1", "add Grace to C2", "register Sarah" → Intent is CREATE NEW TENANT. Call 'register_tenant' with firstName, lastName, unitId. Do NOT call search_tenants first.
+    - ONBOARDING / "WEKA X KWA Y": "weka Amina Hassan kwa A1", "add Grace to C2", "register Sarah" → Intent is CREATE NEW TENANT. Call 'register_tenant' with firstName, lastName, unitNumber.
     `;
 
     try {
-      // 1. Gemini (Primary)
-      try {
-        const model = this.genAI.getGenerativeModel({
-          model: this.primaryModel,
-          generationConfig: { responseMimeType: 'application/json', temperature: temperature ?? 0.1 },
-        });
-        const result = await model.generateContent({
-          contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\nUser Request: ${message}` }] }]
-        });
-        return JSON.parse(result.response.text());
-      } catch (e) {
-        this.logger.warn(`[PROMPT-SERVICE] Tier 1 (Gemini) failed, trying Tier 2 (Llama): ${e.message}`);
-      }
-
-      // 2. Groq - Llama (Tier 2)
+      // 1. Groq - GPT OSS 20b (Primary)
       try {
         const completion = await this.groq.chat.completions.create({
-          model: this.tier2Model,
+          model: this.primaryModel,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: `User Request: ${message}` },
@@ -213,22 +199,20 @@ export class AiPromptService {
         });
         return JSON.parse(completion.choices[0]?.message?.content || '{}');
       } catch (e) {
-        this.logger.warn(`[PROMPT-SERVICE] Tier 2 (Llama) failed, trying Tier 3 (Fallback): ${e.message}`);
+        this.logger.warn(`[PROMPT-SERVICE] Tier 1 (GPT-OSS) failed, trying Tier 2 (Gemini): ${e.message}`);
       }
 
-      // 3. Groq - GPT OSS (Tier 3 Fallback)
-      const completion = await this.groq.chat.completions.create({
+      // 2. Gemini (Tier 2 / Fallback)
+      const model = this.genAI.getGenerativeModel({
         model: this.fallbackModel,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `User Request: ${message}` },
-        ],
-        response_format: { type: 'json_object' },
-        temperature: temperature ?? 0.1,
+        generationConfig: { responseMimeType: 'application/json', temperature: temperature ?? 0.1 },
       });
-      return JSON.parse(completion.choices[0]?.message?.content || '{}');
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\nUser Request: ${message}` }] }]
+      });
+      return JSON.parse(result.response.text());
     } catch (e) {
-      this.logger.error(`[PROMPT-SERVICE] All model tiers failed for action plan: ${e.message}`);
+      this.logger.error(`[PROMPT-SERVICE] All authorized model tiers failed for action plan: ${e.message}`);
       return { status: 'error', reason: e.message };
     }
   }
@@ -236,37 +220,133 @@ export class AiPromptService {
   /**
    * Generates a final conversational summary of tool execution results.
    */
-  public async generateFinalResponse(intent: string, results: any[], language: string = 'en', virtualLedger?: any): Promise<string> {
-    const isFinancial = ['FINANCIAL_QUERY', 'LATE_PAYMENT', 'FINANCIAL_REPORTING'].includes(intent);
-    const hasCandidates = results.some(r => r.tool === 'disambiguation_candidates');
+  /**
+   * Generates a final conversational summary of tool execution results using the Rendering Lock.
+   */
+  public async generateFinalResponse(intent: string, results: any[], language: string = 'en', virtualLedger?: any, activeWorkflow?: any, truthObject?: any): Promise<string> {
+    // 1. Detect dynamic intent from results (Kernel override)
+    const resultTypes = results.map(r => r.result?.type || '').join(', ');
+    const isEmergency = resultTypes.includes('EMERGENCY') || intent.includes('EMERGENCY');
+    const isMaintenance = (resultTypes.includes('MAINTENANCE') || intent.includes('MAINTENANCE')) && !isEmergency;
+    const isFinancial = ['FINANCIAL_QUERY', 'LATE_PAYMENT'].includes(intent) && !isEmergency && !isMaintenance;
+    const isReporting = intent === 'FINANCIAL_REPORTING' && !isEmergency && !isMaintenance;
+    const isOnboarding = (resultTypes.includes('ONBOARDING') || intent.includes('ONBOARDING')) && !isEmergency && !isMaintenance;
+    
+    const candidateResult = results.find(r => r.tool === 'disambiguation_candidates')?.result;
+    const truthData = truthObject?.data || {};
 
-    let schemaInstruction = '';
-    if (isFinancial) {
-      schemaInstruction = `
+    let schemeInstructions = '';
+    
+    if (isEmergency) {
+      schemeInstructions = `
+        MANDATORY EMERGENCY LOCK:
+        | Escalation Level | Action Taken | Technical Dispatch |
+        | :--- | :--- | :--- |
+        | ${truthData.priority || 'CRITICAL'} | Escalated to Vendor/Manager | IMMEDIATE |
+        
+        INSTRUCTIONS: You MUST provide immediate safety instructions (e.g. "Close the main valve").
+      `;
+    } else if (isMaintenance) {
+      schemeInstructions = `
+        MANDATORY MAINTENANCE LOG:
+        | Issue Type | Priority | Status |
+        | :--- | :--- | :--- |
+        | ${intent} | ${truthData.priority || 'MEDIUM'} | RECORDED |
+      `;
+    } else if (isFinancial) {
+      schemeInstructions = `
         MANDATORY FINANCIAL SCHEMA:
-        | Description | Amount |
-        | :--- | :--- |
-        | Total Arrears | ${virtualLedger?.recordedArrears || 'NOT_FOUND'} |
-        | Payment Received | ${virtualLedger?.recordedPayments || 'NOT_FOUND'} |
-        | **Remaining Balance** | **${virtualLedger?.balance || 'NOT_FOUND'}** |
+        | Description | Value | Status |
+        | :--- | :--- | :--- |
+        | Target Property | ${truthData.inputTruth?.propertyName || 'N/A'} | ${truthData.inputTruth?.propertyName ? '⏳ IDENTIFIED' : '❌ MISSING'} |
+        | Total Arrears | KSh ${truthData.arrears?.toLocaleString() || 0} | ${truthData.portfolioArrears ? '🧮 COMPUTED' : '✅ VERIFIED'} |
+        | Payment Received | KSh ${truthData.balance || 0} | ✅ VERIFIED |
+        | **Remaining Balance** | **KSh ${truthData.balance?.toLocaleString() || 0}** | ✅ VERIFIED |
+      `;
+    } else if (isReporting) {
+      schemeInstructions = `
+        MANDATORY PORTFOLIO REPORT:
+        | KPI | Value | Status |
+        | :--- | :--- | :--- |
+        | Report For | ${truthData.inputTruth?.propertyName || 'Portfolio-wide'} | ${truthData.inputTruth?.propertyName ? '⏳ IDENTIFIED' : '✅ GLOBAL'} |
+        | Total Revenue | KSh ${truthData.totalRevenue?.toLocaleString() || 0} | 🧮 COMPUTED |
+        | Collection Rate | ${truthData.collectionRate || '0'}% | 🧮 COMPUTED |
+        | Portfolio Arrears | KSh ${truthData.portfolioArrears?.toLocaleString() || 0} | 🧮 COMPUTED |
+        
+        INSTRUCTIONS: Present this as a formal Monthly Summary Report for the landlord.
+      `;
+    } else if (isOnboarding) {
+      const tenant = truthData.tenantIdentity || { status: 'MISSING' };
+      const nameStatus = tenant.status === 'VERIFIED' ? '✅ VERIFIED' : (tenant.name ? '⏳ PENDING (Claimed)' : '❌ MISSING');
+      const unitStatus = tenant.unit ? '✅ IDENTIFIED' : '❌ MISSING';
+      
+      schemeInstructions = `
+        MANDATORY ONBOARDING STATUS:
+        | Component | Value | Status |
+        | :--- | :--- | :--- |
+        | Tenant | ${tenant.name || 'PENDING'} | ${nameStatus} |
+        | Unit | ${tenant.unit || 'PENDING'} | ${unitStatus} |
+        | **Registration** | **Initiated** | **PROGRESSIVE** |
       `;
     }
 
-    const prompt = `
-      SYNTHESIZE the final response using this KERNEL STATE.
+    if (candidateResult && Array.isArray(candidateResult)) {
+      schemeInstructions += `
+        MANDATORY CANDIDATE BOARD:
+        | Unit | Name | Status |
+        | :--- | :--- | :--- |
+        ${candidateResult.map(c => `| ${c.unit || 'N/A'} | ${c.name} | ${c.status || 'Active'} |`).join('\n')}
+      `;
+    }
+
+    const systemPrompt = `
+      RENDER the response using this PROGRESSIVE TRUTH.
       
-      VIRTUAL_LEDGER: ${JSON.stringify(virtualLedger || {})}
+      TRUTH_OBJECT: ${JSON.stringify(truthObject || {})}
       RESULTS: ${JSON.stringify(results)}
-      LANGUAGE: ${language}
       
-      HARD EXECUTION CONTRACTS:
-      1. If intent is FINANCIAL/REPORTING, you MUST output the MANDATORY FINANCIAL SCHEMA table.
-      2. If 'disambiguation_candidates' exist, you MUST output a Markdown table of candidates.
-      3. NEVER use placeholders ($X, [missing]).
+      ACT ON WHAT IS KNOWN. If the user provided a name, use it. If the DB verified it, label it verified.
       
-      ${schemaInstruction}
+      RENDERING LOCK:
+      1. Provide a brief, natural language acknowledgment FIRST.
+      2. If data is missing (Status: MISSING), do NOT stop. Show what IS known and ask for the rest.
+      3. Use the MANDATORY SCHEMA below.
+      4. Use these Status Icons: ✅ (Verified), 🧮 (Computed), ⏳ (Pending/User Input).
+      
+      ${schemeInstructions}
     `;
-    return prompt; 
+
+    try {
+      // 1. Groq - GPT OSS 20b (Primary)
+      try {
+        const completion = await this.groq.chat.completions.create({
+          model: this.primaryModel,
+          messages: [
+            { role: 'system', content: 'You are a deterministic rendering engine. You convert verified truth into Markdown tables. NEVER invent data.' },
+            { role: 'user', content: systemPrompt },
+          ],
+          temperature: 0,
+          // @ts-ignore - Support user-suggested reasoning_effort
+          reasoning_effort: 'medium',
+        });
+        return completion.choices[0]?.message?.content || 'RENDER_FAILURE';
+      } catch (e) {
+        this.logger.warn(`[PROMPT-SERVICE] RENDERER Tier 1 (GPT-OSS) failed: ${e.message}`);
+      }
+
+      // 2. Gemini (Fallback)
+      const model = this.genAI.getGenerativeModel({
+        model: this.fallbackModel,
+        generationConfig: { temperature: 0 },
+      });
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: systemPrompt }] }]
+      });
+      return result.response.text();
+    } catch (e) {
+      this.logger.error(`[PROMPT-SERVICE] All authorized RENDERER tiers failed: ${e.message}`);
+      return "Critical rendering failure.";
+    }
   }
 
   /**
@@ -326,38 +406,31 @@ export class AiPromptService {
     `;
 
     try {
-      // 1. Gemini (Primary)
-      try {
-        const model = this.genAI.getGenerativeModel({
-          model: this.primaryModel,
-          generationConfig: { temperature: temperature },
-        });
-        const result = await model.generateContent({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }]
-        });
-        const text = result.response.text();
-        if (text) return text;
-      } catch (e) {
-        this.logger.warn(`[PROMPT-SERVICE] Tier 1 (Gemini) FinalSummary failed: ${e.message}`);
-      }
-
-      // 2. Groq Fallback
+      // 1. Groq - GPT OSS 20b (Primary)
       try {
         const completion = await this.groq.chat.completions.create({
-          model: this.tier2Model,
-          messages: [{ role: 'user', content: prompt }], // Changed from 'system' to 'user' for consistency
+          model: this.primaryModel,
+          messages: [{ role: 'user', content: prompt }],
           temperature: temperature,
         });
         const text = completion.choices[0]?.message?.content;
         if (text) return text;
       } catch (e) {
-        this.logger.warn(`[PROMPT-SERVICE] Tier 2 (Groq) FinalSummary failed: ${e.message}`);
+        this.logger.warn(`[PROMPT-SERVICE] Tier 1 (GPT-OSS) FinalSummary failed: ${e.message}`);
       }
 
-      return 'I encountered an error generating a summary. Please try again.';
+      // 2. Gemini (Tier 2 / Fallback)
+      const model = this.genAI.getGenerativeModel({
+        model: this.fallbackModel,
+        generationConfig: { temperature: temperature },
+      });
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      });
+      return result.response.text();
     } catch (e) {
-      this.logger.error(`[PROMPT-SERVICE] Final summary fatal error: ${e.message}`);
-      return 'I encountered an error generating a summary. Please try again.';
+      this.logger.error(`[PROMPT-SERVICE] All authorized summary tiers failed: ${e.message}`);
+      return "Action completed successfully, but I'm having trouble displaying the summary.";
     }
   }
 

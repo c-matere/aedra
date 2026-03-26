@@ -585,12 +585,40 @@ export const coreReadTools = [
       required: ['tenantId'],
     },
   },
+  {
+    name: 'generate_rent_roll',
+    description: 'Generate a comprehensive rent roll report for a property, showing all units, current tenants, rent amounts, and payment status.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        propertyId: { type: SchemaType.STRING, description: 'Property UUID' },
+        propertyName: { type: SchemaType.STRING, description: 'Property name (to be resolved)' },
+      },
+    },
+  },
+  {
+    name: 'generate_statement',
+    description: 'Generate a detailed financial statement for a tenant, showing all payments, arrears, and current balance.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        tenantId: { type: SchemaType.STRING, description: 'Tenant UUID' },
+        tenantName: { type: SchemaType.STRING, description: 'Tenant name (to be resolved)' },
+        dateFrom: { type: SchemaType.STRING, description: 'Optional ISO start date' },
+        dateTo: { type: SchemaType.STRING, description: 'Optional ISO end date' },
+      },
+    },
+  },
+  {
+    name: 'maintenance_emergency',
+    description: 'Special intent for urgent maintenance (leak, fire, etc.). Does not require tool call, triggers emergency instructions.',
+  },
 ];
 
 export const coreWriteTools = [
   {
-    name: 'create_tenant',
-    description: 'Create a new tenant for a property. Requires confirmation.',
+    name: 'register_tenant',
+    description: 'Create a new tenant record and link them to a property. Requires confirmation.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -1451,6 +1479,23 @@ export const coreWriteTools = [
         },
       },
       required: ['tenantId', 'amount', 'description', 'confirm'],
+    },
+  },
+  {
+    name: 'log_maintenance',
+    description: 'Record a past maintenance action or log a completed repair without starting a new request. Use this to keep records up to date.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        title: { type: SchemaType.STRING, description: 'Summary of the action' },
+        description: { type: SchemaType.STRING, description: 'Details of what was done' },
+        unitId: { type: SchemaType.STRING, description: 'Unit UUID' },
+        propertyId: { type: SchemaType.STRING, description: 'Property UUID' },
+        cost: { type: SchemaType.NUMBER, description: 'Cost of the repair (if any)' },
+        date: { type: SchemaType.STRING, description: 'ISO date of the action' },
+        confirm: { type: SchemaType.BOOLEAN, description: 'Must be true' },
+      },
+      required: ['title', 'confirm'],
     },
   },
 ];

@@ -25,6 +25,7 @@ export class AiNextStepController {
       allowedTools: ['log_tenant_incident', 'send_whatsapp_message', 'get_tenant_details'],
       secondaryTools: ['list_tenant_incidents'],
       fallbackTools: ['search_tenants', 'list_units'],
+      requiredPreconditions: {},
       forbiddenActions: [
         'NEVER mention technicians or maintenance visits for noise/social complaints.',
         'Do not promising a physical site visit for noise.',

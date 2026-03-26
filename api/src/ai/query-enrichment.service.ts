@@ -1,17 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import Groq from 'groq-sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { withRetry } from '../common/utils/retry';
 
 @Injectable()
 export class QueryEnrichmentService {
   private readonly logger = new Logger(QueryEnrichmentService.name);
-  private groq: Groq;
-  private readonly modelName = 'llama-3.1-8b-instant';
+  private readonly modelName = 'gemini-2.5-pro';
 
-  constructor() {
-    const apiKey = process.env.GROQ_API_KEY;
-    this.groq = apiKey ? new Groq({ apiKey }) : (null as any);
-  }
+  constructor(private readonly genAI: GoogleGenerativeAI) {}
 
   private shouldSkipEnrichment(message: string): boolean {
     const text = (message || '').toLowerCase();
@@ -52,7 +48,7 @@ export class QueryEnrichmentService {
       return message;
     }
 
-    if (!this.groq) {
+    if (!this.genAI) {
       return message;
     }
 
@@ -108,24 +104,19 @@ Provide ONLY the expanded prompt text. Strictly no prefixes or suffixes.
 `;
 
     try {
+      const model = this.genAI.getGenerativeModel({
+        model: this.modelName,
+        generationConfig: { temperature: 0.1, maxOutputTokens: 150 },
+      });
+
       const completion = await withRetry(() =>
-        this.groq.chat.completions.create({
-          model: this.modelName,
-          messages: [
-            {
-              role: 'system',
-              content:
-                'You are a Query Enrichment specialist. Expand short messages into detailed requests.',
-            },
-            { role: 'user', content: prompt },
-          ],
-          temperature: 0.1,
-          max_tokens: 150,
-        }),
+        model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: `${'You are a Query Enrichment specialist. Expand short messages into detailed requests.'}\n\n${prompt}` }] }]
+        })
       );
 
       const enriched =
-        completion.choices[0]?.message?.content?.trim() || message;
+        completion.response.text()?.trim() || message;
 
       this.logger.log(`Enriched query: "${enriched}"`);
       return enriched;

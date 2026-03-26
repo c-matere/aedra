@@ -120,6 +120,11 @@ export class AiToolRegistryService {
       );
     }
 
+    // send_notification: alias for a simple log/message action
+    if (name === 'send_notification' || name === 'notify_tenant') {
+      return await this.writeTools.executeWriteTool('send_notification', args, context, role, language);
+    }
+
     // Default to write tools for everything else (mutative)
     return await this.writeTools.executeWriteTool(
       name,
@@ -128,6 +133,57 @@ export class AiToolRegistryService {
       role,
       language,
     );
+  }
+
+  /**
+   * Returns a list of tool names available for a specific user role.
+   */
+  async getToolsForRole(role: string): Promise<string[]> {
+    const isTenant = role === UserRole.TENANT;
+    const isLandlord = role === UserRole.LANDLORD;
+    const isAdmin = role === UserRole.COMPANY_ADMIN || role === UserRole.SUPER_ADMIN;
+
+    const allTools = [
+      // Read Tools
+      'list_properties', 'get_property_details',
+      'get_units', 'get_unit_details',
+      'search_tenants', 'get_tenant_details', 'get_tenant_arrears',
+      'list_payments', 'get_payment_details',
+      'get_lease_details',
+      'get_collection_rate', 'get_occupancy_stats',
+      'get_maintenance_status', 'list_maintenance_tickets',
+      'generate_rent_roll', 'generate_statement',
+      'get_revenue_summary', 'get_monthly_summary', 'generate_monthly_summary',
+      'check_payment_status', 'get_payment_status',
+      
+      // Write Tools
+      'register_tenant', 'update_tenant_contact',
+      'log_maintenance_issue', 'update_ticket_status',
+      'process_payment', 'record_expense',
+      'log_maintenance',
+      
+      // Intent Tools
+      'maintenance_emergency',
+      
+      // Agent Tools
+      'analyze_agent_goal', 'evaluate_agent_progress', 'process_agent_feedback',
+      'notify_agent_plan', 'send_agent_heartbeat', 'execute_agent_chunk'
+    ];
+
+    if (isTenant) {
+      return [
+        'get_unit_details', 'get_tenant_details', 'get_tenant_arrears',
+        'list_payments', 'get_lease_details',
+        'log_maintenance_issue', 'get_maintenance_status',
+        'generate_statement'
+      ];
+    }
+
+    if (isLandlord || isAdmin || role === UserRole.COMPANY_STAFF) {
+      return allTools;
+    }
+
+    return ['list_properties', 'get_units', 'search_tenants'];
   }
 
   /**
@@ -149,15 +205,17 @@ export class AiToolRegistryService {
   }
 
   private isReadTool(name: string): boolean {
-    const readPrefixes = ['list_', 'get_', 'search_', 'view_'];
+    const readPrefixes = ['list_', 'get_', 'search_', 'view_', 'generate_', 'check_'];
     const isRead =
       readPrefixes.some((p) => name.startsWith(p)) ||
       name === 'select_company' ||
       name === 'generate_execution_plan' ||
       name === 'detect_duplicates';
 
-    // Exceptions that start with read prefixes but are mutative/staged
+    // Exceptions that start with read prefixes but are mutative/staged/complex reports
     const exceptions = [
+      'generate_mckinsey_report',
+      'generate_csv_report',
       'list_tenants_staged',
       'list_payments_staged',
       'list_invoices_staged',

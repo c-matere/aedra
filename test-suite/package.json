@@ -17,6 +17,9 @@
     "test:pre-deploy": "npm run test:unit && npm run test:regression && npm run test:ai",
     "test:pre-model-update": "npm run test:regression && npm run test:ai",
     "test:first-of-month": "npm run test:load:surge && npm run test:load:emergency",
+    "test:pm-bench": "python3 src/behavioral/pm_bench_runner.py --delay 5",
+    "test:pm-bench:quick": "python3 src/behavioral/pm_bench_runner.py --limit 10 --delay 5",
+    "test:pm-bench:category": "python3 src/behavioral/pm_bench_runner.py --category tenant_communication --delay 5",
     "coverage": "jest --coverage --coverageReporters=html",
     "coverage:check": "jest --coverage --coverageThreshold='{\"global\":{\"lines\":80}}'"
   },

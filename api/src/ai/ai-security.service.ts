@@ -33,6 +33,9 @@ export class AiSecurityService {
     ];
 
     if (flags.some((f) => m.includes(f))) {
+      // P0: Direct blocks for credentials regardless of context
+      if (m.includes('password') || m.includes('pin') || m.includes('credential')) return true;
+
       // Intentional block for specific dangerous combinations
       if (
         m.includes('super_admin') ||

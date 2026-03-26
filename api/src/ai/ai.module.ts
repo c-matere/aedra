@@ -12,6 +12,7 @@ import { AuthService } from '../auth/auth.service';
 import { UnitsModule } from '../units/units.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import Groq from 'groq-sdk';
 
 import { AuditModule } from '../audit/audit.module';
 import { ValidationService } from './validation.service';
@@ -55,6 +56,12 @@ import { AiPromptService } from './ai-prompt.service';
 import { AiFormatterService } from './ai-formatter.service';
 import { AiStateEngineService } from './ai-state-engine.service';
 import { AiResponseValidatorService } from './ai-response-validator.service';
+import { AiFactCheckerService } from './ai-fact-checker.service';
+import { AiValidatorService } from './ai-validator.service';
+import { AiIntentFirewallService } from './ai-intent-firewall.service';
+import { ConsistencyValidatorService } from './consistency-validator.service';
+import { AiNextStepController } from './ai-next-step-controller.service';
+import { AiIntentNormalizerService } from './ai-intent-normalizer.service';
 
 @Module({
   imports: [
@@ -115,10 +122,21 @@ import { AiResponseValidatorService } from './ai-response-validator.service';
     AiFormatterService,
     AiStateEngineService,
     AiResponseValidatorService,
+    AiFactCheckerService,
+    AiValidatorService,
+    AiIntentFirewallService,
+    ConsistencyValidatorService,
+    AiNextStepController,
+    AiIntentNormalizerService,
     {
       provide: GoogleGenerativeAI,
       useFactory: () =>
         new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy-key'),
+    },
+    {
+      provide: Groq,
+      useFactory: () =>
+        new Groq({ apiKey: process.env.GROQ_API_KEY || 'dummy-key' }),
     },
   ],
   exports: [
@@ -162,6 +180,13 @@ import { AiResponseValidatorService } from './ai-response-validator.service';
     AiFormatterService,
     AiStateEngineService,
     AiResponseValidatorService,
+    AiFactCheckerService,
+    AiValidatorService,
+    AiIntentFirewallService,
+    ConsistencyValidatorService,
+    AiNextStepController,
+    AiIntentNormalizerService,
+    Groq,
   ],
 })
 export class AiModule {}

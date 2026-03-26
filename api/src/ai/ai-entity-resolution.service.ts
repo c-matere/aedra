@@ -24,9 +24,11 @@ export class AiEntityResolutionService {
     identifier: string,
     companyId?: string,
     unitHint?: string,
+    strict: boolean = false,
   ): Promise<ResolutionResult> {
     if (!identifier?.trim()) return { id: null, match: null, candidates: [], confidence: 0, mode: 'NOT_FOUND' };
     const q = identifier.trim();
+    this.logger.log(`[EntityResolution] Resolving ${entity}: "${q}" (strict=${strict})`);
 
     // 1. Check if it's already a valid UUID
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q);
@@ -38,23 +40,38 @@ export class AiEntityResolutionService {
     // 2. Name-based resolution
     switch (entity) {
       case 'tenant':
-        return this.resolveTenant(q, companyId, unitHint);
+        return this.resolveTenant(q, companyId, unitHint, strict);
       case 'unit':
-        return this.resolveUnitRes(q, companyId);
+        return this.resolveUnitRes(q, companyId, strict);
+      case 'property':
+        const pid = await this.resolveGeneric(entity, q, companyId);
+        return { id: pid, match: pid ? { id: pid } : null, candidates: [], confidence: pid ? 0.9 : 0, mode: pid ? 'FUZZY' : 'NOT_FOUND' };
       default:
         const id = await this.resolveGeneric(entity, q, companyId);
         return { id, match: id ? { id } : null, candidates: [], confidence: id ? 0.9 : 0, mode: id ? 'FUZZY' : 'NOT_FOUND' };
     }
   }
 
-  private async resolveTenant(name: string, companyId?: string, unitHint?: string): Promise<ResolutionResult> {
+  private async resolveTenant(name: string, companyId?: string, unitHint?: string, strict: boolean = false): Promise<ResolutionResult> {
     const q = name.trim();
     const cid = companyId && companyId !== 'NONE' ? companyId : undefined;
 
     // 1. Try exact full name match
-    const exact = await this.prisma.tenantProfile.findFirst({
-      where: { name: { equals: q, mode: 'insensitive' }, companyId: cid },
-      include: { unit: true }
+    const exact = await this.prisma.tenant.findFirst({
+      where: { 
+        OR: [
+          { firstName: { equals: q, mode: 'insensitive' }, companyId: cid },
+          { lastName: { equals: q, mode: 'insensitive' }, companyId: cid },
+          { 
+            AND: [
+              { firstName: { contains: q.split(' ')[0], mode: 'insensitive' } },
+              { lastName: { contains: q.split(' ')[1] || '', mode: 'insensitive' } }
+            ]
+          }
+        ],
+        companyId: cid 
+      },
+      include: { leases: { include: { unit: true }, where: { status: 'ACTIVE', deletedAt: null } } }
     });
     if (exact) return { id: exact.id, match: exact, candidates: [], confidence: 1.0, mode: 'EXACT' };
 
@@ -62,29 +79,33 @@ export class AiEntityResolutionService {
     if (unitHint) {
       const unitMatch = await this.prisma.unit.findFirst({
         where: { unitNumber: { equals: unitHint, mode: 'insensitive' }, property: { companyId: cid } },
-        include: { tenantProfiles: true }
+        include: { leases: { where: { status: 'ACTIVE', deletedAt: null }, include: { tenant: true } } }
       });
-      if (unitMatch && unitMatch.tenantProfiles.length > 0) {
-        const best = unitMatch.tenantProfiles.find(t => t.name.toLowerCase().includes(q.toLowerCase()) || q.toLowerCase().includes(t.name.toLowerCase()));
+      if (unitMatch && unitMatch.leases.length > 0) {
+        const tenants = unitMatch.leases.map(l => l.tenant);
+        const best = tenants.find(t => 
+          `${t.firstName} ${t.lastName}`.toLowerCase().includes(q.toLowerCase()) || 
+          q.toLowerCase().includes(t.firstName.toLowerCase())
+        );
         if (best) return { id: best.id, match: best, candidates: [], confidence: 0.95, mode: 'FUZZY' };
         
-        // If no name match but it's the only tenant in the unit, it's a very strong candidate
-        if (unitMatch.tenantProfiles.length === 1) {
-            return { id: unitMatch.tenantProfiles[0].id, match: unitMatch.tenantProfiles[0], candidates: [], confidence: 0.92, mode: 'FUZZY' };
+        if (tenants.length === 1 && (!strict || q.length > 3)) {
+            return { id: tenants[0].id, match: tenants[0], candidates: [], confidence: 0.92, mode: 'FUZZY' };
         }
       }
     }
 
     // 3. Tokenized Fuzzy Match
     const tokens = q.split(/\s+/).filter(t => t.length > 2);
-    const fuzzyMatches = await this.prisma.tenantProfile.findMany({
+    const fuzzyMatches = await this.prisma.tenant.findMany({
       where: {
         companyId: cid,
         OR: tokens.flatMap(t => [
-          { name: { contains: t, mode: 'insensitive' } }
+          { firstName: { contains: t, mode: 'insensitive' } },
+          { lastName: { contains: t, mode: 'insensitive' } }
         ])
       },
-      include: { unit: true },
+      include: { leases: { where: { status: 'ACTIVE', deletedAt: null }, include: { unit: true } } },
       take: 5
     });
 
@@ -96,7 +117,7 @@ export class AiEntityResolutionService {
     return { id: null, match: null, candidates: [], confidence: 0, mode: 'NOT_FOUND' };
   }
 
-  private async resolveUnitRes(query: string, companyId?: string): Promise<ResolutionResult> {
+  private async resolveUnitRes(query: string, companyId?: string, strict: boolean = false): Promise<ResolutionResult> {
     const q = query.trim();
     const cid = companyId && companyId !== 'NONE' ? companyId : undefined;
 
@@ -105,6 +126,8 @@ export class AiEntityResolutionService {
       include: { property: true }
     });
     if (exact) return { id: exact.id, match: exact, candidates: [], confidence: 1.0, mode: 'EXACT' };
+
+    if (strict) return { id: null, match: null, candidates: [], confidence: 0, mode: 'NOT_FOUND' };
 
     const candidates = await this.prisma.unit.findMany({
       where: { unitNumber: { contains: q, mode: 'insensitive' }, property: { companyId: cid } },

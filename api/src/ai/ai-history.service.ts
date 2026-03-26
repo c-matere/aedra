@@ -106,26 +106,25 @@ export class AiHistoryService {
    * Completely wipes messages and history records for a given context.
    */
   async clearMessageHistory(chatId: string, userId: string): Promise<{ messages: number; history: number }> {
+    // 1. Delete messages for this specific chat
     await this.prisma.chatMessage.deleteMany({
-      where: {
-        OR: [
-          { chatHistory: { userId: userId } },
-          { chatHistory: { companyId: userId } },
-          { chatHistoryId: chatId },
-        ],
-      },
-    }).catch((e) => this.logger.warn(`Failed to wipe messages: ${e.message}`));
+      where: { chatHistoryId: chatId },
+    }).catch((e) => this.logger.warn(`Failed to wipe messages for ${chatId}: ${e.message}`));
 
+    // 2. Delete the chat history record itself
     await this.prisma.chatHistory.deleteMany({
-      where: {
-        OR: [{ userId: userId }, { id: chatId }],
-      },
-    }).catch((e) => this.logger.warn(`Failed to wipe histories: ${e.message}`));
+      where: { id: chatId },
+    }).catch((e) => this.logger.warn(`Failed to wipe history ${chatId}: ${e.message}`));
 
-    const [msgCount, histCount] = await Promise.all([
-      this.prisma.chatMessage.count({ where: { chatHistoryId: chatId } }),
-      this.prisma.chatHistory.count({ where: { id: chatId } }),
-    ]);
+    // 3. Optional: Cleanup by userId (simplified)
+    if (userId && userId !== 'NONE') {
+        await this.prisma.chatHistory.deleteMany({
+            where: { userId: userId }
+        }).catch(() => {});
+    }
+
+    const msgCount = await this.prisma.chatMessage.count({ where: { chatHistoryId: chatId } });
+    const histCount = await this.prisma.chatHistory.count({ where: { id: chatId } });
 
     this.logger.log(`[HISTORY-SERVICE] FINAL state for ${chatId}: messages=${msgCount}, history=${histCount}`);
     return { messages: msgCount, history: histCount };
@@ -141,6 +140,13 @@ export class AiHistoryService {
   ): Promise<{ response: string; chatId: string }> {
     try {
       if (chatId) {
+        // Ensure the chat history record exists first (handles external/benchmark chatIds)
+        await this.prisma.chatHistory.upsert({
+          where: { id: chatId },
+          update: {},
+          create: { id: chatId, title: 'Benchmark/External Conversation' },
+        }).catch(() => {}); // Secondary safeguard
+
         await this.prisma.chatMessage.create({
           data: { chatHistoryId: chatId, role: 'user', content: userText },
         });

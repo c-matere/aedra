@@ -15,12 +15,19 @@ export class ReportsGeneratorService {
     }
   }
 
-  async generateCsv(data: any[], fileName: string): Promise<string> {
+  async generateCsv(
+    data: any[],
+    fileName: string,
+    fields?: string[],
+  ): Promise<string> {
     try {
-      const parser = new Parser();
-      const csv = parser.parse(data);
+      const parser = new Parser({
+        ...(fields && fields.length > 0 ? { fields } : {}),
+        withBOM: true,
+      });
+      const csv = parser.parse(data || []);
       const filePath = path.join(this.reportsDir, fileName);
-      fs.writeFileSync(filePath, csv);
+      fs.writeFileSync(filePath, csv, { encoding: 'utf8' });
       return this.getFileUrl(fileName);
     } catch (err) {
       this.logger.error('Error generating CSV', err);

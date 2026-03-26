@@ -6,6 +6,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { minifyReportData } from '../ai/ai-minifier.util';
 import * as crypto from 'crypto';
+import Groq from 'groq-sdk';
 
 @Injectable()
 export class ReportIntelligenceService {
@@ -18,9 +19,10 @@ export class ReportIntelligenceService {
     @Inject(forwardRef(() => CriticService))
     private critic: CriticService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly groq: Groq,
   ) {
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-    this.modelName = (process.env.GEMINI_MODEL || 'gemini-2.0-flash').trim();
+    this.modelName = 'gemini-2.5-pro';
   }
 
   /**
@@ -104,20 +106,34 @@ Produce a high-fidelity, McKinsey-grade portfolio intelligence report. Output yo
 - Do NOT provide prose outside the JSON object.
 `;
 
-    const model = this.genAI.getGenerativeModel({
-      model: selectedModel,
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.4,
-      },
-    });
+    const isGroq = selectedModel.includes('/') || selectedModel.startsWith('llama');
 
     try {
       this.logger.log(
         `Running premium analysis with model ${selectedModel}...`,
       );
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      
+      let text = '';
+      if (isGroq) {
+        const completion = await this.groq.chat.completions.create({
+          model: selectedModel,
+          messages: [{ role: 'user', content: prompt }],
+          response_format: { type: 'json_object' },
+          temperature: 0.4,
+        });
+        text = completion.choices[0]?.message?.content || '{}';
+      } else {
+        const model = this.genAI.getGenerativeModel({
+          model: selectedModel,
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: 0.4,
+          },
+        });
+        const result = await model.generateContent(prompt);
+        text = result.response.text();
+      }
+      
       const parsed = JSON.parse(text);
 
       // Generator-Critic Loop: Validate report consistency

@@ -4,6 +4,7 @@ export interface WorkflowStep {
   id: string;
   type: WorkflowStepType;
   description: string;
+  allowedTools?: string[];
   metadata?: Record<string, any>;
 }
 
@@ -50,4 +51,38 @@ export interface WorkflowEvent {
   type: 'USER_MESSAGE' | 'SYSTEM_EVENT' | 'WEBHOOK' | 'BACKGROUND_HEARTBEAT' | 'INPUT';
   content?: any;
   meta?: Record<string, any>;
+}
+
+export type RouteResult =
+  | { 
+      status: "NEEDS_INFO"; 
+      missingFields: string[]; 
+      pendingIntent: string; 
+      collectedEntities: Record<string, any>;
+      prompt?: string;
+    }
+  | { 
+      status: "WORKFLOW_READY"; 
+      workflowId: string; 
+      context: Record<string, any>;
+    }
+  | { 
+      status: "DIRECT_RESPONSE"; 
+      prompt: string; 
+      context?: Record<string, any>;
+    }
+  | { 
+      status: "AGENT_FALLBACK";
+      reason?: string;
+    };
+
+export interface RouteRequestOptions {
+  userId: string;
+  message: string;
+  role?: string;
+  intent?: string; // High-level intent from classifier
+  classification?: any; // ClassificationResult to avoid circular deps if needed, but typed better in router
+  session?: any;
+  context?: Record<string, any>;
+  agentFallback: (hint?: string) => Promise<any>;
 }

@@ -88,7 +88,8 @@ def run_test(message, history, token, expected_state=None, chat_id=None):
         "message": message,
         "history": history,
         "attachments": [],
-        "companyId": "bench-company-001"
+        "companyId": "bench-company-001",
+        "temperature": 0
     }
     
     if chat_id:

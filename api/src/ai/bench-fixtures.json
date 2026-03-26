@@ -1,0 +1,179 @@
+{
+  "properties": [
+    {
+      "id": "prop-palm-grove-uuid",
+      "name": "Palm Grove",
+      "address": "Mombasa Road, Mombasa",
+      "companyId": "bench-company-001"
+    },
+    {
+      "id": "prop-bahari-ridge-uuid",
+      "name": "Bahari Ridge",
+      "address": "Kilifi Road, Malindi",
+      "companyId": "bench-company-001"
+    },
+    {
+      "id": "prop-ocean-view-uuid",
+      "name": "Ocean View",
+      "address": "Nyali Terrace, Mombasa",
+      "companyId": "bench-company-001"
+    }
+  ],
+  "units": [
+    {
+      "id": "unit-a1-uuid",
+      "unitNumber": "A1",
+      "propertyId": "prop-palm-grove-uuid",
+      "rentAmount": 50000,
+      "status": "OCCUPIED"
+    },
+    {
+      "id": "unit-b4-uuid",
+      "unitNumber": "B4",
+      "propertyId": "prop-palm-grove-uuid",
+      "rentAmount": 45000,
+      "status": "OCCUPIED"
+    },
+    {
+      "id": "unit-c2-uuid",
+      "unitNumber": "C2",
+      "propertyId": "prop-palm-grove-uuid",
+      "rentAmount": 35000,
+      "status": "VACANT"
+    },
+    {
+      "id": "unit-d5-uuid",
+      "unitNumber": "D5",
+      "propertyId": "prop-bahari-ridge-uuid",
+      "rentAmount": 40000,
+      "status": "OCCUPIED"
+    },
+    {
+      "id": "unit-e1-uuid",
+      "unitNumber": "E1",
+      "propertyId": "prop-bahari-ridge-uuid",
+      "rentAmount": 42000,
+      "status": "VACANT"
+    },
+    {
+      "id": "unit-f2-uuid",
+      "unitNumber": "F2",
+      "propertyId": "prop-ocean-view-uuid",
+      "rentAmount": 35000,
+      "status": "OCCUPIED"
+    },
+    {
+      "id": "unit-101-uuid",
+      "unitNumber": "101",
+      "propertyId": "prop-palm-grove-uuid",
+      "rentAmount": 30000,
+      "status": "VACANT"
+    },
+    {
+      "id": "unit-204-uuid",
+      "unitNumber": "204",
+      "propertyId": "prop-palm-grove-uuid",
+      "rentAmount": 32000,
+      "status": "OCCUPIED"
+    }
+  ],
+  "tenants": [
+    {
+      "id": "tenant-fatuma-ali-uuid",
+      "firstName": "Fatuma",
+      "lastName": "Ali",
+      "email": "fatuma.ali@example.com",
+      "phone": "254712345678",
+      "companyId": "bench-company-001",
+      "propertyId": "prop-palm-grove-uuid",
+      "arrears": 12500,
+      "currentLease": {
+        "id": "lease-fatuma-uuid",
+        "unitNumber": "B4",
+        "rentAmount": 45000,
+        "status": "ACTIVE"
+      }
+    },
+    {
+      "id": "tenant-john-mwangi-uuid",
+      "firstName": "John",
+      "lastName": "Mwangi",
+      "email": "john.mwangi@example.com",
+      "phone": "254722334455",
+      "companyId": "bench-company-001",
+      "propertyId": "prop-palm-grove-uuid",
+      "arrears": 0,
+      "currentLease": {
+        "id": "lease-john-uuid",
+        "unitNumber": "A1",
+        "rentAmount": 50000,
+        "status": "ACTIVE"
+      }
+    },
+    {
+      "id": "tenant-samuel-kamau-uuid",
+      "firstName": "Samuel",
+      "lastName": "Kamau",
+      "email": "samuel.kamau@example.com",
+      "phone": "254700000000",
+      "companyId": "bench-company-001",
+      "propertyId": "prop-palm-grove-uuid",
+      "arrears": 25000,
+      "currentLease": {
+        "id": "lease-samuel-uuid",
+        "unitNumber": "C2",
+        "rentAmount": 35000,
+        "status": "ACTIVE"
+      }
+    },
+    {
+      "id": "tenant-sarah-otieno-uuid",
+      "firstName": "Sarah",
+      "lastName": "Otieno",
+      "email": "sarah.o@example.com",
+      "phone": "254700000001",
+      "companyId": "bench-company-001",
+      "propertyId": "prop-palm-grove-uuid",
+      "currentLease": {
+        "id": "lease-sarah-a1-uuid",
+        "unitNumber": "A1",
+        "status": "ACTIVE"
+      },
+      "leases": [
+        { "id": "lease-sarah-a1-uuid", "unitNumber": "A1", "status": "ACTIVE" },
+        { "id": "lease-sarah-f2-uuid", "unitNumber": "F2", "status": "ACTIVE" }
+      ]
+    },
+    {
+      "id": "tenant-mary-atieno-uuid",
+      "firstName": "Mary",
+      "lastName": "Atieno",
+      "email": "mary.a@example.com",
+      "phone": "254711223344",
+      "companyId": "bench-company-001",
+      "propertyId": "prop-palm-grove-uuid",
+      "arrears": 5000,
+      "currentLease": {
+        "id": "lease-mary-uuid",
+        "unitNumber": "B4",
+        "status": "ACTIVE"
+      }
+    }
+  ],
+  "payments": [
+    {
+      "id": "pay-1",
+      "amount": 50000,
+      "paidAt": "2026-03-22T10:00:00Z",
+      "tenantName": "Mary Atieno",
+      "propertyName": "Palm Grove"
+    },
+    {
+      "id": "pay-2",
+      "amount": 15000,
+      "paidAt": "2026-03-23T14:30:00Z",
+      "tenantName": "Mary Atieno",
+      "propertyName": "Palm Grove"
+    }
+  ]
+}

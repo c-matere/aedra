@@ -23,6 +23,22 @@ export interface ActiveTransaction {
   confirmed?: boolean;
 }
 
+export interface WorkflowStep {
+  name: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  result?: any;
+}
+
+export interface ActiveWorkflow {
+  intent: string;
+  status: 'INIT' | 'IN_PROGRESS' | 'COMPLETED' | 'ABORTED';
+  steps: WorkflowStep[];
+  currentStepIndex: number;
+  entities: Record<string, any>;
+  bufferedData: Record<string, any>;
+  updatedAt: string;
+}
+
 export interface SessionContext {
   activePropertyId?: string;
   activeTenantId?: string;
@@ -33,6 +49,8 @@ export interface SessionContext {
   activeProperty?: { id: string; name: string; address?: string };
   activeIssue?: { id: string; type: string; status: string; unit?: string };
   activeTransaction?: ActiveTransaction;
+  activeWorkflow?: ActiveWorkflow;
+  virtualLedger?: { recordedArrears: number; recordedPayments: number; balance: number };
   pendingAction?: string;
   lastIntent?: string;
   lastEntities?: Array<{ type: string; id: string; name: string }>;

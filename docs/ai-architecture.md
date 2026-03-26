@@ -1,53 +1,52 @@
-# Aedra AI Agent Architecture
+# Aedra AI Architecture
 
-This agent follows a modular, production-oriented design with explicit routing, tool bundling, strict validation, and deterministic guardrails for high-frequency intents.
+Aedra is a sophisticated AI co-worker designed for property management. It follows a modular, resilient, and multi-layered architecture optimized for high-reliability interactions via WhatsApp and Web.
 
-## Core Components
+## 1. High-Level Design
+Aedra is designed as a **Strategic Co-worker** rather than a simple chatbot. It utilizes natural, Nairobi-style code-switching (mix of English and Swahili) to build rapport and ensure clarity in its operating environment.
 
-1. **Router**
-   - `api/src/ai/ai.router.ts`
-   - Selects a tool bundle based on explicit prefixes (`/read`, `/write`, `/report`) and intent hints.
-   - Keeps the model tool context small and focused.
+## 2. The Orchestration Layer
+Interaction flows are managed by specialized orchestrators:
 
-2. **Tool Bundles**
-   - `api/src/ai/ai.tools.ts`
-   - `read`: listing and lookup operations.
-   - `write`: create/update operations with confirmation gating.
-   - `report`: reporting tools and aggregations.
+- **WhatsApp Orchestrator (`AiWhatsappOrchestratorService`)**:
+  - Handles session locking and user identification.
+  - Manages audio transcription (via Groq/Whisper) with proactive feedback.
+  - Implements **Interactive Flows**: Button-based approvals, multi-select lists, and correction loops.
+  - Supports **Actionable Echo**: Confirming user intent before committing mutative actions.
 
-3. **Validation**
-   - `api/src/ai/ai.validation.ts`
-   - Strict enum normalization/validation for statuses and types.
-   - Invalid values return structured errors.
+## 3. The Brain (Classification & Guardrails)
+Intent detection is handled by the `AiClassifierService` using a two-tier strategy:
 
-4. **Direct Intent Handler**
-   - `api/src/ai/ai.direct.ts`
-   - Deterministic answers for common user requests (e.g., property list, counts, tenant search).
-   - Prevents the model from skipping tools on high-frequency intents.
+- **Tier 1 (Primary)**: Llama 3.1 8B (via Groq) for low-latency, high-accuracy classification.
+- **Tier 2 (Fallback)**: Gemini 2.0 Flash for robustness.
+- **Guardrails**: Deterministic regex and lexical checks override the LLM for high-risk intents (Emergencies, Financials, Security breaches) to ensure 100% reliability for critical paths.
 
-5. **Formatting**
-   - `api/src/ai/ai.formatters.ts`
-   - Consistent formatting for list responses.
+## 4. The Execution Spine
+Strategic or multi-step requests are handled by a **Structural Planner**:
 
-6. **Execution + Observability**
-   - `api/src/ai/ai.service.ts`
-   - Tool execution, confirmation gates, routing selection, and logging.
-   - Logs route selection and request context for traceability.
+1. **Planning**: `AiService.generateActionPlan` creates a structured `ActionPlan` (JSON) containing sequential tool calls.
+2. **Execution**: `executeActionPlan` runs the steps, handling dependencies and context merging.
+3. **Summary**: A final synthesis turn translates technical tool results into natural conversation.
 
-## Safety & Governance
+## 5. Tool Registry & Specialized Services
+Tools are categorized and executed by specialized services for better maintainability and security:
 
-- Write actions require explicit `confirm=true`.
-- All data access is scoped to `companyId`.
-- Soft deletes are respected.
-- Report outputs can include `explain=true` for derivation transparency.
+- **Read Tools (`AiReadToolService`)**: Data retrieval (tenants, properties, vacancies).
+- **Write Tools (`AiWriteToolService`)**: Mutative operations with strict validation.
+- **Report Tools (`AiReportToolService`)**: Complex aggregations (McKinsey-style reports, CSV/PDF exports).
+- **History Tools (`AiHistoryToolService`)**: Versioning, audit logs, and one-click rollbacks.
 
-## Testing
+## 6. Autonomous Agents
+For long-running goals (e.g., "Onboard 500 tenants from this PDF"), the `AutonomousAgentService` manages:
+- **Goal Decomposition**: Breaking large tasks into manageable "chunks".
+- **Heartbeat Mechanism**: Background execution with periodic status updates to the user.
+- **Human-in-the-loop**: Seeking approval for plans and feedback on progress.
 
-- `api/src/ai/ai.router.spec.ts`
-- `api/src/ai/ai.validation.spec.ts`
+## 7. Reliability & Resiliency
+- **Error Recovery**: `ErrorRecoveryService` handles tool failures with intelligent retry logic.
+- **System Degradation**: `SystemDegradationService` monitors API health and shifts models or disables complex features during outages.
+- **Auditability**: Every AI action is logged in `ChatHistory` and `AuditLog`, enabling transparency and rollback capabilities.
 
-## Extensibility
-
-- Add new tools in `ai.tools.ts` and wire execution in `ai.service.ts`.
-- Extend routing hints in `ai.router.ts`.
-- Expand direct intents in `ai.direct.ts`.
+## 8. Integration & State
+- **Workflow Engine**: Connects AI intents to stateful business processes (e.g., maintenance tickets).
+- **Context Management**: `TemporalContextService` and `ContextMemoryService` maintain short-term and long-term awareness of the user's specific context (Property, Unit, Tenant).

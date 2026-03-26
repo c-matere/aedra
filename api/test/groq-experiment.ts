@@ -79,7 +79,7 @@ async function runExperiment() {
     const startTime = Date.now();
 
     const response = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: 'llama-3.1-8b-instant',
       messages: messages,
       tools: tools,
       tool_choice: 'auto',

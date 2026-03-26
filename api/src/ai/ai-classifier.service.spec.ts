@@ -2,13 +2,14 @@ import { AiClassifierService, type ClassificationResult } from './ai-classifier.
 
 describe('AiClassifierService guardrails', () => {
   it('treats property interest as read intent (not add_tenant)', () => {
-    const svc = new AiClassifierService();
+    const svc = new AiClassifierService(null as any, null as any);
     const raw: ClassificationResult = {
       intent: 'add_tenant',
       complexity: 2,
       executionMode: 'ORCHESTRATED',
       language: 'en',
       reason: 'LLM guessed',
+      priority: 'NORMAL',
     };
 
     const guarded = (svc as any).applyIntentGuardrails(
@@ -21,13 +22,14 @@ describe('AiClassifierService guardrails', () => {
   });
 
   it('blocks maintenance intent for tenant complaints (noise/neighbor)', () => {
-    const svc = new AiClassifierService();
+    const svc = new AiClassifierService(null as any, null as any);
     const raw: ClassificationResult = {
       intent: 'maintenance_request',
       complexity: 2,
       executionMode: 'ORCHESTRATED',
       language: 'en',
       reason: 'LLM guessed',
+      priority: 'NORMAL',
       entities: { unit: 'B4', issue_details: 'making noise' },
     };
 

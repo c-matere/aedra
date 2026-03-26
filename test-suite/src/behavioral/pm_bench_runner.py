@@ -63,6 +63,7 @@ def main():
     parser.add_argument('--file', type=str, default=DEFAULT_SCENARIO_FILE, help='Scenario dataset file')
     parser.add_argument('--limit', type=int, default=100, help='Limit number of scenarios to run')
     parser.add_argument('--category', type=str, default=None, help='Filter by category')
+    parser.add_argument('--scenario', type=str, default=None, help='Filter by scenario ID (comma-separated)')
     parser.add_argument('--delay', type=float, default=1.0, help='Delay between requests in seconds')
     parser.add_argument('--dry-run', action='store_true', help='Test scenario loading without hitting AI')
     args = parser.parse_args()
@@ -77,6 +78,11 @@ def main():
     if args.category:
         scenarios = [s for s in scenarios if s.get("category") == args.category]
         print(f"Filtered to {len(scenarios)} scenarios in category '{args.category}'")
+
+    if args.scenario:
+        scenario_ids = [sid.strip() for sid in args.scenario.split(',')]
+        scenarios = [s for s in scenarios if s.get("id") in scenario_ids]
+        print(f"Filtered to {len(scenarios)} specific scenarios: {args.scenario}")
 
     if not scenarios:
         print("No scenarios found to run.")

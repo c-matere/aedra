@@ -3,6 +3,7 @@ import {
   Logger,
   InternalServerErrorException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SenderType } from '@prisma/client';
@@ -240,7 +241,7 @@ export class WhatsappService {
 
     const payload = {
       messaging_product: 'whatsapp',
-      to: to.replace('+', ''),
+      to: (to || '').replace('+', ''),
       type: 'template',
       template: {
         name: templateName,
@@ -354,7 +355,7 @@ export class WhatsappService {
     const payload = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
-      to: to.replace('+', ''),
+      to: (to || '').replace('+', ''),
       type: 'interactive',
       interactive,
     };
@@ -551,10 +552,14 @@ export class WhatsappService {
     const payload = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
-      to: to.replace('+', ''),
+      to: (to || '').replace('+', ''),
       type: 'text',
       text: { body: text },
     };
+
+    if (!payload.to) {
+      throw new BadRequestException('Recipient phone number is missing.');
+    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 45000);
@@ -643,7 +648,7 @@ export class WhatsappService {
     const payload = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
-      to: to.replace('+', ''),
+      to: (to || '').replace('+', ''),
       type: 'document',
       document: {
         link: url,
@@ -758,7 +763,7 @@ export class WhatsappService {
 
     const payload = {
       messaging_product: 'whatsapp',
-      to: to.replace('+', ''),
+      to: (to || '').replace('+', ''),
       type: 'template',
       template: {
         name: templateName,

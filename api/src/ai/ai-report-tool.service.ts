@@ -18,7 +18,7 @@ import * as minifier from './ai-minifier.util';
 @Injectable()
 export class AiReportToolService {
   private readonly logger = new Logger(AiReportToolService.name);
-  private readonly modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  private readonly modelName = 'gemini-2.5-pro'; // Core model
 
   constructor(
     private readonly prisma: PrismaService,

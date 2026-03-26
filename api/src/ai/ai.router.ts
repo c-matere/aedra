@@ -1,8 +1,22 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Groq from 'groq-sdk';
+import { Injectable, Logger } from '@nestjs/common'; // Assuming @nestjs/common for Injectable and Logger
 import { withRetry } from '../common/utils/retry';
 
 export type AiModelKey = 'read' | 'write' | 'report';
+
+@Injectable()
+export class AiRouter {
+  private readonly logger = new Logger(AiRouter.name);
+  private readonly groq: Groq;
+  private readonly genAI: GoogleGenerativeAI;
+
+  private readonly modelTiers = [
+    { name: 'gemini-2.5-pro', provider: 'genai' },
+    { name: 'llama-3.1-8b-instant', provider: 'groq' },
+    { name: 'openai/gpt-oss-20b', provider: 'groq' },
+  ];
+}
 
 const CLASSIFIER_PROMPT = `
 You are an intent classifier for "Aedra", a property management AI co-worker.
@@ -26,9 +40,10 @@ Language Support:
 User Message:
 `;
 
-// Use the same base model everywhere; allow override via GEMINI_MODEL, otherwise default to gemini-2.5-flash
+// Use the same base model everywhere; allow override via GEMINI_MODEL, otherwise default to gemini-2.5-pro
 const ROUTER_MODEL =
-  (process.env.GEMINI_MODEL || '').trim() || 'gemini-2.0-flash';
+  (process.env.GEMINI_MODEL || '').trim() || 'gemini-2.5-pro';
+const FALLBACK_ROUTER_MODEL = 'openai/gpt-oss-120b';
 const GROQ_ROUTER_MODEL = 'llama-3.1-8b-instant';
 
 export interface RouteResult {
@@ -266,7 +281,38 @@ export const selectModelKey = async (
 
     let raw = '';
     const runClassification = async () => {
-      // Attempt Groq (Primary)
+      // Attempt Gemini (Primary)
+      try {
+        const model = genAI.getGenerativeModel({
+          model: routerModelName || ROUTER_MODEL,
+          generationConfig: { responseMimeType: 'application/json' },
+        });
+        const result = await withRetry(() => model.generateContent(fullPrompt));
+        const response = await result.response;
+        return response.text();
+      } catch (e) {
+        console.warn(`[Router] Gemini failed, falling back to Groq (GPT OSS)... ${e.message}`);
+      }
+
+      // Attempt Groq (Secondary - GPT OSS)
+      if (groq) {
+        try {
+          const chatCompletion = await withRetry(() =>
+            groq.chat.completions.create({
+              messages: [{ role: 'user', content: fullPrompt }],
+              model: FALLBACK_ROUTER_MODEL,
+              response_format: { type: 'json_object' },
+            }),
+          );
+          return chatCompletion.choices[0]?.message?.content || '{}';
+        } catch (e) {
+          console.warn(
+            `[Router] GPT OSS failed, falling back to Llama... ${e.message}`,
+          );
+        }
+      }
+
+      // Attempt Groq (Tertiary - Llama)
       if (groq) {
         try {
           const chatCompletion = await withRetry(() =>
@@ -278,25 +324,13 @@ export const selectModelKey = async (
           );
           return chatCompletion.choices[0]?.message?.content || '{}';
         } catch (e) {
-          console.warn(
-            `[Router] Groq failed, falling back to Gemini... ${e.message}`,
+          console.error(
+            `[Router] All model fallbacks exhausted! ${e.message}`,
           );
+          throw e;
         }
       }
-
-      // Attempt Gemini (Secondary)
-      try {
-        const model = genAI.getGenerativeModel({
-          model: routerModelName || ROUTER_MODEL,
-          generationConfig: { responseMimeType: 'application/json' },
-        });
-        const result = await withRetry(() => model.generateContent(fullPrompt));
-        const response = await result.response;
-        return response.text();
-      } catch (e) {
-        console.error(`[Router] All model fallbacks exhausted! ${e.message}`);
-        throw e;
-      }
+      throw new Error('All model fallbacks exhausted!');
     };
 
     raw = await runClassification();

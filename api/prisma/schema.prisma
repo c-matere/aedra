@@ -430,12 +430,12 @@ model WorkflowInstance {
   type      WorkflowType
   status    WorkflowStatus @default(PENDING)
   companyId String
-  userId    String?
   targetId  String?
   metadata  Json?
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
   deletedAt DateTime?
+  userId    String?
   company   Company        @relation(fields: [companyId], references: [id])
   steps     WorkflowStep[]
 

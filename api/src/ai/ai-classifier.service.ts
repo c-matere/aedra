@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { UserRole } from '../auth/roles.enum';
+import { SessionContext } from './context-memory.service';
 import Groq from 'groq-sdk';
 
 export interface ClassificationResult {
@@ -36,12 +37,10 @@ export interface ClassificationResult {
 @Injectable()
 export class AiClassifierService {
   private readonly logger = new Logger(AiClassifierService.name);
-  private genAI: GoogleGenerativeAI;
 
-  private readonly modelName = 'gemini-2.0-flash'; // Fallback model
-  private readonly groqModel = 'llama-3.1-8b-instant'; // Tier 1 model
-  private readonly apiKey: string;
-  private groq: Groq;
+  private readonly primaryModel = 'openai/gpt-oss-20b';
+  private readonly fallbackModel = 'llama-3.1-8b-instant';
+  private readonly apiKey = process.env.GEMINI_API_KEY;
   private readonly swKeywords = [
     'habari',
     'mambo',
@@ -68,6 +67,8 @@ export class AiClassifierService {
     'shida',
     'kushindwa',
     'haifanyi',
+    'kodi',
+    'nyumba',
   ];
   private readonly emergencyKeywords = [
     'fire',
@@ -93,6 +94,12 @@ export class AiClassifierService {
     'emergency',
     'urgent',
     'immediate help',
+    'leak',
+    'maji imevuja',
+    'moto',
+    'fire',
+    'flood',
+    'mafuriko',
   ];
   private readonly paymentPatterns = [
     /nimetuma/i,
@@ -111,26 +118,50 @@ export class AiClassifierService {
     /boss.*pesa/i,
   ];
 
-  constructor() {
-    this.apiKey = process.env.GEMINI_API_KEY || '';
-    this.genAI = new GoogleGenerativeAI(this.apiKey);
-    this.groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'dummy-key' });
-  }
+  private readonly systemFailureSignals = [
+    /report.*fail/i,
+    /error.*fetch/i,
+    /haitaki.*report/i,
+    /haitaki.*download/i,
+    /shida.*report/i,
+    /shida.*download/i,
+    /fetch.*failed/i,
+    /cannot.*load/i,
+    /failed.*generate/i,
+    /haifanyi\s+kazi/i,
+    /haingii/i,
+    /kushindwa/i
+  ];
+
+  constructor(
+    private readonly genAI: GoogleGenerativeAI,
+    private readonly groq: Groq,
+  ) {}
 
   async classify(
     message: string,
     role: UserRole,
     history: string[] = [],
     attachmentsCount: number = 0,
+    context?: SessionContext,
   ): Promise<ClassificationResult> {
     // Offline, deterministic classifier for test and dev environments without API keys
     if (!this.apiKey) {
       return this.localClassify(message, role, undefined, attachmentsCount);
     }
 
+    const stateDesc = context ? `
+      ACTIVE CONTEXT:
+      - Current Tenant: ${context.activeTenant?.name || 'Unknown'}
+      - Current Unit: ${context.activeUnitId || 'Unknown'}
+      - Current Property: ${context.activeProperty?.name || 'Unknown'}
+      - Last Intent: ${context.lastIntent || 'None'}
+    ` : '';
+
     const prompt = `
       You are an expert intent classifier for "Aedra", a property management AI.
       User Role: ${role}
+      ${stateDesc}
       
       Classify the user's message and return a JSON object with these fields:
       - intent: string (one of the supported intents below)
@@ -174,10 +205,30 @@ export class AiClassifierService {
     `;
 
     try {
-      // 2. Groq Tier 1 (Primary)
+      // 1. Gemini Pro (Tier 1)
       try {
-      const completion = await this.groq.chat.completions.create({
-          model: this.groqModel,
+        const model = this.genAI.getGenerativeModel({
+          model: this.primaryModel,
+          generationConfig: { responseMimeType: 'application/json' },
+        });
+        const result = await model.generateContent(prompt);
+        const data = JSON.parse(result.response.text());
+        return this.processClassificationResult(
+          data,
+          message,
+          null,
+          attachmentsCount,
+        );
+      } catch (geminiErr) {
+        this.logger.warn(
+          `Tier 1 (Gemini 2.5 Pro) classification failed, trying Tier 2 (Llama): ${geminiErr.message}`,
+        );
+      }
+
+      // 2. Groq - Llama (Tier 2)
+      try {
+        const completion = await this.groq.chat.completions.create({
+          model: this.fallbackModel,
           messages: [
             {
               role: 'system',
@@ -200,26 +251,40 @@ export class AiClassifierService {
         );
       } catch (groqErr) {
         this.logger.warn(
-          `Groq classification failed, falling back to Gemini: ${groqErr.message}`,
+          `Tier 2 (Llama) classification failed, trying Tier 3 (GPT OSS): ${groqErr.message}`,
         );
       }
 
-      // 3. Gemini Fallback
-      const model = this.genAI.getGenerativeModel({
-        model: this.modelName,
-        generationConfig: { responseMimeType: 'application/json' },
-      });
-
-      const result = await model.generateContent(prompt);
-      const data = JSON.parse(result.response.text());
-      return this.processClassificationResult(
-        data,
-        message,
-        null,
-        attachmentsCount,
-      );
-    } catch (e) {
-      this.logger.error(`Classification failed: ${e.message}. Using local fallback...`);
+      // 3. Groq - GPT OSS (Tier 3 Fallback)
+      try {
+        const completion = await this.groq.chat.completions.create({
+          model: this.fallbackModel,
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are an expert intent classifier for property management. Respond ONLY with valid JSON in the exact schema requested.',
+            },
+            { role: 'user', content: prompt },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.1,
+        });
+        const data = JSON.parse(
+          completion.choices[0]?.message?.content || '{}',
+        );
+        return this.processClassificationResult(
+          data,
+          message,
+          null,
+          attachmentsCount,
+        );
+      } catch (e) {
+        this.logger.error(`All classification tiers failed: ${e.message}. Using local fallback...`);
+        return this.localClassify(message, role, undefined, attachmentsCount);
+      }
+    } catch (outerErr) {
+      this.logger.error(`Classification orchestrator failed: ${outerErr.message}`);
       return this.localClassify(message, role, undefined, attachmentsCount);
     }
   }
@@ -302,7 +367,7 @@ export class AiClassifierService {
         text,
       );
     const hasSystemFailureKeywords =
-      /\bfail(ure|ed)?\b|\berror\b|\bbug\b|\bcrash\b|\bshida\b|\bkushindwa\b|haifanyi|haitaki|haingii/.test(
+      /\bfail(ure|ed)?\b|\berror\b|\bbug\b|\bcrash\b/.test(
         text,
       );
 
@@ -411,19 +476,25 @@ export class AiClassifierService {
       };
     }
 
-    // Guardrail: shida/error keywords should route to system_failure.
-    const systemFailureSignals = [
-      /report.*fail/i,
-      /error.*fetch/i,
-      /haitaki/i,
-      /shida.*report/i,
-      /fetch.*failed/i,
-      /cannot.*load/i,
-      /failed.*generate/i,
-      /haifanyi/i,
-    ];
+    // Guardrail: Emergency detection (burst water, fire, flood, etc.)
+    const isEmergency = /pasuka|burst|flood|motto|fire|emergency|hatari|danger|short circuit/i.test(text);
+    if (isEmergency && (result.intent === 'log_maintenance_issue' || result.intent === 'general_query' || result.intent === 'create_maintenance_request')) {
+        return {
+            ...result,
+            intent: 'maintenance_emergency',
+            reason: `${result.reason} (emergency guardrail: critical maintenance issue detected)`,
+            confidence: 0.98,
+            executionMode: 'DIRECT_LOOKUP'
+        };
+    }
 
-    if ((hasSystemFailureKeywords || systemFailureSignals.some(s => s.test(text))) && result.intent === 'general_query') {
+    // Guardrail: shida/error keywords should route to system_failure, 
+    // BUT excluding common Swahili domain issues (rent/property).
+    const isDomainProblem = /shida.*(kodi|nyumba|pesa|rent|arrears|receipt|balanc)/i.test(text) || 
+                           /(kodi|nyumba|pesa|rent|arrears|receipt|balanc).*shida/i.test(text);
+
+    if ((hasSystemFailureKeywords || this.systemFailureSignals.some(s => s.test(text))) && 
+        (result.intent === 'general_query' || result.intent === 'system_failure') && !isDomainProblem) {
       return {
         ...result,
         intent: 'system_failure',
@@ -432,6 +503,16 @@ export class AiClassifierService {
         confidence: Math.max(baseConfidence ?? 0.6, 0.95),
         reason: `${result.reason} (guardrail: specific system failure patterns detected)`,
       };
+    }
+
+    // If it WAS system_failure but IS a domain problem, downgrade to general_query or check_rent_status
+    if (result.intent === 'system_failure' && isDomainProblem) {
+        return {
+            ...result,
+            intent: text.includes('kodi') || text.includes('pesa') || text.includes('rent') ? 'check_rent_status' : 'general_query',
+            reason: `${result.reason} (guardrail: domain problem detected, overriding system_failure)`,
+            confidence: 0.9,
+        };
     }
 
     // Guardrail: revenue/collection figure requests should route to financial tools, not property details.
@@ -526,8 +607,9 @@ export class AiClassifierService {
       );
     }
 
-    // System Failure
-    if (/fail|error|bug|shida|haifanyi|haitaki/.test(text)) {
+    // System Failure (Local)
+    const hasTechnicalFailure = /fail|error|bug/.test(text) || this.systemFailureSignals.some((s: RegExp) => s.test(text));
+    if (hasTechnicalFailure) {
       const intent = 'system_failure';
       return this.result(
         intent,
@@ -816,7 +898,7 @@ export class AiClassifierService {
     // Reports (CSV vs McKinsey)
     if (/report|summary|breakdown|revenue|arrears/i.test(text)) {
       const isCsv = /csv|spreadsheet|excel|sheet/i.test(text);
-      const intent = isCsv ? 'generate_csv_report' : 'generate_mckinsey_report';
+      const intent: 'generate_csv_report' | 'generate_mckinsey_report' | 'generate_statement' | 'maintenance_emergency' | 'agent_initiate' = isCsv ? 'generate_csv_report' : 'generate_mckinsey_report';
       return this.result(
         intent,
         3,
