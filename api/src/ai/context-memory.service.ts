@@ -3,17 +3,41 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
 
+export interface LockedState {
+  lockedIntent: string | null;
+  activeTenantId: string | null;
+  activeTenantName: string | null;
+  activePropertyId: string | null;
+  activeUnitId: string | null;
+  activeIssueId: string | null;
+  executionHistory: string[]; // List of tools successfully executed
+  turnCount: number;
+  clearedAt: string | null;
+}
+
+export interface ActiveTransaction {
+  amount?: number;
+  currency?: string;
+  date?: string;
+  type?: string; // e.g. "LATE_PAYMENT", "PARTIAL_PAYMENT"
+  confirmed?: boolean;
+}
+
 export interface SessionContext {
   activePropertyId?: string;
   activeTenantId?: string;
   activeUnitId?: string;
   activeCompanyId?: string;
   activeMaintenanceId?: string;
-  activeTenant?: { id: string; name: string; unit?: string; arrears?: number };
+  activeTenant?: { id: string; name: string; unit?: string; arrears?: number; phone?: string };
+  activeProperty?: { id: string; name: string; address?: string };
   activeIssue?: { id: string; type: string; status: string; unit?: string };
+  activeTransaction?: ActiveTransaction;
   pendingAction?: string;
   lastIntent?: string;
   lastEntities?: Array<{ type: string; id: string; name: string }>;
+  lastPriority?: string;
+  lockedState?: LockedState;
   updatedAt: number;
 }
 
@@ -35,11 +59,17 @@ export class ContextMemoryService {
     if (!raw) {
       return { updatedAt: Date.now() };
     }
-    return typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    this.logger.log(`[ContextMemory] Retrieved for ${uid}: lockedIntent=${parsed.lastIntent}`);
+    return parsed;
   }
 
   async setContext(uid: string, context: Partial<SessionContext>): Promise<void> {
     const current = await this.getContext(uid);
+    // LAYER 4: State Locking - Prevent overwriting a locked intent with undefined
+    if (current.lastIntent && context.lastIntent === undefined) {
+      context.lastIntent = current.lastIntent;
+    }
     const updated = {
       ...current,
       ...context,
@@ -55,17 +85,48 @@ export class ContextMemoryService {
     const context: Partial<SessionContext> = {};
     
     for (const entity of entities) {
-      if (entity.type === 'property') context.activePropertyId = entity.id;
-      if (entity.type === 'tenant') context.activeTenantId = entity.id;
-      if (entity.type === 'unit') context.activeUnitId = entity.id;
+      if (entity.type === 'property') {
+        context.activePropertyId = entity.id;
+        context.activeProperty = { id: entity.id, name: entity.name || 'Property' };
+      }
+      if (entity.type === 'tenant') {
+        context.activeTenantId = entity.id;
+        context.activeTenant = { id: entity.id, name: entity.name || 'Tenant' };
+      }
+      if (entity.type === 'unit') {
+        context.activeUnitId = entity.id;
+      }
       if (entity.type === 'company') context.activeCompanyId = entity.id;
-      if (entity.type === 'maintenance') context.activeMaintenanceId = entity.id;
+      if (entity.type === 'maintenance') {
+        context.activeMaintenanceId = entity.id;
+        context.activeIssue = { id: entity.id, type: 'MAINTENANCE', status: 'PENDING' };
+      }
     }
 
     if (Object.keys(context).length > 0) {
       this.logger.log(`[ContextMemory] Stitched entities for ${uid}: ${JSON.stringify(context)}`);
       await this.setContext(uid, context);
     }
+  }
+
+  async recordHistory(uid: string, toolName: string): Promise<void> {
+    const context = await this.getContext(uid);
+    const lockedState = context.lockedState || {
+      lockedIntent: null,
+      activeTenantId: null,
+      activeTenantName: null,
+      activePropertyId: null,
+      activeUnitId: null,
+      activeIssueId: null,
+      executionHistory: [],
+      turnCount: 0,
+      clearedAt: null,
+    };
+    
+    if (!lockedState.executionHistory) lockedState.executionHistory = [];
+    lockedState.executionHistory.push(toolName);
+    
+    await this.setContext(uid, { lockedState });
   }
 
   /**
