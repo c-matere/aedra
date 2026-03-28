@@ -18,6 +18,36 @@ export class AiToolRegistryService {
     private readonly autonomousAgentService: AutonomousAgentService,
   ) {}
 
+  private readonly ROLE_TOOL_ALLOWLIST: Record<string, string[]> = {
+    [UserRole.TENANT]: [
+      'get_unit_details', 'get_tenant_details', 'get_tenant_arrears',
+      'list_payments', 'get_lease_details',
+      'log_maintenance_issue', 'get_maintenance_status',
+      'generate_statement', 'log_tenant_incident', 'log_payment_promise',
+      'send_notification', 'notify_tenant'
+    ],
+    [UserRole.COMPANY_STAFF]: [
+      // Staff can do almost everything
+      'list_properties', 'get_property_details', 'get_units', 'get_unit_details',
+      'search_tenants', 'get_tenant_details', 'get_tenant_arrears',
+      'list_payments', 'get_payment_details', 'get_lease_details',
+      'get_collection_rate', 'get_occupancy_stats', 'get_maintenance_status',
+      'list_maintenance_tickets', 'generate_rent_roll', 'generate_statement',
+      'get_revenue_summary', 'get_monthly_summary', 'generate_monthly_summary',
+      'check_payment_status', 'get_payment_status',
+      'register_tenant', 'update_tenant_contact', 'log_maintenance_issue',
+      'update_ticket_status', 'process_payment', 'record_expense',
+      'log_maintenance', 'log_tenant_incident', 'log_payment_promise',
+      'send_notification', 'notify_tenant', 'update_maintenance_request'
+    ],
+    [UserRole.LANDLORD]: [
+      'get_revenue_summary', 'get_collection_rate', 'list_properties',
+      'get_property_details', 'get_occupancy_stats', 'generate_rent_roll',
+      'get_maintenance_status', 'list_maintenance_tickets'
+    ],
+    [UserRole.SUPER_ADMIN]: [], // Will be handled by staff/landlord fallback in logic
+  };
+
   async executeTool(
     name: string,
     args: any,
@@ -25,7 +55,13 @@ export class AiToolRegistryService {
     role: UserRole,
     language: string,
   ): Promise<any> {
-    this.logger.log(`Executing tool: ${name}`);
+    this.logger.log(`Executing tool: ${name} for role: ${role}`);
+
+    // v5.2 Deterministic Safety Net (Allowlist-First)
+    if (!this.isToolAllowed(name, role)) {
+      this.logger.error(`[Security] Tool ${name} is NOT permitted for role ${role}`);
+      throw new Error(`Unauthorized: Tool ${name} is not permitted for your role.`);
+    }
 
     // Agent Tools delegation
     if (name === 'analyze_agent_goal') {
@@ -139,51 +175,26 @@ export class AiToolRegistryService {
    * Returns a list of tool names available for a specific user role.
    */
   async getToolsForRole(role: string): Promise<string[]> {
-    const isTenant = role === UserRole.TENANT;
-    const isLandlord = role === UserRole.LANDLORD;
-    const isAdmin = role === UserRole.COMPANY_ADMIN || role === UserRole.SUPER_ADMIN;
-
-    const allTools = [
-      // Read Tools
-      'list_properties', 'get_property_details',
-      'get_units', 'get_unit_details',
-      'search_tenants', 'get_tenant_details', 'get_tenant_arrears',
-      'list_payments', 'get_payment_details',
-      'get_lease_details',
-      'get_collection_rate', 'get_occupancy_stats',
-      'get_maintenance_status', 'list_maintenance_tickets',
-      'generate_rent_roll', 'generate_statement',
-      'get_revenue_summary', 'get_monthly_summary', 'generate_monthly_summary',
-      'check_payment_status', 'get_payment_status',
-      
-      // Write Tools
-      'register_tenant', 'update_tenant_contact',
-      'log_maintenance_issue', 'update_ticket_status',
-      'process_payment', 'record_expense',
-      'log_maintenance',
-      
-      // Intent Tools
-      'maintenance_emergency',
-      
-      // Agent Tools
-      'analyze_agent_goal', 'evaluate_agent_progress', 'process_agent_feedback',
-      'notify_agent_plan', 'send_agent_heartbeat', 'execute_agent_chunk'
-    ];
-
-    if (isTenant) {
-      return [
-        'get_unit_details', 'get_tenant_details', 'get_tenant_arrears',
-        'list_payments', 'get_lease_details',
-        'log_maintenance_issue', 'get_maintenance_status',
-        'generate_statement'
-      ];
+    const r = role.toUpperCase();
+    if (r === UserRole.SUPER_ADMIN || r === UserRole.COMPANY_ADMIN) {
+      return this.ROLE_TOOL_ALLOWLIST[UserRole.COMPANY_STAFF];
     }
+    return this.ROLE_TOOL_ALLOWLIST[r] || [];
+  }
 
-    if (isLandlord || isAdmin || role === UserRole.COMPANY_STAFF) {
-      return allTools;
-    }
+  /**
+   * Deterministic check if a tool is allowed for a role.
+   */
+  isToolAllowed(name: string, role: string): boolean {
+    const r = role.toUpperCase();
+    const effectiveRole = (r === UserRole.SUPER_ADMIN || r === UserRole.COMPANY_ADMIN) ? UserRole.COMPANY_STAFF : r;
+    const allowed = this.ROLE_TOOL_ALLOWLIST[effectiveRole] || [];
+    
+    // Explicitly allow agent tools for internal workflow if they are part of the system
+    const agentTools = ['analyze_agent_goal', 'evaluate_agent_progress', 'process_agent_feedback', 'notify_agent_plan', 'send_agent_heartbeat', 'execute_agent_chunk'];
+    if (agentTools.includes(name)) return true;
 
-    return ['list_properties', 'get_units', 'search_tenants'];
+    return allowed.includes(name);
   }
 
   /**
@@ -214,7 +225,6 @@ export class AiToolRegistryService {
 
     // Exceptions that start with read prefixes but are mutative/staged/complex reports
     const exceptions = [
-      'generate_mckinsey_report',
       'generate_csv_report',
       'list_tenants_staged',
       'list_payments_staged',

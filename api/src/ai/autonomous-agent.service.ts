@@ -25,7 +25,7 @@ export class AutonomousAgentService {
    * Scans for agents in BACKGROUND_PAUSED state and triggers their next heartbeat.
    */
   async processHeartbeats() {
-    this.logger.log('[AgentService] Scanning for paused agents...');
+    // this.logger.log('[AgentService] Scanning for paused agents...');
     const pausedAgents = await this.prisma.workflowInstance.findMany({
       where: {
         type: WorkflowType.AUTONOMOUS_AGENT,
@@ -33,7 +33,8 @@ export class AutonomousAgentService {
       },
     });
 
-    this.logger.log(`[AgentService] Found ${pausedAgents.length} agents to resume.`);
+
+    // this.logger.log(`[AgentService] Found ${pausedAgents.length} agents to resume.`);
 
     for (const agent of pausedAgents) {
       this.logger.log(`[AgentService] Resuming agent ${agent.id}...`);

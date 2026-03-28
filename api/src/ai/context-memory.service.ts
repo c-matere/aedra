@@ -4,15 +4,18 @@ import type { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface LockedState {
-  lockedIntent: string | null;
-  activeTenantId: string | null;
-  activeTenantName: string | null;
-  activePropertyId: string | null;
-  activeUnitId: string | null;
-  activeIssueId: string | null;
-  executionHistory: string[]; // List of tools successfully executed
-  turnCount: number;
-  clearedAt: string | null;
+  lockedIntent?: string | null;
+  activeTenantId?: string | null;
+  activeTenantName?: string | null;
+  activePropertyId?: string | null;
+  activeUnitId?: string | null;
+  activeIssueId?: string | null;
+  activeIssueDescription?: string | null;
+  executionHistory?: string[]; // List of tools successfully executed
+  turnCount?: number;
+  clearedAt?: string | null;
+  pendingTenantName?: string | null;
+  pendingUnitNumber?: string | null;
 }
 
 export interface ActiveTransaction {
@@ -103,22 +106,27 @@ export class ContextMemoryService {
     const context: Partial<SessionContext> = {};
     
     for (const entity of entities) {
-      if (entity.type === 'property') {
+      if (entity.type === 'property' || entity.type === 'get_property_details') {
         context.activePropertyId = entity.id;
         context.activeProperty = { id: entity.id, name: entity.name || 'Property' };
       }
-      if (entity.type === 'tenant') {
+      if (entity.type === 'tenant' || entity.type === 'kernel_search' || entity.type === 'search_tenants') {
         context.activeTenantId = entity.id;
         context.activeTenant = { id: entity.id, name: entity.name || 'Tenant' };
       }
-      if (entity.type === 'unit') {
+      if (entity.type === 'unit' || entity.type === 'kernel_unit_resolution' || entity.type === 'get_unit_details') {
         context.activeUnitId = entity.id;
       }
-      if (entity.type === 'company') context.activeCompanyId = entity.id;
-      if (entity.type === 'maintenance') {
+      if (entity.type === 'maintenance' || entity.type === 'log_maintenance_request') {
         context.activeMaintenanceId = entity.id;
         context.activeIssue = { id: entity.id, type: 'MAINTENANCE', status: 'PENDING' };
       }
+      if (entity.type === 'kernel_intercept') {
+        // Intercepts are handled via ActiveTransaction
+        // We ensure the context is updated if any ID is present in the intercept
+        if (entity.id) context.activeTenantId = entity.id;
+      }
+      if (entity.type === 'company') context.activeCompanyId = entity.id;
     }
 
     if (Object.keys(context).length > 0) {
@@ -136,9 +144,12 @@ export class ContextMemoryService {
       activePropertyId: null,
       activeUnitId: null,
       activeIssueId: null,
-      executionHistory: [],
+      activeIssueDescription: null,
+      executionHistory: [] as string[],
       turnCount: 0,
       clearedAt: null,
+      pendingTenantName: null,
+      pendingUnitNumber: null,
     };
     
     if (!lockedState.executionHistory) lockedState.executionHistory = [];

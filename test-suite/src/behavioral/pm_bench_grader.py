@@ -18,7 +18,7 @@ if os.path.exists(env_path):
             if line.startswith("GEMINI_MODEL="):
                 GEMINI_MODEL = line.split("=", 1)[1].strip().strip('"\'')
 
-JUDGE_MODEL = GEMINI_MODEL
+JUDGE_MODEL = "gemini-2.0-flash" # Use the latest stable flash model
 
 def score_response(scenario, history):
     """
@@ -103,8 +103,8 @@ Output FORMAT MUST BE STRICT JSON:
             raise
 
     try:
-        max_retries = 6
-        base_delay = 2.0
+        max_retries = 10
+        base_delay = 5.0
         for attempt in range(max_retries):
             response = requests.post(url, json=data, timeout=30)
 
@@ -115,9 +115,10 @@ Output FORMAT MUST BE STRICT JSON:
 
             # Retry on transient failures / quota throttling.
             if response.status_code in (429, 500, 502, 503, 504):
-                wait = min(30.0, base_delay * (2**attempt)) + random.uniform(0, 0.25)
+                # Aggressive backoff for 429s
+                wait = min(60.0, base_delay * (2**attempt)) + random.uniform(0, 5.0)
                 print(
-                    f"Grader API Error (Gemini): {response.status_code} - retrying in {wait:.1f}s"
+                    f"Grader API Error (Gemini): {response.status_code} - Quota exhausted? Retrying in {wait:.1f}s (Attempt {attempt+1}/{max_retries})"
                 )
                 time.sleep(wait)
                 continue

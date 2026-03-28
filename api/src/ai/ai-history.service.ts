@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export class AiHistoryService {
   private readonly logger = new Logger(AiHistoryService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Normalizes history entries into the format expected by Gemini.
@@ -116,13 +116,6 @@ export class AiHistoryService {
       where: { id: chatId },
     }).catch((e) => this.logger.warn(`Failed to wipe history ${chatId}: ${e.message}`));
 
-    // 3. Optional: Cleanup by userId (simplified)
-    if (userId && userId !== 'NONE') {
-        await this.prisma.chatHistory.deleteMany({
-            where: { userId: userId }
-        }).catch(() => {});
-    }
-
     const msgCount = await this.prisma.chatMessage.count({ where: { chatHistoryId: chatId } });
     const histCount = await this.prisma.chatHistory.count({ where: { id: chatId } });
 
@@ -145,7 +138,7 @@ export class AiHistoryService {
           where: { id: chatId },
           update: {},
           create: { id: chatId, title: 'Benchmark/External Conversation' },
-        }).catch(() => {}); // Secondary safeguard
+        }).catch(() => { }); // Secondary safeguard
 
         await this.prisma.chatMessage.create({
           data: { chatHistoryId: chatId, role: 'user', content: userText },

@@ -43,6 +43,12 @@ export class AiEntityResolutionService {
         return this.resolveTenant(q, companyId, unitHint, strict);
       case 'unit':
         return this.resolveUnitRes(q, companyId, strict);
+      case 'landlord':
+        const lid = await this.resolveLandlord(q, companyId);
+        return { id: lid, match: lid ? { id: lid } : null, candidates: [], confidence: lid ? 0.95 : 0, mode: lid ? 'FUZZY' : 'NOT_FOUND' };
+      case 'company':
+        const compId = await this.resolveCompany(q);
+        return { id: compId, match: compId ? { id: compId } : null, candidates: [], confidence: compId ? 0.95 : 0, mode: compId ? 'EXACT' : 'NOT_FOUND' };
       case 'property':
         const pid = await this.resolveGeneric(entity, q, companyId);
         return { id: pid, match: pid ? { id: pid } : null, candidates: [], confidence: pid ? 0.9 : 0, mode: pid ? 'FUZZY' : 'NOT_FOUND' };
@@ -64,10 +70,12 @@ export class AiEntityResolutionService {
           { lastName: { equals: q, mode: 'insensitive' }, companyId: cid },
           { 
             AND: [
-              { firstName: { contains: q.split(' ')[0], mode: 'insensitive' } },
-              { lastName: { contains: q.split(' ')[1] || '', mode: 'insensitive' } }
+              { firstName: { contains: q.split(/\s+/)[0] || '', mode: 'insensitive' } },
+              { lastName: { contains: q.split(/\s+/)[1] || '', mode: 'insensitive' } }
             ]
-          }
+          },
+          { firstName: { contains: q, mode: 'insensitive' } },
+          { lastName: { contains: q, mode: 'insensitive' } }
         ],
         companyId: cid 
       },
@@ -75,28 +83,39 @@ export class AiEntityResolutionService {
     });
     if (exact) return { id: exact.id, match: exact, candidates: [], confidence: 1.0, mode: 'EXACT' };
 
-    // 2. Unit-Based Hint (High Confidence Fuzzy)
-    if (unitHint) {
+    // 2. UNIT-FIRST FALLBACK: If name looks like a unit number (e.g. "B4", "Unit 10"), resolve tenant of that unit
+    const potentialUnit = unitHint || (q.length <= 5 ? q : undefined);
+    if (potentialUnit) {
       const unitMatch = await this.prisma.unit.findFirst({
-        where: { unitNumber: { equals: unitHint, mode: 'insensitive' }, property: { companyId: cid } },
+        where: { unitNumber: { equals: potentialUnit, mode: 'insensitive' }, property: { companyId: cid } },
         include: { leases: { where: { status: 'ACTIVE', deletedAt: null }, include: { tenant: true } } }
       });
       if (unitMatch && unitMatch.leases.length > 0) {
         const tenants = unitMatch.leases.map(l => l.tenant);
+        
+        // If query was the exact unit number, and there's one tenant, high confidence match
+        if (q.toLowerCase() === unitMatch.unitNumber.toLowerCase() && tenants.length === 1) {
+          this.logger.log(`[EntityResolution] Unit-First match: Resolved "${q}" to tenant ${tenants[0].firstName} via unit ${unitMatch.unitNumber}`);
+          return { id: tenants[0].id, match: { ...tenants[0], unitNumber: unitMatch.unitNumber }, candidates: [], confidence: 0.98, mode: 'EXACT' };
+        }
+
+        // Otherwise try to see if name matches one of the tenants in that unit
         const best = tenants.find(t => 
           `${t.firstName} ${t.lastName}`.toLowerCase().includes(q.toLowerCase()) || 
           q.toLowerCase().includes(t.firstName.toLowerCase())
         );
-        if (best) return { id: best.id, match: best, candidates: [], confidence: 0.95, mode: 'FUZZY' };
+        if (best) return { id: best.id, match: { ...best, unitNumber: unitMatch.unitNumber }, candidates: [], confidence: 0.95, mode: 'FUZZY' };
         
         if (tenants.length === 1 && (!strict || q.length > 3)) {
-            return { id: tenants[0].id, match: tenants[0], candidates: [], confidence: 0.92, mode: 'FUZZY' };
+            return { id: tenants[0].id, match: { ...tenants[0], unitNumber: unitMatch.unitNumber }, candidates: [], confidence: 0.92, mode: 'FUZZY' };
         }
       }
     }
 
-    // 3. Tokenized Fuzzy Match
+    // 3. Tokenized Fuzzy Match (Name-based) with Scoring
     const tokens = q.split(/\s+/).filter(t => t.length > 2);
+    if (tokens.length === 0) return { id: null, match: null, candidates: [], confidence: 0, mode: 'NOT_FOUND' };
+
     const fuzzyMatches = await this.prisma.tenant.findMany({
       where: {
         companyId: cid,
@@ -106,12 +125,25 @@ export class AiEntityResolutionService {
         ])
       },
       include: { leases: { where: { status: 'ACTIVE', deletedAt: null }, include: { unit: true } } },
-      take: 5
+      take: 10
     });
 
-    if (fuzzyMatches.length === 1) return { id: fuzzyMatches[0].id, match: fuzzyMatches[0], candidates: [], confidence: 0.88, mode: 'FUZZY' };
-    if (fuzzyMatches.length > 1) {
-      return { id: null, match: null, candidates: fuzzyMatches, confidence: 0.6, mode: 'AMBIGUOUS' };
+    if (fuzzyMatches.length === 0) return { id: null, match: null, candidates: [], confidence: 0, mode: 'NOT_FOUND' };
+
+    // Score candidates by token hits
+    const scored = fuzzyMatches.map(t => {
+      const fullName = `${t.firstName} ${t.lastName}`.toLowerCase();
+      const hits = tokens.filter(tok => fullName.includes(tok.toLowerCase())).length;
+      return { ...t, _score: hits / tokens.length };
+    }).sort((a, b) => b._score - a._score);
+
+    const top = scored[0];
+    if (top._score >= 0.8 || (scored.length === 1 && top._score >= 0.5)) {
+      return { id: top.id, match: top, candidates: [], confidence: 0.85 + (top._score * 0.1), mode: 'FUZZY' };
+    }
+
+    if (scored.length > 1) {
+      return { id: null, match: null, candidates: scored.slice(0, 3), confidence: 0.6, mode: 'AMBIGUOUS' };
     }
 
     return { id: null, match: null, candidates: [], confidence: 0, mode: 'NOT_FOUND' };

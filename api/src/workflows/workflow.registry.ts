@@ -153,6 +153,7 @@ const maintenanceResolution: WorkflowDefinition = {
     'report_maintenance',
     'maintenance_request',
     'maintenance_resolution',
+    'emergency_escalation',
   ],
   steps: [
     {

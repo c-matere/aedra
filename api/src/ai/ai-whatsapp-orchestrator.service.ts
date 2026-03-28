@@ -26,6 +26,7 @@ import { AiStagingService } from './ai-staging.service';
 import { WaCrudButtonsService } from './wa-crud-buttons.service';
 import { WorkflowEngine } from '../workflows/workflow.engine';
 import Groq, { toFile } from 'groq-sdk';
+import { AiServiceChatResponse } from './ai-contracts.types';
 
 @Injectable()
 export class AiWhatsappOrchestratorService {
@@ -595,7 +596,7 @@ export class AiWhatsappOrchestratorService {
                 messageId: messageId as string,
                 emoji: '⏳',
               });
-              const result = await this.aiService.chat(
+              const result: AiServiceChatResponse = await this.aiService.chat(
                 staged.history,
                 staged.text,
                 staged.chatId,
@@ -701,7 +702,7 @@ export class AiWhatsappOrchestratorService {
               });
             }
 
-            const result = await this.aiService.chat(
+            const result: AiServiceChatResponse = await this.aiService.chat(
               staged.history || [],
               staged.text,
               staged.chatId,
@@ -1121,27 +1122,37 @@ export class AiWhatsappOrchestratorService {
           }
 
           const effectiveText = text || (mediaId ? '[Attachment]' : '');
-          let classification: ClassificationResult;
-          try {
-            classification = await Promise.race([
-              this.classifier.classify(effectiveText, sender.role),
-              new Promise<any>((_, reject) =>
-                setTimeout(
-                  () => reject(new Error('Classification timeout')),
-                  10000,
+          
+          // Mombasa Market Hard-Interception (Entry Point)
+          let classification: ClassificationResult | null = this.interceptSwahiliEmergency(effectiveText);
+          
+          if (!classification) {
+            try {
+              classification = await Promise.race([
+                this.classifier.classify(effectiveText, sender.role),
+                new Promise<any>((_, reject) =>
+                  setTimeout(
+                    () => reject(new Error('Classification timeout')),
+                    10000,
+                  ),
                 ),
-              ),
-            ]);
-          } catch (err: any) {
-            classification = {
-              intent: 'unknown',
-              priority: 'NORMAL',
-              complexity: 2,
-              executionMode: 'LIGHT_COMPOSE',
-              language: 'en',
-              reason: 'Timeout fallback',
-              confidence: 0.3,
-            };
+              ]);
+            } catch (err: any) {
+              classification = {
+                intent: 'unknown',
+                priority: 'NORMAL',
+                complexity: 2,
+                executionMode: 'LIGHT_COMPOSE',
+                language: 'en',
+                reason: 'Timeout fallback',
+                confidence: 0.3,
+              };
+            }
+          }
+
+          if (!classification) {
+            this.logger.error(`Failed to classify message: ${effectiveText}`);
+            return { response: 'Classification failure', chatId: lastChat?.id || null };
           }
 
           if (
@@ -1380,7 +1391,7 @@ export class AiWhatsappOrchestratorService {
               history.shift();
           }
 
-          const result = await this.aiService.chat(
+          const result: AiServiceChatResponse = await this.aiService.chat(
             history,
             effectiveText,
             lastChat?.id,
@@ -1692,5 +1703,32 @@ export class AiWhatsappOrchestratorService {
     }
 
     return context;
+  }
+
+  private interceptSwahiliEmergency(input: string): ClassificationResult | null {
+    const msg = input.toLowerCase();
+    const combinations = [
+      { keywords: ['maji', 'imepotea'], intent: 'emergency' },
+      { keywords: ['maji', 'hamna'], intent: 'emergency' },
+      { keywords: ['stima', 'imepotea'], intent: 'emergency' },
+      { keywords: ['bomba', 'pasuka'], intent: 'emergency' },
+      { keywords: ['bomba', 'vunjika'], intent: 'emergency' },
+      { keywords: ['moto', 'ungua'], intent: 'emergency' },
+    ];
+
+    for (const combo of combinations) {
+      if (combo.keywords.every((k) => msg.includes(k))) {
+        return {
+          intent: combo.intent,
+          complexity: 2,
+          executionMode: 'DIRECT_LOOKUP',
+          language: 'sw',
+          priority: 'EMERGENCY',
+          confidence: 1.0,
+          reason: 'Hard emergency keywords detected (Entry Point)',
+        };
+      }
+    }
+    return null;
   }
 }

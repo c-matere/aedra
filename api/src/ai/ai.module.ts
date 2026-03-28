@@ -62,6 +62,16 @@ import { AiIntentFirewallService } from './ai-intent-firewall.service';
 import { ConsistencyValidatorService } from './consistency-validator.service';
 import { AiNextStepController } from './ai-next-step-controller.service';
 import { AiIntentNormalizerService } from './ai-intent-normalizer.service';
+import { InterpretationLayer } from './layers/interpretation-layer.service';
+import { DecisionLayer } from './layers/decision-layer.service';
+import { PolicyLayer } from './layers/policy-layer.service';
+import { WorkflowLayer } from './layers/workflow-layer.service';
+import { IntegrityValidationLayer } from './layers/integrity-validation-layer.service';
+import { RoleRouter } from './role-router.service';
+import { TenantIntentStrategy } from './strategies/tenant-intent.strategy';
+import { StaffIntentStrategy } from './strategies/staff-intent.strategy';
+import { LandlordIntentStrategy } from './strategies/landlord-intent.strategy';
+import { WorkflowStateMachineService } from './workflow-state-machine.service';
 
 @Module({
   imports: [
@@ -128,6 +138,16 @@ import { AiIntentNormalizerService } from './ai-intent-normalizer.service';
     ConsistencyValidatorService,
     AiNextStepController,
     AiIntentNormalizerService,
+    InterpretationLayer,
+    DecisionLayer,
+    PolicyLayer,
+    WorkflowLayer,
+    IntegrityValidationLayer,
+    RoleRouter,
+    TenantIntentStrategy,
+    StaffIntentStrategy,
+    LandlordIntentStrategy,
+    WorkflowStateMachineService,
     {
       provide: GoogleGenerativeAI,
       useFactory: () =>
@@ -186,6 +206,16 @@ import { AiIntentNormalizerService } from './ai-intent-normalizer.service';
     ConsistencyValidatorService,
     AiNextStepController,
     AiIntentNormalizerService,
+    InterpretationLayer,
+    DecisionLayer,
+    PolicyLayer,
+    WorkflowLayer,
+    IntegrityValidationLayer,
+    RoleRouter,
+    TenantIntentStrategy,
+    StaffIntentStrategy,
+    LandlordIntentStrategy,
+    WorkflowStateMachineService,
     Groq,
   ],
 })

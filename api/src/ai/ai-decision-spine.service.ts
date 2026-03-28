@@ -141,12 +141,25 @@ export class AiDecisionSpineService {
     }
 
     // 5. AMBIGUITY MANAGEMENT (ASK vs ASSUME)
-    if (classification.confidence && classification.confidence < 0.35) {
-      this.logger.warn(`[DecisionSpine] Extremely low confidence (${classification.confidence}). Requesting clarification.`);
-      return {
-        mode: 'ASK_CLARIFICATION',
-        reason: 'Classification confidence below operational threshold.',
-      };
+    const operationalKeywords = ['rent', 'pay', 'maji', 'bomba', 'stima', 'unit', 'house', 'nyumba', 'kodi', 'malipo'];
+    const hasOperationalContext = operationalKeywords.some(kw => text.includes(kw));
+
+    if (classification.confidence && classification.confidence < 0.5 && (intent === 'general_query' || intent === 'unknown')) {
+      if (hasOperationalContext) {
+        this.logger.warn(`[DecisionSpine] Ambiguous operational query (Confidence: ${classification.confidence}). Blocking fallback.`);
+        return {
+          mode: 'BLOCK',
+          reason: 'I see you are asking about something related to your property or payments, but I am not quite sure what you need. Could you please be more specific? For example, are you reporting a leak or asking about your balance?',
+        };
+      }
+      
+      if (classification.confidence < 0.35) {
+        this.logger.warn(`[DecisionSpine] Extremely low confidence (${classification.confidence}). Requesting clarification.`);
+        return {
+          mode: 'ASK_CLARIFICATION',
+          reason: 'Classification confidence below operational threshold.',
+        };
+      }
     }
 
     // 6. PREREQUISITE GATING

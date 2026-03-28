@@ -31,6 +31,8 @@ export interface ClassificationResult {
     proposed_date?: string;
     amount?: string | number;
     companyId?: string;
+    name?: string;
+    tenant_name?: string;
   };
 }
 
@@ -38,7 +40,7 @@ export interface ClassificationResult {
 export class AiClassifierService {
   private readonly logger = new Logger(AiClassifierService.name);
 
-  private readonly primaryModel = 'openai/gpt-oss-20b';
+  private readonly primaryModel = 'gemini-2.0-flash';
   private readonly fallbackModel = 'llama-3.1-8b-instant';
   private readonly apiKey = process.env.GEMINI_API_KEY;
   private readonly swKeywords = [
@@ -94,7 +96,6 @@ export class AiClassifierService {
     'emergency',
     'urgent',
     'immediate help',
-    'leak',
     'maji imevuja',
     'moto',
     'fire',
@@ -150,18 +151,15 @@ export class AiClassifierService {
       return this.localClassify(message, role, undefined, attachmentsCount);
     }
 
-    const stateDesc = context ? `
-      ACTIVE CONTEXT:
-      - Current Tenant: ${context.activeTenant?.name || 'Unknown'}
-      - Current Unit: ${context.activeUnitId || 'Unknown'}
-      - Current Property: ${context.activeProperty?.name || 'Unknown'}
-      - Last Intent: ${context.lastIntent || 'None'}
-    ` : '';
-
     const prompt = `
       You are an expert intent classifier for "Aedra", a property management AI.
       User Role: ${role}
-      ${stateDesc}
+      ${context ? `
+        ACTIVE CONTEXT:
+        - Current Tenant: ${context.activeTenant?.name || 'Unknown'}
+        - Current Unit: ${context.activeUnitId || 'Unknown'}
+        - Last Intent: ${context.lastIntent || 'None'}
+      ` : ''}
       
       Classify the user's message and return a JSON object with these fields:
       - intent: string (one of the supported intents below)
@@ -205,7 +203,7 @@ export class AiClassifierService {
     `;
 
     try {
-      // 1. Gemini Pro (Tier 1)
+      // 1. OpenAI - GPT OSS (Tier 1)
       try {
         const model = this.genAI.getGenerativeModel({
           model: this.primaryModel,
@@ -221,7 +219,7 @@ export class AiClassifierService {
         );
       } catch (geminiErr) {
         this.logger.warn(
-          `Tier 1 (Gemini 2.5 Pro) classification failed, trying Tier 2 (Llama): ${geminiErr.message}`,
+          `Tier 1 (GPT-OSS-20B) classification failed, trying Tier 2 (Llama): ${geminiErr.message}`,
         );
       }
 
@@ -251,7 +249,7 @@ export class AiClassifierService {
         );
       } catch (groqErr) {
         this.logger.warn(
-          `Tier 2 (Llama) classification failed, trying Tier 3 (GPT OSS): ${groqErr.message}`,
+          `Tier 2 (Llama) classification failed: ${groqErr.message}`,
         );
       }
 
@@ -289,7 +287,75 @@ export class AiClassifierService {
     }
   }
 
+  async classifyForRole(message: string, role: string, context?: any): Promise<ClassificationResult> {
+    const intentsByRole = {
+      TENANT: [
+        'maintenance_request', 'payment_promise', 'payment_declaration', 
+        'tenant_complaint', 'emergency_escalation', 'general_query'
+      ],
+      COMPANY_STAFF: [
+        'onboard_property', 'bulk_create_tenants', 'add_tenant', 'update_property',
+        'create_unit', 'create_lease', 'collection_status', 'record_expense',
+        'list_expenses', 'check_rent_status', 'send_bulk_reminder', 'check_vacancy',
+        'general_query'
+      ],
+      LANDLORD: [
+        'collection_status', 'revenue_summary', 'vacancy_report', 'general_query'
+      ]
+    };
 
+    const allowedIntents = ((intentsByRole as any)[role] || ['general_query']).join(', ');
+    const stateDesc = context ? `
+      ACTIVE CONTEXT:
+      - Current Tenant: ${context.activeTenant?.name || 'Unknown'}
+      - Current Unit: ${context.activeUnitId || 'Unknown'}
+      - Last Intent: ${context.lastIntent || 'None'}
+    ` : '';
+
+    const prompt = `
+      You are an expert intent classifier for "Aedra", a property management AI.
+      User Role: ${role}
+      ${stateDesc}
+      
+      Classify the user's message and return a JSON object.
+      ALLOWED INTENTS (STRICT): [${allowedIntents}]
+      
+      Response Format:
+      {
+        "intent": string,
+        "complexity": 1-5,
+        "executionMode": "DIRECT_LOOKUP" | "LIGHT_COMPOSE" | "ORCHESTRATED" | "INTELLIGENCE" | "PLANNING",
+        "language": "en" | "sw" | "mixed",
+        "confidence": 0.0-1.0,
+        "reason": string,
+        "entities": { "unit": string, "issue_details": string, "amount": number, "proposed_date": string }
+      }
+
+      SPECIAL INSTRUCTIONS FOR ROLE: ${role}
+      ${role === 'TENANT' ? `
+      - If message mentions "broken", "leaking", "no water", "no power", "maji imepotea", use "maintenance_request" or "emergency_escalation".
+      - If message is a follow-up (e.g. "unit B4", "at 10am") to a maintenance request, keep "maintenance_request".
+      - If message mentions "pay", "lipa", "nimetuma", use "payment_declaration" or "payment_promise".
+      ` : ''}
+
+      User message: "${message}"
+      Respond ONLY with the JSON object.
+    `;
+
+    try {
+      this.logger.log(`[Classifier] Classifying for ROLE: ${role} | intent space: [${allowedIntents}]`);
+      const model = this.genAI.getGenerativeModel({
+        model: this.primaryModel,
+        generationConfig: { responseMimeType: 'application/json' },
+      });
+      const result = await model.generateContent(prompt);
+      const data = JSON.parse(result.response.text());
+      return this.processClassificationResult(data, message, null, 0);
+    } catch (err) {
+      this.logger.warn(`[Classifier] Role-specific classification failed for ${role}: ${err.message}`);
+      return this.classify(message, role as any);
+    }
+  }
 
   private processClassificationResult(
     data: any,
@@ -696,14 +762,14 @@ export class AiClassifierService {
         text,
       )
     ) {
-      const intent = 'financial_query';
+      const intent = 'payment_promise';
       return this.result(
         intent,
         1,
         mode(intent),
         lang,
         'NORMAL',
-        'Financial/Late rent intent',
+        'Financial/Late rent intent (Handled as Promise)',
         isLong,
         sentences.length,
         hasAttachments,
@@ -730,15 +796,16 @@ export class AiClassifierService {
 
     // Maintenance & Complaints
     if (/maintenance|tap|sink|bomba|imevunjika|leak|broken|repair|fix/.test(text)) {
-      const intent = 'maintenance_request';
+      const isWaterOut = /maji.*(imepotea|limepotea|lack|no water)/i.test(text) || /no water/i.test(text);
+      const intent = isWaterOut ? 'utility_outage' : 'maintenance_request';
       const unitMatch = text.match(/(?:house|unit|nyumba|room)\s*(?:no\.?|number|#)?\s*([a-z0-9]+)/i);
       return this.result(
         intent,
         1,
         mode(intent),
         lang,
-        'NORMAL',
-        'Maintenance intent',
+        isWaterOut ? 'HIGH' : 'NORMAL',
+        isWaterOut ? 'Utility outage detected (Water)' : 'Maintenance intent',
         isLong,
         sentences.length,
         hasAttachments,

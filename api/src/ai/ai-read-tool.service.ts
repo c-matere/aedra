@@ -53,14 +53,17 @@ export class AiReadToolService {
   private mockFixtures: any = null;
 
   private readonly REPORT_MAP: Record<string, string> = {
-    'monthly summary': 'generate_monthly_summary',
-    'monthly summary report': 'generate_monthly_summary',
-    'summary report': 'generate_monthly_summary',
+    'monthly summary': 'generate_mckinsey_report',
+    'monthly summary report': 'generate_mckinsey_report',
+    'summary report': 'generate_mckinsey_report',
+    'generate_monthly_summary': 'generate_mckinsey_report',
     'rent roll': 'generate_rent_roll',
     'statement': 'generate_statement',
     'revenue': 'get_revenue_summary',
     'revenue figure': 'get_revenue_summary',
-    'occupancy': 'get_occupancy_report'
+    'occupancy': 'get_occupancy_report',
+    'mckinsey report': 'generate_mckinsey_report',
+    'mckinsey': 'generate_mckinsey_report'
   };
 
   private formatNotFoundError(entity: string, searchTerm: string): any {
@@ -115,7 +118,7 @@ export class AiReadToolService {
     }
   }
 
-  private async handleMockRead(name: string, args: any): Promise<any> {
+  private async handleMockRead(name: string, args: any, context?: any): Promise<any> {
     if (!this.mockFixtures) return null;
 
     switch (name) {
@@ -213,7 +216,15 @@ export class AiReadToolService {
         }));
       }
       case 'list_payments': {
-        const q = (args.query || args.tenantName || args.tenantId || '').toLowerCase();
+        const identityKey = `ai_session:${args.chatId || 'SYSTEM'}:identity`;
+        let q = (args.query || args.tenantName || args.tenantId || '').toLowerCase();
+        
+        // If no query, use the locked session identity if available
+        if (!q && context?.lockedIdentity?.name) {
+          q = context.lockedIdentity.name.toLowerCase();
+          this.logger.log(`[Mock] list_payments: Using locked identity filter: ${q}`);
+        }
+
         let payments = this.mockFixtures.payments;
         if (q) {
           payments = payments.filter((p: any) => 
@@ -222,13 +233,13 @@ export class AiReadToolService {
             p.unitNumber?.toLowerCase() === q ||
             p.leaseId?.toLowerCase() === q
           );
-        } else {
-          // If no query, return empty to prevent bleed
+        } else if (process.env.BENCH_MOCK_MODE !== 'true') {
+          // In production, no query means empty list to prevent leak
           payments = [];
         }
         return { 
           success: true, 
-          payments,
+          payments: payments.map((p: any) => ({ ...p, status: 'COMPLETED' })),
           _mocked: true 
         };
       }
@@ -242,9 +253,10 @@ export class AiReadToolService {
             rent: u.rentAmount,
             status: u.status
           })),
-          _mocked: true
-        };
-      }
+        _mocked: true,
+        url: `https://aedra.app/reports/rent_roll_${Date.now()}.pdf`
+      };
+    }
       case 'get_collection_rate': {
         const res =  {
           success: true,
@@ -260,9 +272,10 @@ export class AiReadToolService {
       case 'get_revenue_summary':
       case 'get_monthly_summary':
       case 'generate_monthly_summary': {
-        const query = (args.propertyName || args.property || 'all properties').toLowerCase().trim();
+        const rawProp = args.propertyName || args.property || args.propertyId || 'all properties';
+        const query = String(rawProp).toLowerCase().trim();
         const property = this.mockFixtures.properties.find((p: any) => 
-            p.name.toLowerCase().includes(query) || query.includes(p.name.toLowerCase())
+            p.name.toLowerCase().includes(query) || query.includes(p.name.toLowerCase()) || p.id.toLowerCase() === query
         );
         const nameToUse = property ? property.name : query;
         
@@ -279,6 +292,18 @@ export class AiReadToolService {
             { unit: property ? 'A1' : 'U-001', status: 'PAID', amount: 35000 },
             { unit: property ? 'B4' : 'U-002', status: 'PARTIAL', amount: 32500, balance: 12500 },
           ],
+          _mocked: true,
+          url: `https://aedra.app/reports/monthly_summary_${Date.now()}.pdf`
+        };
+      }
+      case 'generate_mckinsey_report': {
+        const rawProp = args.propertyName || args.property || args.propertyId || 'Palm Grove';
+        return {
+          success: true,
+          reportTitle: `McKinsey Portfolio Analysis - ${rawProp}`,
+          generatedAt: new Date().toISOString(),
+          url: `https://aedra.app/reports/mckinsey_analysis_${Date.now()}.pdf`,
+          summary: 'Premium portfolio health check complete.',
           _mocked: true
         };
       }
@@ -373,11 +398,12 @@ export class AiReadToolService {
       }
 
       this.logger.log(`[Mock] Executing tool: ${name} with args: ${JSON.stringify(args)}`);
-      const mocked = await this.handleMockRead(name, args);
+      const mocked = await this.handleMockRead(name, args, { ...context, lockedIdentity });
       
       if (mocked && !mocked.error) {
         // 2. GOVERNANCE: Lifecycle Transition (UNRESOLVED -> RESOLVED -> LOCKED)
-        if (name === 'get_tenant_details' || name === 'search_tenants') {
+        // CRITICAL: Only lock identity for TENANTS. Staff/Landlords should stay flexible.
+        if (role === UserRole.TENANT && (name === 'get_tenant_details' || name === 'search_tenants')) {
           const tenant = Array.isArray(mocked) ? (mocked.length === 1 ? mocked[0] : null) : mocked;
           
           if (tenant && tenant.id && tenant.firstName) {

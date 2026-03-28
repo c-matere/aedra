@@ -60,10 +60,15 @@ export class AiIntentFirewallService {
     },
   ];
 
-  intercept(message: string): FirewallResult {
+  intercept(message: string, role?: string): FirewallResult {
     const text = (message || '').toLowerCase();
+    const effectiveRole = (role || '').toUpperCase();
+    const isStaffOrLandlord = ['COMPANY_STAFF', 'STAFF', 'LANDLORD', 'SUPER_ADMIN', 'COMPANY_ADMIN'].includes(effectiveRole);
 
     for (const rule of this.rules) {
+      // Bypass LATE_PAYMENT for staff/landlord
+      if (rule.id === 'LATE_PAYMENT' && isStaffOrLandlord) continue;
+
       for (const pattern of rule.patterns) {
         if (pattern.test(text)) {
           this.logger.log(`[FIREWALL] Intercepted intent: ${rule.id}`);

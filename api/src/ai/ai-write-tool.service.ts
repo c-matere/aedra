@@ -1327,6 +1327,88 @@ export class AiWriteToolService {
           };
         }
 
+        case 'log_tenant_incident': {
+          const companyId = await this.resolveCompanyId(
+            context,
+            args.tenantId || args.unitId,
+            args.tenantId ? 'tenant' : args.unitId ? 'unit' : undefined,
+          );
+          
+          const title = args.title || `Tenant Incident: ${args.type || 'General'}`;
+          const description = args.description || args.details || 'No details provided.';
+          
+          // Proxy to MaintenanceRequest with category: OTHER
+          const incident = await this.prisma.maintenanceRequest.create({
+            data: {
+              title,
+              description,
+              category: 'OTHER',
+              priority: args.priority || 'MEDIUM',
+              status: 'REPORTED',
+              companyId,
+              unitId: args.unitId,
+              propertyId: args.propertyId,
+            },
+          });
+
+          await this.auditLog.logEntityChange('MAINTENANCE', incident.id, null, incident, {
+            actorId: context.userId,
+            actorRole: role,
+            actorCompanyId: context.companyId,
+            entitySummary: title,
+          });
+
+          return { 
+            success: true, 
+            message: 'Incident logged successfully. Our team will review it shortly.', 
+            incidentId: incident.id 
+          };
+        }
+
+        case 'register_payment_promise':
+        case 'log_payment_promise': {
+          const companyId = await this.resolveCompanyId(
+            context,
+            args.tenantId,
+            'tenant',
+          );
+
+          const amount = args.amount;
+          const date = args.date;
+          const description = `Payment Promise: ${amount} on ${date}. ${args.notes || ''}`;
+
+          // Create a TodoItem for the staff as a reminder
+          const todo = await this.prisma.todoItem.create({
+            data: {
+              title: `Follow up: Payment Promise from Tenant`,
+              description,
+              status: 'PENDING',
+              isCritical: true,
+              userId: context.userId, // Assigned to the staff who handled the chat
+              dueDate: date ? new Date(date) : new Date(Date.now() + 86400000), // Default 1 day
+            },
+          });
+
+          await this.auditLog.write({
+            action: 'CREATE',
+            outcome: 'SUCCESS',
+            method: 'TOOL_EXECUTION',
+            path: 'log_payment_promise',
+            entity: 'TodoItem',
+            targetId: todo.id,
+            actorId: context.userId,
+            actorRole: role,
+            actorCompanyId: companyId,
+            metadata: { amount, date, description },
+          });
+
+          return { 
+            success: true, 
+            message: `I've noted your promise to pay ${amount} on ${date}. I've updated our internal records for follow-up.`,
+            todoId: todo.id 
+          };
+        }
+
         case 'agent_initiate': {
           const goal = args.goal;
           const companyId = await this.resolveCompanyId(context, undefined);
@@ -1414,8 +1496,9 @@ export class AiWriteToolService {
     targetId: string | undefined,
     type?: 'property' | 'tenant' | 'unit' | 'lease',
   ): Promise<string> {
-    if (context.companyId && context.companyId !== 'NONE')
-      return context.companyId;
+    const effectiveCompanyId = context.companyId || context.activeCompanyId || context.metadata?.companyId;
+    if (effectiveCompanyId && effectiveCompanyId !== 'NONE')
+      return effectiveCompanyId;
     if (!targetId) throw new BadRequestException('Company context is missing.');
 
     let companyId: string | null = null;

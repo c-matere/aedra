@@ -6,7 +6,7 @@ import Groq from 'groq-sdk';
 @Injectable()
 export class AiStateEngineService {
   private readonly logger = new Logger(AiStateEngineService.name);
-  private readonly primaryModel = 'openai/gpt-oss-20b';
+  private readonly primaryModel = 'gemini-2.0-flash';
   private readonly fallbackModel = 'llama-3.1-8b-instant';
 
   constructor(

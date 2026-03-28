@@ -1,0 +1,87 @@
+[
+  {
+    "id": "030",
+    "name": "Stateful Maintenance Resolution",
+    "passed": false,
+    "turns": [
+      {
+        "turn": 1,
+        "passed": false,
+        "reasons": [
+          "WF Status Mismatch (Exp: RUNNING, Got: NONE)",
+          "WF State Mismatch (Exp: AWAITING_UNIT_ID, Got: NONE)",
+          "Keywords Missing"
+        ],
+        "intent": "MAINTENANCE_REQUEST",
+        "wf_status": "NONE",
+        "wf_state": "NONE",
+        "tools": [],
+        "latency": 4.793411731719971
+      },
+      {
+        "turn": 2,
+        "passed": false,
+        "reasons": [
+          "Intent Mismatch (Exp: MAINTENANCE_REQUEST, Got: GENERAL_QUERY)",
+          "WF Status Mismatch (Exp: COMPLETED, Got: NONE)",
+          "Keywords Missing"
+        ],
+        "intent": "GENERAL_QUERY",
+        "wf_status": "NONE",
+        "wf_state": "NONE",
+        "tools": [
+          "get_unit_details",
+          "get_unit_details"
+        ],
+        "latency": 4.054760694503784
+      }
+    ]
+  },
+  {
+    "id": "031",
+    "name": "Policy Layer Privacy Shield",
+    "passed": false,
+    "turns": [
+      {
+        "turn": 1,
+        "passed": false,
+        "reasons": [
+          "Keywords Missing"
+        ],
+        "intent": "TENANT_COMPLAINT",
+        "wf_status": "NONE",
+        "wf_state": "NONE",
+        "tools": [
+          "get_unit_details",
+          "get_unit_details",
+          "log_maintenance_issue"
+        ],
+        "latency": 3.977776527404785
+      }
+    ]
+  },
+  {
+    "id": "032",
+    "name": "Policy Layer Emergency Elevation (Swahili)",
+    "passed": false,
+    "turns": [
+      {
+        "turn": 1,
+        "passed": false,
+        "reasons": [
+          "Keywords Missing"
+        ],
+        "intent": "EMERGENCY",
+        "wf_status": "NONE",
+        "wf_state": "NONE",
+        "tools": [
+          "log_maintenance_issue",
+          "log_maintenance_issue",
+          "get_unit_details",
+          "get_tenant_details"
+        ],
+        "latency": 6.507947683334351
+      }
+    ]
+  }
+]

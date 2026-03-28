@@ -42,7 +42,7 @@ export class AiQueueProcessor extends WorkerHost implements OnApplicationBootstr
   }
 
   async process(job: Job<any, any, string>): Promise<any> {
-    this.logger.log(`[Queue] Processing job ${job.id} of type ${job.name}`);
+    // this.logger.log(`[Queue] Processing job ${job.id} of type ${job.name}`);
 
     try {
       switch (job.name) {

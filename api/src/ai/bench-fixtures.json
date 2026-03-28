@@ -131,9 +131,8 @@
       "firstName": "Sarah",
       "lastName": "Otieno",
       "email": "sarah.o@example.com",
-      "phone": "254700000001",
-      "companyId": "bench-company-001",
       "propertyId": "prop-palm-grove-uuid",
+      "arrears": 1000,
       "currentLease": {
         "id": "lease-sarah-a1-uuid",
         "unitNumber": "A1",
@@ -173,6 +172,15 @@
       "amount": 15000,
       "paidAt": "2026-03-23T14:30:00Z",
       "tenantName": "Mary Atieno",
+      "propertyName": "Palm Grove"
+    },
+    {
+      "id": "pay-sarah-penalty",
+      "amount": 1000,
+      "type": "PENALTY",
+      "description": "Late payment fee for August rent",
+      "paidAt": "2026-03-25T09:00:00Z",
+      "tenantName": "Sarah Otieno",
       "propertyName": "Palm Grove"
     }
   ]
