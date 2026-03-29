@@ -48,8 +48,8 @@ import { ACTION_CONTRACTS } from './contracts/action-contracts';
 @Injectable()
 export class AiService implements OnModuleInit {
   private readonly logger = new Logger(AiService.name);
-  private readonly primaryModel = 'gemini-2.0-flash';
-  private readonly fallbackModel = 'llama-3.1-8b-instant';
+  private readonly primaryModel = 'openai/gpt-oss-20b';
+  private readonly fallbackModel = 'gemini-2.0-flash';
   private readonly genAI: GoogleGenerativeAI;
   private readonly groq: Groq;
   private modelsVerified = false;
@@ -117,13 +117,25 @@ export class AiService implements OnModuleInit {
   private async verifyHealth() {
     if (this.modelsVerified) return;
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-      await withRetry(() => model.generateContent('health check'), { maxRetries: 2, initialDelay: 2000, retryableStatuses: [] });
+      // Verify Groq (Primary)
+      await withRetry(() => this.groq.chat.completions.create({
+        messages: [{ role: 'user', content: 'health check' }],
+        model: this.primaryModel,
+      }), { maxRetries: 2, initialDelay: 2000, retryableStatuses: [] });
+      
       this.modelsVerified = true;
-      this.logger.log(`[HealthCheck] AI Verification complete.`);
+      this.logger.log(`[HealthCheck] AI Verification complete (Groq Primary).`);
     } catch (e) {
-      this.logger.warn(`[HealthCheck] Primary model failed, using fallback.`);
-      this.modelsVerified = true;
+      this.logger.warn(`[HealthCheck] Primary model (${this.primaryModel}) failed: ${e.message}`);
+      // Fallback check (Gemini)
+      try {
+        const model = this.genAI.getGenerativeModel({ model: this.fallbackModel });
+        await withRetry(() => model.generateContent('health check'), { maxRetries: 1 });
+        this.modelsVerified = true;
+        this.logger.log(`[HealthCheck] Fallback model (${this.fallbackModel}) is up.`);
+      } catch (e2) {
+        this.logger.error(`[HealthCheck] All AI models down!`);
+      }
     }
   }
 
@@ -305,7 +317,11 @@ export class AiService implements OnModuleInit {
       this.logger.log(`[DEBUG_TRUTH] ${JSON.stringify(trace.truth, null, 2)}`);
       
       // 7. Rendering (Gated by Success)
-      const canRender = trace.errors.length === 0 || plan.steps.every(s => !s.required || trace.steps.find(ts => ts.tool === s.tool)?.success);
+      // v4.4: Allow rendering if at least ONE tool succeeded, or if there are no errors.
+      const hasSuccess = trace.steps.some(s => s.success);
+      const canRender = trace.errors.length === 0 || hasSuccess;
+      
+      this.logger.log(`[DecisionGate] canRender: ${canRender}, steps: ${trace.steps.length}, successes: ${trace.steps.filter(s => s.success).length}, errors: ${trace.errors.length}`);
       
       let finalResponse = '';
       if (canRender) {
@@ -318,14 +334,16 @@ export class AiService implements OnModuleInit {
           trace.truth!,
           effectiveRole as UserRole,
           trace.errors,
-          plan.immediateResponse
+          plan.immediateResponse,
+          scrubbedHistory
         );
       } else {
         finalResponse = plan.immediateResponse || "I'm sorry, I couldn't complete that action. Could you provide a bit more detail, like the unit number or tenant name?";
       }
 
       // Prepend immediate response if not already present and rendering was successful
-      if (plan.immediateResponse && !finalResponse.includes(plan.immediateResponse)) {
+      // v4.3: Prevent redundant acknowledgments if the renderer already confirmed action.
+      if (plan.immediateResponse && !finalResponse.toLowerCase().includes(plan.immediateResponse.toLowerCase().substring(0, 15))) {
         finalResponse = `${plan.immediateResponse}\n\n${finalResponse}`;
       }
 
@@ -416,11 +434,15 @@ export class AiService implements OnModuleInit {
       activeTenantId: resolvedEntities?.tenantId || context.activeTenantId,
       activeUnitId: resolvedEntities?.unitId || context.activeUnitId,
       activePropertyId: resolvedEntities?.propertyId || context.activePropertyId,
+      activeUnitNumber: plan.entities?.unitNumber || context.activeUnitNumber,
+      activeTenantName: plan.entities?.tenantName || context.activeTenantName,
       lockedState: {
         lockedIntent: plan.intent !== AiIntent.GENERAL_QUERY ? plan.intent : (context.lockedState?.lockedIntent || null),
         activeTenantId: resolvedEntities?.tenantId || context.activeTenantId || context.lockedState?.activeTenantId || null,
         activeUnitId: resolvedEntities?.unitId || context.activeUnitId || context.lockedState?.activeUnitId || null,
         activePropertyId: resolvedEntities?.propertyId || context.activePropertyId || context.lockedState?.activePropertyId || null,
+        activeUnitNumber: plan.entities?.unitNumber || context.activeUnitNumber || context.lockedState?.activeUnitNumber || null,
+        activeTenantName: plan.entities?.tenantName || context.activeTenantName || context.lockedState?.activeTenantName || null,
         turnCount
       }
     });
@@ -618,14 +640,17 @@ export class AiService implements OnModuleInit {
         truthObject.data.searchedEntity = identityData;
     }
 
-    // 2. Financial Truth
-    if (intent === AiIntent.FINANCIAL_QUERY || intent === AiIntent.REVENUE_REPORT || intent === AiIntent.DISPUTE || intent === AiIntent.FINANCIAL_REPORTING) {
-       const revenueResult = trace.steps.find(s => (s.tool === 'get_revenue_summary' || s.tool === 'get_collection_rate') && s.success)?.result;
-       const paymentResult = trace.steps.find(s => s.tool === 'list_payments' && s.success)?.result;
+    // 2. Financial & Status Truth (Greedy Harvester)
+    const financialIntents = [AiIntent.FINANCIAL_QUERY, AiIntent.REVENUE_REPORT, AiIntent.DISPUTE, AiIntent.FINANCIAL_REPORTING, AiIntent.FINANCIAL_MANAGEMENT];
+    if (financialIntents.includes(intent)) {
+       const revenueResult = trace.steps.find(s => (s.tool === 'get_revenue_summary' || s.tool === 'get_collection_rate' || s.tool === 'get_company_summary') && s.success)?.result;
+       const paymentResult = trace.steps.find(s => (s.tool === 'list_payments' || s.tool === 'get_tenant_arrears') && s.success)?.result;
        
-       truthObject.data.revenue = revenueResult?.totalRevenue || revenueResult?.amount;
-       truthObject.data.collectionRate = revenueResult?.collectionRate;
-       truthObject.data.paymentHistory = paymentResult?.payments || [];
+       truthObject.data.revenue = revenueResult?.totalRevenue || revenueResult?.amount || revenueResult?.data?.revenue;
+       truthObject.data.collectionRate = revenueResult?.collectionRate || revenueResult?.data?.collectionRate;
+       truthObject.data.paymentHistory = paymentResult?.payments || paymentResult?.data || [];
+       truthObject.data.balance = paymentResult?.balance || paymentResult?.data?.balance;
+       truthObject.data.status = paymentResult?.status || revenueResult?.status || 'Active';
     }
 
     // GLOBAL HARVESTER: Look for any successful report tool result that contains a URL
@@ -675,16 +700,23 @@ export class AiService implements OnModuleInit {
   private scrubHistory(history: any[]): any[] {
     if (!history || history.length === 0) return [];
 
-    return history.map(h => {
-      const role = h.role === 'assistant' || h.role === 'model' ? 'assistant' : 'user';
-      const rawContent = h.parts?.[0]?.text || h.content || h.message || '';
-      const content = typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent);
-      
-      return {
-        role,
-        content: this.cleanHistoryText(content)
-      };
-    }).filter(h => h.content);
+    const scrubbed: any[] = [];
+    for (const h of history) {
+      if (h.user || h.ai) {
+        // Handle {user, ai} pair format
+        if (h.user) scrubbed.push({ role: 'user', content: this.cleanHistoryText(h.user) });
+        if (h.ai) scrubbed.push({ role: 'assistant', content: this.cleanHistoryText(h.ai) });
+      } else {
+        // Handle {role, content/message/parts} format
+        const role = h.role === 'assistant' || h.role === 'model' ? 'assistant' : 'user';
+        const rawContent = h.parts?.[0]?.text || h.content || h.message || '';
+        const content = typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent);
+        if (content) {
+          scrubbed.push({ role, content: this.cleanHistoryText(content) });
+        }
+      }
+    }
+    return scrubbed.filter(h => h.content);
   }
 
   private cleanHistoryText(text: string): string {

@@ -10,8 +10,8 @@ import { AiToolRegistryService } from './ai-tool-registry.service';
 @Injectable()
 export class AiPromptService {
   private readonly logger = new Logger(AiPromptService.name);
-  private readonly primaryModel = 'gemini-2.0-flash'; 
-  private readonly fallbackModel = 'llama-3.1-8b-instant';
+  private readonly primaryModel = 'openai/gpt-oss-20b'; 
+  private readonly fallbackModel = 'gemini-2.0-flash';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -137,7 +137,25 @@ export class AiPromptService {
       "planReasoning": "I need to find the tenant ID for Fatuma Ali before I can retrieve her arrears."
     }
 
+    History Context: [{ "role": "user", "content": "Does Fatuma Ali have any arrears?" }, { "role": "assistant", "content": "Checking arrears..." }]
+    User: "Okay, let them know they need to pay by Friday"
+    Plan: {
+      "intent": "NOTIFY_TENANT",
+      "priority": "NORMAL",
+      "language": "en",
+      "immediateResponse": "Sawa, I will notify Fatuma Ali to pay by Friday.",
+      "entities": { "tenantName": "Fatuma Ali" },
+      "steps": [
+        { "tool": "search_tenants", "args": { "tenant_name": "Fatuma Ali" }, "required": true },
+        { "tool": "send_notification", "args": { "tenantId": "DEPENDS", "message": "Please pay by Friday" }, "dependsOn": "search_tenants", "required": true }
+      ],
+      "planReasoning": "User wants to notify the tenant mentioned in history. I must resolve the tenant ID again or use the one from history if available."
+    }
+
     FEW-SHOT INCONSISTENCY EXAMPLE:
+      "planReasoning": "Staff reported a duplicate placement. I need to check the tenant record and the status of both units to find the error. After finding the error, I will offer to fix it."
+    }
+
     User: "is Sarah Otieno in A1? system says they are also in F2"
     Plan: {
       "intent": "DATA_INCONSISTENCY",
@@ -150,7 +168,24 @@ export class AiPromptService {
         { "tool": "get_unit_details", "args": { "unitNumber": "A1" }, "required": true },
         { "tool": "get_unit_details", "args": { "unitNumber": "F2" }, "required": true }
       ],
-      "planReasoning": "Staff reported a duplicate placement. I need to check the tenant record and the status of both units to find the error. I will then propose a data sync to the user."
+      "planReasoning": "I will inspect both units and the tenant record, then provide a final resolution summary to fix the inconsistency."
+    }
+
+      "planReasoning": "Staff reported a duplicate placement. I need to check the tenant record and the status of both units to find the error. After finding the error, I will offer to fix it."
+    }
+
+    User: "weka Amina Hassan kwa A1"
+    Plan: {
+      "intent": "ONBOARDING",
+      "priority": "NORMAL",
+      "language": "sw",
+      "immediateResponse": "Sawa, naanza mchakato wa kumweka Amina Hassan kwenye unit A1.",
+      "entities": { "tenantName": "Amina Hassan", "unitNumber": "A1" },
+      "steps": [
+        { "tool": "get_unit_details", "args": { "unitNumber": "A1" }, "required": true },
+        { "tool": "search_tenants", "args": { "tenant_name": "Amina Hassan" }, "required": true }
+      ],
+      "planReasoning": "Staff wants to 'weka' (add/place) a tenant. I must check if the unit is vacant and if the tenant already exists before starting registration."
     }
     `;
 
@@ -185,12 +220,23 @@ export class AiPromptService {
       "intent": "FINANCIAL_REPORTING",
       "priority": "NORMAL",
       "language": "en",
-      "immediateResponse": "I'm generating the McKinsey Portfolio Report for you now.",
-      "entities": {},
+      "immediateResponse": "I'm generating the monthly summary report for your entire portfolio now.",
+      "entities": { "propertyName": "Portfolio" },
       "steps": [
-        { "tool": "generate_mckinsey_report", "args": { "propertyName": "Palm Grove" }, "required": true }
+        { "tool": "generate_mckinsey_report", "args": { "propertyName": "Portfolio" }, "required": true }
       ],
-      "planReasoning": "The Landlord requested a monthly summary. Aedra standards require the McKinsey Portfolio format for Landlord summary requests."
+      "planReasoning": "The Landlord requested a monthly summary. Since no specific property was mentioned, I am generating a portfolio-level McKinsey report."
+    }
+
+    User: "shida gani hii? report haitaki kudownload"
+    Plan: {
+      "intent": "SYSTEM_FAILURE",
+      "priority": "HIGH",
+      "language": "sw",
+      "immediateResponse": "Napenda kutoa radhi kwa hitilafu ya kudownload ripoti. Timu yetu ya ufundi inaishughulikia hitilafu hii mara moja. Sawa, I've logged this as a system failure. Our technical crew is already investigating the download issue.",
+      "entities": {},
+      "steps": [],
+      "planReasoning": "The Landlord reported a download failure. This is a technical system issue. I must acknowledge the frustration, apologize officially, and state that the technical team is on it."
     }
     `;
 
@@ -248,9 +294,18 @@ export class AiPromptService {
     - IDENTITY LOCK: Once a tenant's identity is confirmed, focus strictly on their data. Do not pivot to another tenant's records without an explicit switch or new conversation.
 
     URGENCY GRADIENT (EMERGENCY SCALE):
-    - LEVEL 5 (CRITICAL): Fire, Flood, Burst Pipe, Structural Collapse. Action: Escalate immediately, no identity gating.
-    - LEVEL 3 (URGENT): No water, No electricity, Broken lock. Action: Log immediately, request ID later.
-    - LEVEL 1 (STANDARD): Painting, Squeaky door, Cosmetic. Action: Standard identity verification first.
+    1. EXTREME (STRUCTURAL/FIRE): Fire, flooding, gas. Immediate safety response.
+    2. HIGH (UTILITIES/SECURITY): No water, no power, broken lock. 4-24hr fix.
+    3. NORMAL (OPERATIONAL): Noisy neighbor, dirty wall, trash. 24-72hr fix.
+    4. LOW (INFO): Requesting receipt, asking for current unit, general query.
+    
+    CONTEXTUAL PERSISTENCE:
+    - ALWAYS look at History Context. If the user previously mentioned a problem (e.g., "jiko inaleak") and now gives a detail (e.g., "B4"), the intent is STILL the previous problem. Use previous entities in new tool steps.
+
+    TECHNICAL SUPPORT:
+    - Trigger: Explicit technical words like "error", "failure", "hitilafu", "system broken", "cannot download".
+    - Action: Apologize ("Pole sana"), state "Technical Team notified", and log SYSTEM_FAILURE.
+    - RULE: DO NOT use for missing data (e.g., "I don't see X"). Use tools to find data first.
     `;
   }
 
@@ -282,42 +337,77 @@ export class AiPromptService {
     const systemPrompt = rolePrompt + contextPart;
     const prompt = `${systemPrompt}\n\nUser Message: "${message}"\n\nHistory Context:\n${JSON.stringify(history)}`;
 
-    // 1. Gemini (Tier 1 - Primary)
+    // 1. Primary Model (Tier 1)
     try {
-      const model = this.genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash', 
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
-      });
+      const isGemini = this.primaryModel.includes('gemini');
+      let rawPlan: any;
 
-      const result = await model.generateContent({
-        contents: [
-            ...history.map(h => ({ role: h.role === 'assistant' ? 'model' : 'user', parts: [{ text: h.content }] })),
-            { role: 'user', parts: [{ text: `Strictly follow the JSON schema. User Message: ${message}` }] }
-        ],
-        systemInstruction: systemPrompt + "\nCRITICAL: Always include 'intent' and 'steps' fields in the root of the JSON object. Do NOT wrap in a 'plan' object. If a tenant name (e.g. Fatuma Ali) is mentioned but you don't have their ID, you MUST call search_tenants first. NEVER use 'NONE' for required UUIDs. NEVER use {{curly_braces}} in arguments."
-      });
+      const criticalInstructions = "\nCRITICAL: Always include 'intent' and 'steps' fields in the root of the JSON object. Do NOT wrap in a 'plan' object. If a tenant name (e.g. Fatuma Ali) is mentioned but you don't have their ID, you MUST call 'search_tenants' first. NEVER use 'NONE' for required UUIDs. NEVER use {{curly_braces}} in arguments. If the user provides a unit number for a previous complaint in history, USE that unitNumber in 'log_maintenance_issue'.";
 
-      const rawPlan = JSON.parse(result.response.text());
-      this.logger.debug(`[UnifiedPlanner] Raw Gemini Plan: ${JSON.stringify(rawPlan)}`);
+      if (isGemini) {
+        const model = this.genAI.getGenerativeModel({
+          model: this.primaryModel, 
+          generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
+        });
+
+        const result = await model.generateContent({
+          contents: [
+              ...history.map(h => ({ role: h.role === 'assistant' ? 'model' : 'user', parts: [{ text: h.content }] })),
+              { role: 'user', parts: [{ text: `Strictly follow the JSON schema. User Message: ${message}` }] }
+          ],
+          systemInstruction: systemPrompt + criticalInstructions
+        });
+        rawPlan = JSON.parse(result.response.text());
+      } else {
+        const completion = await this.groq.chat.completions.create({
+          model: this.primaryModel,
+          messages: [
+            { role: 'system', content: systemPrompt + criticalInstructions },
+            ...history.map(h => ({ 
+              role: h.role === 'assistant' || h.role === 'model' ? 'assistant' : 'user', 
+              content: h.content || '' 
+            })),
+            { role: 'user', content: message },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.1,
+        });
+        rawPlan = JSON.parse(completion.choices[0]?.message?.content || '{}');
+      }
+
+      this.logger.debug(`[UnifiedPlanner] Raw Primary Plan (${this.primaryModel}): ${JSON.stringify(rawPlan)}`);
       return this.validatePlan(rawPlan);
     } catch (e) {
-      this.logger.warn(`[UnifiedPlanner] Tier 1 (Gemini) failed, trying Tier 2 (Groq): ${e.message}`);
+      this.logger.warn(`[UnifiedPlanner] Tier 1 (${this.primaryModel}) failed, trying Tier 2 (${this.fallbackModel}): ${e.message}`);
     }
 
-    // 2. Groq / Llama-3.1-8b (Tier 2 - Fallback)
+    // 2. Fallback Model (Tier 2)
     try {
-      const completion = await this.groq.chat.completions.create({
-        model: 'llama-3.1-8b-instant',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...history,
-          { role: 'user', content: message },
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.1,
-      });
+      const isFallbackGemini = this.fallbackModel.includes('gemini');
+      let rawPlan: any;
 
-      const rawPlan = JSON.parse(completion.choices[0]?.message?.content || '{}');
+      if (isFallbackGemini) {
+        const model = this.genAI.getGenerativeModel({
+          model: this.fallbackModel,
+          generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
+        });
+        const result = await model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\nUser Request: ${message}` }] }]
+        });
+        rawPlan = JSON.parse(result.response.text());
+      } else {
+        const completion = await this.groq.chat.completions.create({
+          model: this.fallbackModel,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...history,
+            { role: 'user', content: message },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.1,
+        });
+        rawPlan = JSON.parse(completion.choices[0]?.message?.content || '{}');
+      }
       return this.validatePlan(rawPlan);
     } catch (e) {
       this.logger.error(`[UnifiedPlanner] All unauthorized tiers failed: ${e.message}`);
@@ -481,6 +571,20 @@ export class AiPromptService {
     - ONBOARDING / "WEKA X KWA Y": "weka Amina Hassan kwa A1", "add Grace to C2", "register Sarah" → Intent is CREATE NEW TENANT. Call 'register_tenant' with firstName, lastName, unitNumber.
     `;
 
+    const systemPrompt = `
+    ${personaPrompt}
+    
+    [SESSION_CONTEXT]: ${JSON.stringify(context || {})}
+    [HISTORY]: ${JSON.stringify((history || []).slice(-3))}
+
+    ${this.PLANNER_BASE_PROMPT}
+
+    CONTEXTUAL PERSISTENCE RULES:
+    - If [SESSION_CONTEXT] contains 'activeUnitNumber', 'activeTenantName', or resolved IDs, use them to pre-populate tool arguments.
+    - If a user says "at unit B4", verify against 'activeUnitNumber' in context.
+    - If a user says "them" or "he/she", refer to the last resolved tenant in [SESSION_CONTEXT].
+    `;
+
     try {
       // 1. Groq - GPT OSS 20b (Primary)
       try {
@@ -516,7 +620,7 @@ export class AiPromptService {
   /**
    * Generates a final conversational summary that is strictly grounded in the Execution Trace.
    */
-  public async generateFinalResponse(
+    public async generateFinalResponse(
     intent: AiIntent, 
     steps: any[], 
     language: string = 'en', 
@@ -525,7 +629,8 @@ export class AiPromptService {
     truthObject: TruthObject,
     role: UserRole = UserRole.COMPANY_STAFF,
     errors: string[] = [],
-    immediateResponse?: string
+    immediateResponse?: string,
+    history: any[] = []
   ): Promise<string> {
     const isTenant = role === UserRole.TENANT;
     
@@ -566,10 +671,15 @@ export class AiPromptService {
       [ROLE]: ${role}
       [INTENT]: ${intent}
       [LANGUAGE]: ${language}
+      [HISTORY_CONTEXT]: ${JSON.stringify(history.slice(-2))}
       [OPERATIONAL_TRUTH]: ${JSON.stringify(publicTruth)}
       [VIRTUAL_LEDGER]: ${JSON.stringify(virtualLedger)}
       [STEPS_PERFORMED]: ${JSON.stringify(publicSteps)}
       [INTEGRITY_ERRORS]: ${JSON.stringify(errors)}
+      
+      HISTORY AWARENESS:
+      - If the user previously gave a unit number (e.g., "B4") in HISTORY_CONTEXT, DO NOT ask for it again.
+      - If you are still missing information, check if it was already provided in history.
       
       ${isBlocked ? `
       [🚨 STATUS: BLOCKED 🚨]
@@ -580,29 +690,28 @@ export class AiPromptService {
       ${emergencyInstructions}
       
       RESPONSE STYLE (MANDATORY):
-      Your response MUST follow a natural human flow. 
+      Your response MUST follow a natural human flow and MUST include the data from OPERATIONAL_TRUTH.
       - DO NOT include any automated greets like "Hello [searchedEntity]".
       - DO NOT repeat the user's name if they are STAFF/LANDLORD.
-      - 1. ACKNOWLEDGE: Briefly confirm the request.
-      - 2. ACTION TAKEN: State what you found in the specific tool 'RESULTS' (OPERATIONAL_TRUTH).
-      - 3. PROACTIVE CLOSURE: Offer a solution or next step (e.g. Audit/Sync/Ticket).
+      - 1. ACKNOWLEDGE: Briefly confirm you have processed the request.
+      - 2. ACTION TAKEN / DATA FOUND: Using the specific tool 'RESULTS' (OPERATIONAL_TRUTH), state EXACTLY what was found.
+        - If 'tenant_arrears' are found, you MUST state the exact amount and currency.
+        - If 'revenue' figures are found, you MUST state the totals.
+        - If unit status was checked, state if it is Vacant or Occupied.
+      - 3. PROACTIVE CLOSURE: Offer a solution or next step based on the data.
+      
+      CRITICAL: If OPERATIONAL_TRUTH contains a non-empty result (e.g. data for a tenant, property, or report), you MUST summarize that data. NEVER say "I'm checking" or "I'll generate" in the final response if the data is already in OPERATIONAL_TRUTH. Say "I have found..." or "The current revenue is...".
       
       ACTION INTEGRITY:
-      - NEVER prioritize personal troubleshooting advice over logging a formal maintenance ticket.
       - If 'STEPS_PERFORMED' show success for log_maintenance_issue, ALWAYS state the ticket has been logged and provide a realistic 4-24 hour timeline for Nairobi vendors.
-      - NEVER say "I've fixed", "I've resolved", or "shida imeisha". You only log/escalate.
-      - If 'OPERATIONAL_TRUTH' shows 'ENTITY_NOT_FOUND', say "I couldn't locate those details to finalize the update."
-      - DO NOT use technical terms like "unverified", "null", or "undefined" in your response.
-      - Use natural terms for finance: "madeni" or "hali ya malipo".
+      - If 'OPERATIONAL_TRUTH' shows 'ENTITY_NOT_FOUND', say "I couldn't locate those details. I checked for [EntityName] but no record exists."
+      - DO NOT use technical terms like "unverified", "null", or "undefined".
       
-      OUTCOME-DRIVEN TEMPLATES (v5.5):
-      - EMERGENCY (Burst/Flood): [Safety Instructions] + "Sawa, I've escalated this as a critical emergency maintenance issue. Our team is dispatching immediately."
-      - MAINTENANCE (Standard/Leak): [ACK] + "I've logged your request for [Issue]. A technician will contact you shortly to schedule the repair."
-      - NOISE_COMPLAINT: [ACK] + "I've logged this report discreetly for our management records." + [Action: "I've sent a notification to the occupant of [Unit]."] + [Next Step: "We will monitor the situation."] 🚨 NEVER mention technicians or maintenance.
-      - LATE_PAYMENT: [Empathy/Policy ACK] + "I've noted that you plan to pay on [Date]." + [Action Taken: "I checked your current balance."] + [Policy: "Please note that late fees may apply after the 5th."] + [Next Step: "I've updated our records with your promise."]
-      - FINANCIAL: [Summary Data Table]. (CRITICAL: If 'reportUrl' exists in OPERATIONAL_TRUTH, you MUST output exactly: "\n\nYou can download the full report here: [reportUrl]") + (If NO 'reportUrl' and ledger is empty: "I've checked our records but couldn't generate a summary.") + [Next Step].
-      - ONBOARDING: [Welcome] + [Action: "Tenant profile created for [Unit]."] + [Next Step: "Please review the lease details below."]
-      - INCONSISTENCY: [ACK] + [Findings: "I've checked the unit and tenant records. I found that [Conflict Details from OPERATIONAL_TRUTH]."] + [Question: "Could you please confirm which unit should be the active lease for this tenant?"] + [Proactive Action: "I have flagged this record for an administrative audit."]
+      OUTCOME-DRIVEN TEMPLATES (v5.6 - DATA FORCING):
+      - FINANCIAL/REVENUE: "Hali ya mapato ya [Property] ni [Amount]. Hapa kuna mchanganuo: [Data Table]" + (If reportUrl exists: "\n\nYou can download the full report here: [reportUrl]")
+      - MAINTENANCE: "I've logged your request for [Issue] for Unit [Unit]. A technician will contact you within 24 hours."
+      - INCONSISTENCY: "I found a discrepancy: [Detail]. I have flagged this for an audit."
+      - ONBOARDING: "Success! [TenantName] has been registered for unit [UnitNumber]."
       - DISPUTE: [ACK] + [Analysis: "I've reviewed your ledger today. I see that the [Amount] charge is for: [STRICT: Use the 'description' field from 'paymentHistory' in OPERATIONAL_TRUTH]."] + [Proactive Action: "I've opened a dispute ticket for this."] + [Next Step: "I'll update you once management reviews the August rental cycle."]
       
       HARD EXECUTION CONTRACTS:
@@ -621,7 +730,12 @@ export class AiPromptService {
       `;
     
     try {
-      const response = await this.callModel(systemPrompt, [], this.primaryModel, 0.1);
+      const response = await this.callModel(
+        systemPrompt, 
+        history.map(h => ({ role: h.role === 'assistant' || h.role === 'model' ? 'assistant' : 'user', content: h.content || '' })), 
+        this.primaryModel, 
+        0.1
+      );
       return response;
     } catch (e: any) {
       this.logger.warn(`[PromptService] Tier 1 (${this.primaryModel}) Rendering failed: ${e.message}`);

@@ -40,7 +40,7 @@ export interface ClassificationResult {
 export class AiClassifierService {
   private readonly logger = new Logger(AiClassifierService.name);
 
-  private readonly primaryModel = 'gemini-2.0-flash';
+  private readonly primaryModel = 'openai/gpt-oss-20b';
   private readonly fallbackModel = 'llama-3.1-8b-instant';
   private readonly apiKey = process.env.GEMINI_API_KEY;
   private readonly swKeywords = [
@@ -203,30 +203,20 @@ export class AiClassifierService {
     `;
 
     try {
-      // 1. OpenAI - GPT OSS (Tier 1)
-      try {
+      // 1. Primary Model (Tier 1)
+      const isGemini = this.primaryModel.includes('gemini');
+      let data: any;
+
+      if (isGemini) {
         const model = this.genAI.getGenerativeModel({
           model: this.primaryModel,
           generationConfig: { responseMimeType: 'application/json' },
         });
         const result = await model.generateContent(prompt);
-        const data = JSON.parse(result.response.text());
-        return this.processClassificationResult(
-          data,
-          message,
-          null,
-          attachmentsCount,
-        );
-      } catch (geminiErr) {
-        this.logger.warn(
-          `Tier 1 (GPT-OSS-20B) classification failed, trying Tier 2 (Llama): ${geminiErr.message}`,
-        );
-      }
-
-      // 2. Groq - Llama (Tier 2)
-      try {
+        data = JSON.parse(result.response.text());
+      } else {
         const completion = await this.groq.chat.completions.create({
-          model: this.fallbackModel,
+          model: this.primaryModel,
           messages: [
             {
               role: 'system',
@@ -238,53 +228,54 @@ export class AiClassifierService {
           response_format: { type: 'json_object' },
           temperature: 0.1,
         });
-        const data = JSON.parse(
-          completion.choices[0]?.message?.content || '{}',
-        );
-        return this.processClassificationResult(
-          data,
-          message,
-          null,
-          attachmentsCount,
-        );
-      } catch (groqErr) {
-        this.logger.warn(
-          `Tier 2 (Llama) classification failed: ${groqErr.message}`,
-        );
+        data = JSON.parse(completion.choices[0]?.message?.content || '{}');
       }
 
-      // 3. Groq - GPT OSS (Tier 3 Fallback)
-      try {
-        const completion = await this.groq.chat.completions.create({
-          model: this.fallbackModel,
-          messages: [
-            {
-              role: 'system',
-              content:
-                'You are an expert intent classifier for property management. Respond ONLY with valid JSON in the exact schema requested.',
-            },
-            { role: 'user', content: prompt },
-          ],
-          response_format: { type: 'json_object' },
-          temperature: 0.1,
-        });
-        const data = JSON.parse(
-          completion.choices[0]?.message?.content || '{}',
-        );
-        return this.processClassificationResult(
-          data,
-          message,
-          null,
-          attachmentsCount,
-        );
-      } catch (e) {
-        this.logger.error(`All classification tiers failed: ${e.message}. Using local fallback...`);
-        return this.localClassify(message, role, undefined, attachmentsCount);
-      }
-    } catch (outerErr) {
-      this.logger.error(`Classification orchestrator failed: ${outerErr.message}`);
-      return this.localClassify(message, role, undefined, attachmentsCount);
+      return this.processClassificationResult(
+        data,
+        message,
+        null,
+        attachmentsCount,
+      );
+    } catch (tier1Err) {
+      this.logger.warn(
+        `Tier 1 (${this.primaryModel}) classification failed, trying Tier 2 (${this.fallbackModel}): ${tier1Err.message}`,
+      );
     }
+
+    // 2. Fallback Model (Tier 2 - Groq/Llama)
+    try {
+      const completion = await this.groq.chat.completions.create({
+        model: this.fallbackModel,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are an expert intent classifier for property management. Respond ONLY with valid JSON in the exact schema requested.',
+          },
+          { role: 'user', content: prompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.1,
+      });
+      const data = JSON.parse(
+        completion.choices[0]?.message?.content || '{}',
+      );
+      return this.processClassificationResult(
+        data,
+        message,
+        null,
+        attachmentsCount,
+      );
+    } catch (tier2Err) {
+      this.logger.warn(
+        `Tier 2 (${this.fallbackModel}) classification failed: ${tier2Err.message}`,
+      );
+    }
+
+    // 3. Last Resort Fallback (Local)
+    this.logger.error(`All cloud classification tiers failed. Using local fallback.`);
+    return this.localClassify(message, role, undefined, attachmentsCount);
   }
 
   async classifyForRole(message: string, role: string, context?: any): Promise<ClassificationResult> {
@@ -344,12 +335,32 @@ export class AiClassifierService {
 
     try {
       this.logger.log(`[Classifier] Classifying for ROLE: ${role} | intent space: [${allowedIntents}]`);
-      const model = this.genAI.getGenerativeModel({
-        model: this.primaryModel,
-        generationConfig: { responseMimeType: 'application/json' },
-      });
-      const result = await model.generateContent(prompt);
-      const data = JSON.parse(result.response.text());
+      const isGemini = this.primaryModel.includes('gemini');
+      let data: any;
+
+      if (isGemini) {
+        const model = this.genAI.getGenerativeModel({
+          model: this.primaryModel,
+          generationConfig: { responseMimeType: 'application/json' },
+        });
+        const result = await model.generateContent(prompt);
+        data = JSON.parse(result.response.text());
+      } else {
+        const completion = await this.groq.chat.completions.create({
+          model: this.primaryModel,
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert intent classifier for property management. Respond ONLY with valid JSON in the exact schema requested.',
+            },
+            { role: 'user', content: prompt },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.1,
+        });
+        data = JSON.parse(completion.choices[0]?.message?.content || '{}');
+      }
+
       return this.processClassificationResult(data, message, null, 0);
     } catch (err) {
       this.logger.warn(`[Classifier] Role-specific classification failed for ${role}: ${err.message}`);
