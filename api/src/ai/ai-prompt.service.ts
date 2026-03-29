@@ -10,8 +10,8 @@ import { AiToolRegistryService } from './ai-tool-registry.service';
 @Injectable()
 export class AiPromptService {
   private readonly logger = new Logger(AiPromptService.name);
-  private readonly primaryModel = 'openai/gpt-oss-20b'; 
-  private readonly fallbackModel = 'gemini-2.0-flash';
+  private readonly primaryModel = 'gemini-2.0-flash'; 
+  private readonly fallbackModel = 'gemini-1.5-flash';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -122,6 +122,13 @@ export class AiPromptService {
     1. SEARCH FIRST: If you see a Name or Unit and don't have its ID, your FIRST action MUST be 'search_tenants' or 'get_unit_details'.
     2. RESOLVE ARREARS: Use 'get_tenant_arrears' to check balances.
     
+    INCONSISTENCY RULE:
+    - When a property-level data inconsistency is identified (e.g. duplicate unit placement), you MUST NOT just acknowledge. You MUST propose a specific resolution step in your plan (e.g. "I will flag this for a manual sync" or "I recommend a data audit").
+    
+    LEASE POLICY (30-DAY NOTICE):
+    - Standard Aedra policy for all properties: Tenants MUST provide at least 30 days written notice before moving out.
+    - If a tenant disputes a "move-out penalty" or "early termination fee", explain this 30-day rule before escalating. Use 'get_lease_details' to check their specific notice period.
+    
     FEW-SHOT EXAMPLE:
     User: "Does Fatuma Ali have any arrears?"
     Plan: {
@@ -150,6 +157,23 @@ export class AiPromptService {
         { "tool": "send_notification", "args": { "tenantId": "DEPENDS", "message": "Please pay by Friday" }, "dependsOn": "search_tenants", "required": true }
       ],
       "planReasoning": "User wants to notify the tenant mentioned in history. I must resolve the tenant ID again or use the one from history if available."
+    }
+
+    MULTI-TURN IDENTITY RESOLUTION:
+    User turn 1: "Does Fatuma Ali have any arrears?"
+    AI turn 1: "I'll check the arrears for Fatuma Ali right away." (Tool calls: search_tenants, get_tenant_arrears)
+    User turn 2: "Okay, let them know they need to pay by Friday"
+    Plan turn 2: {
+      "intent": "NOTIFY_TENANT",
+      "priority": "NORMAL",
+      "language": "en",
+      "immediateResponse": "Sawa, I will notify Fatuma Ali to pay by Friday.",
+      "entities": { "tenantName": "Fatuma Ali" },
+      "steps": [
+        { "tool": "search_tenants", "args": { "tenant_name": "Fatuma Ali" }, "required": true },
+        { "tool": "send_notification", "args": { "tenantId": "DEPENDS", "message": "Please pay by Friday" }, "dependsOn": "search_tenants", "required": true }
+      ],
+      "planReasoning": "The user is referring to the tenant 'Fatuma Ali' from the previous turn ('let them know'). I am re-resolving the ID to ensure accuracy before sending the notification."
     }
 
     FEW-SHOT INCONSISTENCY EXAMPLE:
@@ -306,6 +330,10 @@ export class AiPromptService {
     - Trigger: Explicit technical words like "error", "failure", "hitilafu", "system broken", "cannot download".
     - Action: Apologize ("Pole sana"), state "Technical Team notified", and log SYSTEM_FAILURE.
     - RULE: DO NOT use for missing data (e.g., "I don't see X"). Use tools to find data first.
+
+    MOVE-OUT PROTOCOL:
+    - For all move-out or termination queries, ALWAYS include 'get_lease_details' in your steps to verify the notice period and penalty clauses.
+    - Reference the 30-day notice requirement (Standard Policy) if specific lease data is pending.
     `;
   }
 
@@ -326,90 +354,39 @@ export class AiPromptService {
     const contextPart = `
     ACTIVE CONTEXT:
     - TenantId: ${context.tenantId || 'NONE'}
+    - TenantName: ${context.tenantName || context.activeTenantName || context.lockedState?.activeTenantName || 'NONE'}
     - UnitId: ${context.unitId || 'NONE'}
-    - PropertyId: ${context.propertyId || 'NONE'}
+    - UnitNumber: ${context.unitNumber || context.activeUnitNumber || context.lockedState?.activeUnitNumber || 'NONE'}
+    - PropertyId: ${context.propertyId || context.activePropertyId || context.lockedState?.activePropertyId || 'NONE'}
     - CompanyId: ${context.companyId || 'NONE'}
     - LastIdentities: ${JSON.stringify(context.lastIdentities || [])}
     
     AVAILABLE TOOLS: [${tools.join(', ')}]
     `;
 
-    const systemPrompt = rolePrompt + contextPart;
-    const prompt = `${systemPrompt}\n\nUser Message: "${message}"\n\nHistory Context:\n${JSON.stringify(history)}`;
+    const instructions = "\nCRITICAL: Always include 'intent' and 'steps' fields in the root of the JSON object. Do NOT wrap in a 'plan' object. If a tenant name (e.g. Fatuma Ali) is mentioned but you don't have their ID, you MUST call 'search_tenants' first. NEVER use 'NONE' for required UUIDs. NEVER use {{curly_braces}} in arguments. If the user provides a unit number for a previous complaint in history, USE that unitNumber in 'log_maintenance_issue'.";
+    const combinedSystemPrompt = rolePrompt + contextPart + instructions;
 
-    // 1. Primary Model (Tier 1)
     try {
-      const isGemini = this.primaryModel.includes('gemini');
-      let rawPlan: any;
-
-      const criticalInstructions = "\nCRITICAL: Always include 'intent' and 'steps' fields in the root of the JSON object. Do NOT wrap in a 'plan' object. If a tenant name (e.g. Fatuma Ali) is mentioned but you don't have their ID, you MUST call 'search_tenants' first. NEVER use 'NONE' for required UUIDs. NEVER use {{curly_braces}} in arguments. If the user provides a unit number for a previous complaint in history, USE that unitNumber in 'log_maintenance_issue'.";
-
-      if (isGemini) {
-        const model = this.genAI.getGenerativeModel({
-          model: this.primaryModel, 
-          generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
-        });
-
-        const result = await model.generateContent({
-          contents: [
-              ...history.map(h => ({ role: h.role === 'assistant' ? 'model' : 'user', parts: [{ text: h.content }] })),
-              { role: 'user', parts: [{ text: `Strictly follow the JSON schema. User Message: ${message}` }] }
-          ],
-          systemInstruction: systemPrompt + criticalInstructions
-        });
-        rawPlan = JSON.parse(result.response.text());
-      } else {
-        const completion = await this.groq.chat.completions.create({
-          model: this.primaryModel,
-          messages: [
-            { role: 'system', content: systemPrompt + criticalInstructions },
-            ...history.map(h => ({ 
-              role: h.role === 'assistant' || h.role === 'model' ? 'assistant' : 'user', 
-              content: h.content || '' 
-            })),
-            { role: 'user', content: message },
-          ],
-          response_format: { type: 'json_object' },
-          temperature: 0.1,
-        });
-        rawPlan = JSON.parse(completion.choices[0]?.message?.content || '{}');
+      // 1. Primary Model (Tier 1)
+      const response = await this.callModel(`User Message: "${message}"`, history, this.primaryModel, 0.1, combinedSystemPrompt);
+      
+      try {
+        const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) || [null, response];
+        const jsonContent = jsonMatch[1] || response;
+        const rawPlan = JSON.parse(jsonContent.trim());
+        return this.validatePlan(rawPlan);
+      } catch (parseError) {
+        this.logger.warn(`[UnifiedPlanner] Tier 1 (${this.primaryModel}) parsing failed: ${parseError.message}. Escalating to Tier 2...`);
+        
+        // 2. Fallback Model (Tier 2)
+        const fbResponse = await this.callModel(`User Request: ${message}`, history, this.fallbackModel, 0.1, combinedSystemPrompt);
+        const fbJsonMatch = fbResponse.match(/```json\s*([\s\S]*?)\s*```/) || [null, fbResponse];
+        const fbJsonContent = fbJsonMatch[1] || fbResponse;
+        const fbRawPlan = JSON.parse(fbJsonContent.trim());
+        return this.validatePlan(fbRawPlan);
       }
-
-      this.logger.debug(`[UnifiedPlanner] Raw Primary Plan (${this.primaryModel}): ${JSON.stringify(rawPlan)}`);
-      return this.validatePlan(rawPlan);
-    } catch (e) {
-      this.logger.warn(`[UnifiedPlanner] Tier 1 (${this.primaryModel}) failed, trying Tier 2 (${this.fallbackModel}): ${e.message}`);
-    }
-
-    // 2. Fallback Model (Tier 2)
-    try {
-      const isFallbackGemini = this.fallbackModel.includes('gemini');
-      let rawPlan: any;
-
-      if (isFallbackGemini) {
-        const model = this.genAI.getGenerativeModel({
-          model: this.fallbackModel,
-          generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
-        });
-        const result = await model.generateContent({
-          contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\nUser Request: ${message}` }] }]
-        });
-        rawPlan = JSON.parse(result.response.text());
-      } else {
-        const completion = await this.groq.chat.completions.create({
-          model: this.fallbackModel,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...history,
-            { role: 'user', content: message },
-          ],
-          response_format: { type: 'json_object' },
-          temperature: 0.1,
-        });
-        rawPlan = JSON.parse(completion.choices[0]?.message?.content || '{}');
-      }
-      return this.validatePlan(rawPlan);
-    } catch (e) {
+    } catch (e: any) {
       this.logger.error(`[UnifiedPlanner] All unauthorized tiers failed: ${e.message}`);
       return this.fallbackPlan("I encountered a technical issue while planning. How else can I help?");
     }
@@ -463,161 +440,6 @@ export class AiPromptService {
   }
 
   /**
-   * Generates a multi-step action plan using the planner model.
-   * @deprecated Use generateUnifiedPlan
-   */
-  async generateActionPlan(
-    message: string,
-    persona: any,
-    context: any,
-    history: any[],
-    state?: string,
-    temperature?: number,
-    allowedToolsOverride?: string[],
-    systemConstraint?: string,
-  ): Promise<any> {
-    const systemPrompt = `You are the STRUCTURAL PLANNER for Aedra. Your job is to analyze the user request and propose a precise, multi-step action plan.
-    
-    ${state || ''}
-
-    ACTIVE CONTEXT (PRE-RESOLVED):
-    - PropertyId: ${context.propertyId || 'NONE'}
-    - UnitId: ${context.unitId || 'NONE'}
-    - TenantId: ${context.tenantId || 'NONE'}
-    - CompanyId: ${context.companyId || 'NONE'}
-    
-    CRITICAL RULE: If a required ID (e.g., TenantId) is already provided in the ACTIVE CONTEXT above, DO NOT call search tools to find it again. Use the provided ID directly.
-    
-    ${systemConstraint ? `
-    [🚨 LOCKED INTENT: ${systemConstraint} 🚨]
-    The system has deterministically locked the intent for this request. 
-    You MUST NOT change the intent. You MUST ONLY use the tools provided in the AVAILABLE TOOLS list below.
-    If the AVAILABLE TOOLS list is empty ([]), you MUST NOT call any tools. You must only respond with a natural language acknowledgement and set "steps": []. 
-    DO NOT invent workflows or ignore these restrictions.` : ''}
-
-    AVAILABLE TOOLS: ${allowedToolsOverride ? allowedToolsOverride.join(', ') : persona.allowedTools.map((t: any) => t.name || t).join(', ') || 'NONE ALLOWED'}
-    
-    RESPONSE FORMAT: You MUST respond with a valid JSON object only.
-    SCHEMA:
-    {
-      "intent": string,
-      "priority": "NORMAL" | "HIGH" | "EMERGENCY",
-      "steps": [{ "tool": string, "args": object }],
-      "planReasoning": string
-    }
-    - [OPERATOR MODE]: Deliver value despite system imperfections. If primary tools fail, use manual aggregation data to fulfill the request.
-    - [GOLDEN RULE]: Intent > Identity > Tools. Acknowledge user promises (e.g. dates, amounts) or complaints FIRST in your response, even if you are still asking for identity details.
-    - [TENANT DISPUTE]: If intent is noise/behavioral, NEVER mention maintenance, technicians, or repairs. NO technicians for noise.
-    - [GUIDED DISAMBIGUATION]: If 'disambiguation_candidates' are provided, you MUST list 2-3 of them as options (Unit + Name) to help the user.
-    Synthesis Rules (by EXECUTION_MODE):
-    - [CONFIRMED]: Proceed with standard fulfillment.
-    - [PARTIAL]: Proceed with the best match but disclose the assumption (e.g., "I've updated the records for John M. in B12, as he was the closest match. Please let me know if this was incorrect.")
-    - [DEGRADED_TOOL]: If primary tools fail, use 'manual_aggregation' data. Present it as "compiled from raw records" in a Markdown table.
-    - [DEGRADED_STATE]: If data is missing (e.g. unit unknown), use preparatory language: "I can help with that once I have your unit number."
-    - [DISAMBIGUATION_REQUIRED]: If 'disambiguation_candidates' exist, present them as a **Candidates Table** (Unit | Name | Status).
-    
-    DETERMINISTIC DASHBOARDS (Phase 12):
-    - You MUST use Markdown Table templates for any report (Arrears, Revenue, Maintenance).
-    - [FINANCIAL_LEDGER]: Header: | Description | Amount |
-    - [MAINTENANCE_LOG]: Header: | Unit | Issue | Priority | Status |
-    - [TENANT_LOOKUP]: Header: | Unit | Name | Status |
-    
-    VIRTUAL LEDGER (System of Record):
-    - Use [VIRTUAL_LEDGER] for all balance calculations. 
-    - NEVER calculate balances manually in natural language; use the deterministic numbers provided in the state.
-    TRANSACTIONAL STATE PERSISTENCE (Phase 11):
-    - If [BUFFERED_TRANSACTION] contains an amount or date, you MUST acknowledge it immediately (e.g., "I see you've paid 15k...").
-    - DO NOT wait for identity resolution to confirm receipt of the amount/date. 
-    - Priority: Amount/Date > Identity > Confirmation.
-    
-    ACTION INTEGRITY RULES:
-    1. NEVER claim an action (e.g., "I've logged", "I've recorded", "I've updated") in your final response unless the tool call succeeded.
-    2. If no tool has run yet, use preparatory language.
-    3. If 'PARTIAL', always state the assumed name/unit.
-    4. If 'DEGRADED_STATE', do NOT promise fulfillment; instead, ask for the missing link.
-    
-    REPORTING FALLBACK:
-    - If a primary reporting tool (e.g., get_revenue_summary) fails or returns no data, YOU MUST attempt to use other available tools (list_properties, get_collection_rate) to construct a partial summary.
-    - NEVER respond with a bare "not found" for reports. Synthesize what you can.
-    
-    RULES:
-    1. OPERATIONAL AUTHORITY: You are an ACTION-FIRST operator.
-    2. MANDATORY ORDERING: If a "MANDATORY FIRST ACTION" is specified, you MUST place it as the first item in "steps".
-    3. SEARCH AND RESOLVE: If you see a Name (e.g. "John Mwangi") or a Unit (e.g. "A1") and don't have their ID, your FIRST STEP must be "search_tenants" or "get_unit_details".
-    
-    INTENT ROUTING (use these rules for specific intents):
-    - EMERGENCY (BURST PIPE, FLOODING, FIRE): 
-       1. SET priority: "EMERGENCY". 
-       2. PLAN: [log_maintenance_issue (category=EMERGENCY, priority=URGENT), get_unit_details, get_tenant_details].
-       3. DO NOT wait for resolution to log the issue. If unit is unknown, use "UNSPECIFIED".
-    - MAINTENANCE: 
-       1. PLAN: [log_maintenance_issue, get_unit_details].
-       2. If unit is unknown, call search_tenants first.
-    - FINANCIAL / REVENUE: 
-       1. PLAN: [get_revenue_summary, list_properties].
-       2. If propertyId is missing, call list_properties to find the target.
-    - ONBOARDING / "Add Tenant":
-       1. If you have a Unit number (e.g. A1) and Names (e.g. Sarah), PROPOSE [register_tenant].
-       2. If Unit ID is missing, the kernel will attempt to resolve it during execution.
-       3. You MUST call check_plan_status BEFORE register_tenant.
-    - REVENUE / FINANCIAL SUMMARY: "revenue", "monthly summary", "how much collected", "collection rate", "total income" → call 'get_revenue_summary' or 'get_collection_rate'. NEVER call 'get_tenant_arrears' for portfolio-level queries.
-    - LATE PAYMENT NOTICE FROM TENANT (LOCKED): When [LOCKED INTENT: LATE_PAYMENT] is active, the [Acknowledgment] MUST come before anything else. Do NOT ask for IDs. Set steps: []. Note the date/amount and respond warmly.
-    - "LET THEM KNOW" / "NOTIFY TENANT": If STAFF says "let them know", "tell them", "notify Fatuma" → call 'send_notification' or 'log_maintenance_issue' with category NOTICE. Send the message TO THE TENANT, never to the landlord.
-    - NOISE COMPLAINT / NEIGHBOR ISSUE (LOCKED): When [LOCKED INTENT: NOISE_COMPLAINT] is active, use 'log_maintenance_issue' with category DISPUTE. Do NOT search for the neighbor's identity.
-    - PAYMENT TIMEOUT / DID IT GO THROUGH: "timed out", "did it go through", "network error", "timeout during payment" → call 'check_payment_status' to verify idempotency. If check_payment_status is unavailable, use 'list_payments' with the tenant's name to verify manually.
-    - PENALTY DISPUTE / "WRONG CHARGE": User disputing a fee → call 'get_lease_details' to check contract terms and 'get_tenant_arrears' for breakdown. Explain late fee policy from lease.
-    - DATA INCONSISTENCY (property-level): "zero leases but units full", "Ocean View inconsistency", "check X for discrepancies" → call 'get_property_details' with the property name, then 'generate_rent_roll' to cross-check unit vs lease data. Do NOT call get_tenant_details for a property name.
-    - DATA INCONSISTENCY (tenant-level): "is Sarah in A1 and F2?", "duplicate unit assignment" → call 'search_tenants' with the tenant name, then use the result ID to call 'get_tenant_details'.
-    - ONBOARDING / "WEKA X KWA Y": "weka Amina Hassan kwa A1", "add Grace to C2", "register Sarah" → Intent is CREATE NEW TENANT. Call 'register_tenant' with firstName, lastName, unitNumber.
-    `;
-
-    const systemPrompt = `
-    ${personaPrompt}
-    
-    [SESSION_CONTEXT]: ${JSON.stringify(context || {})}
-    [HISTORY]: ${JSON.stringify((history || []).slice(-3))}
-
-    ${this.PLANNER_BASE_PROMPT}
-
-    CONTEXTUAL PERSISTENCE RULES:
-    - If [SESSION_CONTEXT] contains 'activeUnitNumber', 'activeTenantName', or resolved IDs, use them to pre-populate tool arguments.
-    - If a user says "at unit B4", verify against 'activeUnitNumber' in context.
-    - If a user says "them" or "he/she", refer to the last resolved tenant in [SESSION_CONTEXT].
-    `;
-
-    try {
-      // 1. Groq - GPT OSS 20b (Primary)
-      try {
-        const completion = await this.groq.chat.completions.create({
-          model: this.primaryModel,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: `User Request: ${message}` },
-          ],
-          response_format: { type: 'json_object' },
-          temperature: temperature ?? 0.1,
-        });
-        return JSON.parse(completion.choices[0]?.message?.content || '{}');
-      } catch (e) {
-        this.logger.warn(`[PROMPT-SERVICE] Tier 1 (GPT-OSS) failed, trying Tier 2 (Gemini): ${e.message}`);
-      }
-
-      // 2. Gemini (Tier 2 / Fallback)
-      const model = this.genAI.getGenerativeModel({
-        model: this.fallbackModel,
-        generationConfig: { responseMimeType: 'application/json', temperature: temperature ?? 0.1 },
-      });
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\nUser Request: ${message}` }] }]
-      });
-      return JSON.parse(result.response.text());
-    } catch (e) {
-      this.logger.error(`[PROMPT-SERVICE] All authorized model tiers failed for action plan: ${e.message}`);
-      return { status: 'error', reason: e.message };
-    }
-  }
-
-  /**
    * Generates a final conversational summary that is strictly grounded in the Execution Trace.
    */
     public async generateFinalResponse(
@@ -630,7 +452,8 @@ export class AiPromptService {
     role: UserRole = UserRole.COMPANY_STAFF,
     errors: string[] = [],
     immediateResponse?: string,
-    history: any[] = []
+    history: any[] = [],
+    originalMessage?: string
   ): Promise<string> {
     const isTenant = role === UserRole.TENANT;
     
@@ -700,7 +523,7 @@ export class AiPromptService {
         - If unit status was checked, state if it is Vacant or Occupied.
       - 3. PROACTIVE CLOSURE: Offer a solution or next step based on the data.
       
-      CRITICAL: If OPERATIONAL_TRUTH contains a non-empty result (e.g. data for a tenant, property, or report), you MUST summarize that data. NEVER say "I'm checking" or "I'll generate" in the final response if the data is already in OPERATIONAL_TRUTH. Say "I have found..." or "The current revenue is...".
+      CRITICAL: If OPERATIONAL_TRUTH contains a non-empty result (e.g. data for a tenant, property, or report), you MUST summarize that data. NEVER say "I'm checking" or "I'll generate" in the final response if the data is already in OPERATIONAL_TRUTH. Say "I have found..." or "The current revenue for Palm Grove is...". If tool results are available, presenting them is the priority.
       
       ACTION INTEGRITY:
       - If 'STEPS_PERFORMED' show success for log_maintenance_issue, ALWAYS state the ticket has been logged and provide a realistic 4-24 hour timeline for Nairobi vendors.
@@ -731,10 +554,11 @@ export class AiPromptService {
     
     try {
       const response = await this.callModel(
-        systemPrompt, 
+        `Please render the final response for the user based on the truth provided. USER MESSAGE: ${originalMessage || 'N/A'}`, 
         history.map(h => ({ role: h.role === 'assistant' || h.role === 'model' ? 'assistant' : 'user', content: h.content || '' })), 
         this.primaryModel, 
-        0.1
+        0.1,
+        systemPrompt
       );
       return response;
     } catch (e: any) {
@@ -746,92 +570,6 @@ export class AiPromptService {
         this.logger.error(`[PromptService] Tier 2 (${this.fallbackModel}) Rendering also failed: ${fallbackError.message}`);
         return "Request processed. If you need more details, please ask specific questions.";
       }
-    }
-  }
-
-  /**
-   * Generates a final conversational summary of tool execution results.
-   */
-  async generateFinalSummary(
-    planIntent: string,
-    steps: any[],
-    language: string,
-    ledger: any,
-    workflowState: any,
-    truth: any,
-    role: string,
-    state: string = '',
-    temperature: number = 0.7,
-    originalMessage: string = 'N/A',
-    precursorResponse: string = '',
-    forceGemini: boolean = false
-  ): Promise<string> {
-    const prompt = `You are Aedra, a property manager. 
-      Role: ${role}
-      Intent: ${planIntent}
-      Language: ${language}
-      
-      PREVIOUS ACKNOWLEDGEMENT: "${precursorResponse || 'None'}"
-      (If a previous acknowledgement exists, DO NOT repeat it. Start directly with the next step or detailed info).
-      
-      RESPONSE STYLE (MANDATORY):
-      Your response MUST follow a natural human flow. 
-      - DO NOT include any automated greets like "Hello [searchedEntity]".
-      - DO NOT repeat the user's name if they are STAFF/LANDLORD.
-      - 1. ACKNOWLEDGE: Briefly confirm the request.
-      - 2. ACTION TAKEN: State what you found in the specific tool 'RESULTS'.
-      - 3. PROACTIVE CLOSURE: Offer a solution or next step (e.g. Audit/Sync/Ticket).
-      
-      ACTION INTEGRITY:
-      - NEVER prioritize personal troubleshooting advice over logging a formal maintenance ticket.
-      - If 'RESULTS' show success for log_maintenance_issue, ALWAYS state the ticket has been logged and provide a realistic 4-24 hour timeline for Nairobi vendors.
-      - NEVER say "I've fixed", "I've resolved", or "shida imeisha". You only log/escalate.
-      - If 'RESULTS' show 'ENTITY_NOT_FOUND', say "I couldn't locate those details to finalize the update."
-      - DO NOT use technical terms like "unverified", "null", or "undefined" in your response.
-      - Use natural terms for finance: "madeni" or "hali ya malipo".
-      
-      OUTCOME-DRIVEN TEMPLATES:
-      - EMERGENCY (Burst/Flood): [Safety Instructions] + "Sawa, I've escalated this as a critical emergency maintenance issue. Our team is dispatching immediately."
-      - MAINTENANCE (Standard/Leak): [ACK] + "I've logged your request for [Issue]. A technician will contact you shortly to schedule the repair."
-      - NOISE_COMPLAINT: [ACK] + "I've logged this report discreetly for our management records." + [Action: "I've sent a notification to the occupant of [Unit]."] + [Next Step: "We will monitor the situation."] 🚨 NEVER mention technicians or maintenance.
-      - LATE_PAYMENT: [Empathy/Policy ACK] + "I've noted that you plan to pay on [Date]." + [Action Taken: "I checked your current balance."] + [Policy: "Please note that late fees may apply after the 5th."] + [Next Step: "I've updated our records with your promise."]
-      - FINANCIAL: [Summary Data Table]. (CRITICAL: If 'reportUrl' exists in RESULTS.data, you MUST output exactly: "\n\nYou can download the full report here: [reportUrl]") + (If NO 'reportUrl' and ledger is empty: "I've checked our records but couldn't generate a summary.") + [Next Step].
-      - ONBOARDING: [Welcome] + [Action: "Tenant profile created for [Unit]."] + [Next Step: "Please review the lease details below."]
-      - INCONSISTENCY: [ACK] + [Findings: "I've checked the unit and tenant records. I found that [Conflict Details from RESULTS]."] + [Question: "Could you please confirm which unit should be the active lease for this tenant?"] + [Proactive Action: "I have flagged this record for an administrative audit."]
-      - DISPUTE: [ACK] + [Analysis: "I've reviewed your ledger today. I see that the [Amount] charge is for: [STRICT: Use the 'description' field from 'paymentHistory' in RESULTS]."] + [Proactive Action: "I've opened a dispute ticket for this."] + [Next Step: "I'll update you once management reviews the August rental cycle."]
-      
-      STEPS: ${JSON.stringify(steps)}
-      RESULTS: ${JSON.stringify(truth)}
-      ACTIVE CONTEXT: ${state}
-      USER MESSAGE: ${originalMessage || 'N/A'}
-      LANGUAGE: ${language}
-      
-      HARD EXECUTION CONTRACTS:
-      - FINANCIAL/REPORTING: You MUST output a Markdown table. NO polymorphic paragraphs.
-      - MAINTENANCE: You MUST categorize by Priority (LOW/MEDIUM/HIGH/EMERGENCY).
-      - AMBIGUITY: If disambiguation candidates exist, you MUST output the Candidates Table.
-      
-      ANTI-META-TALK (v5.1):
-      - DO NOT mention "Operational Truth", "Rendering Engine", or "Prompt Instructions".
-      - DO NOT explain why you are responding a certain way.
-      - JUST BE THE PROPERTY MANAGER.
-      
-      PLACEHOLDER ERADICATION:
-      - NEVER use placeholders like "$X", "[amount]", or "??". 
-      - If data is missing and no fallback exists, state "DATA_UNAVAILABLE" and request the specific field.
-      
-      AUTHORITY BOUNDARY (Strict):
-      - If RESULTS show tool failure but manual_aggregation exists, you MUST generate an **OPERATIONAL DASHBOARD** showing total revenue and count.
-      - If [BUFFERED_TRANSACTION] exists, you MUST acknowledge the specific amount/date mentioned.
-      - If RESULTS show a PARTIAL match, you MUST disclose the assumption.
-      - If RESULTS show ambiguous candidates, you MUST use the Candidates Table template.
-    `;
-
-    try {
-      return await this.callModel(prompt, [], forceGemini ? 'gemini-2.0-flash' : this.primaryModel, temperature);
-    } catch (e: any) {
-      this.logger.error(`[PromptService] All authorized summary tiers failed: ${e.message}`);
-      return "Action completed successfully, but I'm having trouble displaying the summary.";
     }
   }
 
@@ -857,32 +595,45 @@ CRITICAL RULES:
 Context: ${JSON.stringify(context)}
     `;
 
-    return this.callModel(systemPrompt + `\nUser Request: ${message}`, history, 'gemini-2.0-flash', 0.1);
+    return this.callModel(`User Request: ${message}`, history, 'gemini-2.0-flash', 0.1, systemPrompt);
   }
 
-  private async callModel(prompt: string, history: any[], modelName: string, temperature: number): Promise<string> {
+  private async callModel(prompt: string, history: any[], modelName: string, temperature: number, systemInstruction?: string): Promise<string> {
     const isGemini = modelName.includes('gemini');
     
     if (isGemini) {
       const model = this.genAI.getGenerativeModel({
         model: modelName,
-        generationConfig: { temperature },
+        systemInstruction: systemInstruction || undefined,
+        generationConfig: { 
+          temperature,
+          responseMimeType: (prompt.includes('{') && prompt.includes('}')) || (systemInstruction?.includes('JSON')) ? 'application/json' : 'text/plain'
+        },
       });
       
       const contents = history.length > 0 ? [
-        ...history.map(h => ({ role: h.role === 'assistant' ? 'model' : 'user', parts: [{ text: h.content }] })),
+        ...history.map(h => ({ role: h.role === 'assistant' || h.role === 'model' ? 'model' : 'user', parts: [{ text: h.content }] })),
         { role: 'user', parts: [{ text: prompt }] }
       ] : [{ role: 'user', parts: [{ text: prompt }] }];
 
       const result = await model.generateContent({ contents });
       return result.response.text();
     } else {
+      const messages: any[] = [];
+      if (systemInstruction) {
+        messages.push({ role: 'system', content: systemInstruction });
+      }
+      
+      messages.push(...history.map(h => ({ 
+        role: (h.role === 'assistant' || h.role === 'model' ? 'assistant' : 'user'), 
+        content: h.content || '' 
+      })));
+      
+      messages.push({ role: 'user', content: prompt });
+
       const completion = await this.groq.chat.completions.create({
         model: modelName,
-        messages: [
-          ...history,
-          { role: 'user', content: prompt },
-        ],
+        messages,
         temperature,
       });
       return completion.choices[0]?.message?.content || '';

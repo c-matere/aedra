@@ -9,6 +9,7 @@ export interface LockedState {
   activeTenantName?: string | null;
   activePropertyId?: string | null;
   activeUnitId?: string | null;
+  activeUnitNumber?: string | null;
   activeIssueId?: string | null;
   activeIssueDescription?: string | null;
   executionHistory?: string[]; // List of tools successfully executed
@@ -56,6 +57,8 @@ export interface SessionContext {
   virtualLedger?: { recordedArrears: number; recordedPayments: number; balance: number };
   pendingAction?: string;
   lastIntent?: string;
+  activeTenantName?: string;
+  activeUnitNumber?: string;
   lastEntities?: Array<{ type: string; id: string; name: string }>;
   lastPriority?: string;
   lockedState?: LockedState;

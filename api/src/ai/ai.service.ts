@@ -48,8 +48,8 @@ import { ACTION_CONTRACTS } from './contracts/action-contracts';
 @Injectable()
 export class AiService implements OnModuleInit {
   private readonly logger = new Logger(AiService.name);
-  private readonly primaryModel = 'openai/gpt-oss-20b';
-  private readonly fallbackModel = 'gemini-2.0-flash';
+  private readonly primaryModel = 'gemini-2.0-flash';
+  private readonly fallbackModel = 'gemini-1.5-flash';
   private readonly genAI: GoogleGenerativeAI;
   private readonly groq: Groq;
   private modelsVerified = false;
@@ -117,20 +117,18 @@ export class AiService implements OnModuleInit {
   private async verifyHealth() {
     if (this.modelsVerified) return;
     try {
-      // Verify Groq (Primary)
-      await withRetry(() => this.groq.chat.completions.create({
-        messages: [{ role: 'user', content: 'health check' }],
-        model: this.primaryModel,
-      }), { maxRetries: 2, initialDelay: 2000, retryableStatuses: [] });
+      // 1. Verify Primary Model (Gemini Pro)
+      const model = this.genAI.getGenerativeModel({ model: this.primaryModel });
+      await withRetry(() => model.generateContent('health check'), { maxRetries: 2, initialDelay: 2000 });
       
       this.modelsVerified = true;
-      this.logger.log(`[HealthCheck] AI Verification complete (Groq Primary).`);
+      this.logger.log(`[HealthCheck] AI Verification complete (Gemini Pro Primary).`);
     } catch (e) {
       this.logger.warn(`[HealthCheck] Primary model (${this.primaryModel}) failed: ${e.message}`);
-      // Fallback check (Gemini)
+      // 2. Fallback check (Gemini Flash)
       try {
-        const model = this.genAI.getGenerativeModel({ model: this.fallbackModel });
-        await withRetry(() => model.generateContent('health check'), { maxRetries: 1 });
+        const fbModel = this.genAI.getGenerativeModel({ model: this.fallbackModel });
+        await withRetry(() => fbModel.generateContent('health check'), { maxRetries: 1 });
         this.modelsVerified = true;
         this.logger.log(`[HealthCheck] Fallback model (${this.fallbackModel}) is up.`);
       } catch (e2) {
@@ -237,8 +235,25 @@ export class AiService implements OnModuleInit {
       // 5. Hardened Execution Loop (v5.2)
       const resultsMap: Record<string, any> = {
         session: sessionContext,
-        entities: plan.entities || {}
+        entities: { ...(plan.entities || {}) }
       };
+
+      // 5a. Bare Entity Resolution (v5.5)
+      // Resolve IDs for names/units even if no tool is scheduled (crucial for sequential context)
+      if (plan.entities) {
+        if (plan.entities.tenantName && !resultsMap.entities.tenantId) {
+          const res = await this.entityResolver.resolveId('tenant', plan.entities.tenantName, companyId, plan.entities.unitNumber);
+          if (res.id) resultsMap.entities.tenantId = res.id;
+        }
+        if (plan.entities.unitNumber && !resultsMap.entities.unitId) {
+          const res = await this.entityResolver.resolveId('unit', plan.entities.unitNumber, companyId);
+          if (res.id) resultsMap.entities.unitId = res.id;
+        }
+        if (plan.entities.propertyName && !resultsMap.entities.propertyId) {
+          const res = await this.entityResolver.resolveId('property', plan.entities.propertyName, companyId);
+          if (res.id) resultsMap.entities.propertyId = res.id;
+        }
+      }
 
       for (const step of plan.steps) {
         this.logger.log(`[ExecutionLoop] Step: ${step.tool} (Required: ${step.required})`);
@@ -335,7 +350,8 @@ export class AiService implements OnModuleInit {
           effectiveRole as UserRole,
           trace.errors,
           plan.immediateResponse,
-          scrubbedHistory
+          scrubbedHistory,
+          cleanMessage
         );
       } else {
         finalResponse = plan.immediateResponse || "I'm sorry, I couldn't complete that action. Could you provide a bit more detail, like the unit number or tenant name?";
@@ -548,7 +564,19 @@ export class AiService implements OnModuleInit {
   }
 
   async summarizeForWhatsApp(text: string, language: string): Promise<string> {
-    return this.promptService.generateFinalSummary('summarize', [{ tool: 'none', result: text, success: true, required: true }], language, {}, {}, { status: 'COMPLETE', data: { response: text }, computedAt: new Date().toISOString(), intent: AiIntent.GENERAL_QUERY, context: {} }, 'TENANT');
+    return this.promptService.generateFinalResponse(
+      AiIntent.GENERAL_QUERY, 
+      [{ tool: 'none', result: text, success: true, required: true }], 
+      language, 
+      {}, 
+      {}, 
+      { status: 'COMPLETE', data: { response: text }, computedAt: new Date().toISOString(), intent: AiIntent.GENERAL_QUERY, context: {} } as any, 
+      UserRole.TENANT,
+      [],
+      '',
+      [],
+      text
+    );
   }
 
   async getChatSessions(userId: string) {
