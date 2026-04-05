@@ -20,7 +20,6 @@ import { listLeasesAction } from "@/lib/actions"
 import type { LeaseRecord, InvoiceRecord, InvoiceType } from "@/lib/backend-api"
 import { getInvoicePdf } from "@/lib/backend-api"
 import type { UserRole } from "@/lib/rbac"
-import type { UserRole } from "@/lib/rbac"
 
 function canMutate(role: UserRole | null) {
   return role === "SUPER_ADMIN" || role === "COMPANY_ADMIN"

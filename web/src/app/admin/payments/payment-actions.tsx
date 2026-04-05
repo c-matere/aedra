@@ -28,7 +28,6 @@ import {
 import { getPaymentPdf } from "@/lib/backend-api"
 import type { LeaseRecord, PaymentRecord } from "@/lib/backend-api"
 import type { UserRole } from "@/lib/rbac"
-import type { UserRole } from "@/lib/rbac"
 
 const PAYMENT_METHODS = ["MPESA", "BANK_TRANSFER", "CASH", "CHEQUE", "CARD", "OTHER"]
 const PAYMENT_TYPES = ["RENT", "DEPOSIT", "PENALTY", "UTILITY", "OTHER"]
