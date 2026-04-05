@@ -3,7 +3,7 @@ import { MpesaService, MpesaWebhookDto } from './mpesa.service';
 import { SkipThrottle } from '@nestjs/throttler';
 
 @SkipThrottle()
-@Controller('payments/mpesa')
+@Controller('payments/c-p')
 export class MpesaController {
   private readonly logger = new Logger(MpesaController.name);
 
@@ -68,5 +68,29 @@ export class MpesaController {
     }
 
     return this.mpesaService.handleC2BWebhook(webhookDto);
+  }
+
+  /**
+   * TEST ENDPOINT: Trigger STK Push
+   */
+  @Post('test/stk-push')
+  async testStkPush(@Body() body: { phone: string, amount: number, reference: string }) {
+    return this.mpesaService.stkPush(body.phone, body.amount, body.reference);
+  }
+
+  /**
+   * TEST ENDPOINT: Register C2B URLs
+   */
+  @Post('test/register-urls')
+  async testRegisterUrls() {
+    return this.mpesaService.registerUrls();
+  }
+
+  /**
+   * TEST ENDPOINT: Get Access Token
+   */
+  @Post('test/token')
+  async testToken() {
+    return this.mpesaService.getAccessToken();
   }
 }

@@ -12,9 +12,14 @@ export const formatPropertyList = (properties: any[]) => {
 };
 
 export const formatTenantList = (tenants: any[], query?: string) => {
+  // Some read-tools attach the originating query as a non-indexed array property for better UX.
+  const inferredQuery =
+    query ||
+    ((tenants as any)?.__query ? String((tenants as any).__query) : undefined);
+
   if (!tenants || tenants.length === 0) {
-    return query
-      ? `🔍 I looked for tenants matching *"${query}"* but didn't find anyone.`
+    return inferredQuery
+      ? `🔍 I looked for tenants matching *"${inferredQuery}"* but didn't find anyone.`
       : "👤 I don't see any tenants listed here yet.";
   }
   const lines = tenants.map((t: any, idx: number) => {
@@ -23,8 +28,8 @@ export const formatTenantList = (tenants: any[], query?: string) => {
     const phone = t.phone ? ` — 📞 _${t.phone}_` : '';
     return `*${idx + 1}.* ${name}${property}${phone}`;
   });
-  const header = query
-    ? `🔍 *Found these tenants matching "${query}":*`
+  const header = inferredQuery
+    ? `🔍 *Found these tenants matching "${inferredQuery}":*`
     : '👤 *Current Tenants:*';
   return `${header}\n\n${lines.join('\n')}`;
 };
@@ -89,6 +94,42 @@ export const formatUnitList = (units: any[], query?: string) => {
     ? `🔍 *Matching units for "${query}":*`
     : '🏠 *Unit Availability:*';
   return `${header}\n\n${lines.join('\n')}`;
+};
+
+export const formatFinancialSummary = (summary: any, language: 'en' | 'sw' = 'en') => {
+  const isSw = language === 'sw';
+  if (!summary || summary?.error) {
+    const msg =
+      summary?.message ||
+      summary?.error ||
+      (isSw ? 'Sikuweza kupata muhtasari wa kifedha kwa sasa.' : "I couldn't retrieve the financial summary right now.");
+    return `📊 ${msg}`;
+  }
+
+  const companyName = summary.companyName || (isSw ? 'Kampuni' : 'Company');
+  const units = summary.units || {};
+  const totals = summary.totals || {};
+
+  const fmt = (n: any) => `KES ${Number(n || 0).toLocaleString('en-KE')}`;
+  const range = summary?.dateRange?.from && summary?.dateRange?.to
+    ? `${new Date(summary.dateRange.from).toLocaleDateString('en-KE')} → ${new Date(summary.dateRange.to).toLocaleDateString('en-KE')}`
+    : undefined;
+
+  const lines = [
+    `*${companyName}*`,
+    ...(range ? [`_${range}_`] : []),
+    '',
+    `${isSw ? 'Mali' : 'Properties'}: *${summary.properties ?? 0}*`,
+    `${isSw ? 'Units' : 'Units'}: *${units.total ?? 0}* (✅ ${units.occupied ?? 0} · 🟡 ${units.vacant ?? 0})`,
+    `${isSw ? 'Wapangaji' : 'Tenants'}: *${summary.tenants ?? 0}*`,
+    '',
+    `${isSw ? 'Malipo' : 'Payments'}: *${fmt(totals.payments)}*`,
+    `${isSw ? 'Ankara' : 'Invoiced'}: *${fmt(totals.invoices)}*`,
+    `${isSw ? 'Zimechelewa' : 'Overdue'}: *${fmt(totals.overdueInvoices)}*`,
+    `${isSw ? 'Matumizi' : 'Expenses'}: *${fmt(totals.expenses)}*`,
+  ];
+
+  return `📊 *${isSw ? 'Muhtasari wa Portfolio' : 'Portfolio Summary'}*\n\n${lines.join('\n')}`.trim();
 };
 
 export const formatLeaseList = (leases: any[]) => {
@@ -406,6 +447,30 @@ export const formatPaymentReceipt = (payment: any) => {
 💳 *Method:* ${payment.method}
 
 _Thank you for your payment!_`;
+};
+
+export const formatPaymentDetails = (payment: any) => {
+  if (!payment) return '💸 Payment details not found.';
+  const date = new Date(payment.paidAt).toLocaleDateString('en-KE', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  const tenant = payment.lease?.tenant ? `${payment.lease.tenant.firstName} ${payment.lease.tenant.lastName}` : 'N/A';
+  const unit = payment.lease?.unit?.unitNumber || 'N/A';
+  const notes = payment.notes ? `\n📝 *Notes:* ${payment.notes}` : '';
+  const ref = payment.reference ? `\n🔗 *Reference:* ${payment.reference}` : '';
+
+  return `💸 *PAYMENT DETAILS*
+---------------------------
+💰 *Amount:* *KES ${payment.amount.toLocaleString()}*
+📅 *Date:* ${date}
+💳 *Method:* ${payment.method}
+👤 *Tenant:* ${tenant}
+🏠 *Unit:* ${unit}
+🏷️ *Type:* ${payment.type}${ref}${notes}
+
+_ID: ${payment.id}_`;
 };
 
 export const formatInvoiceSuccess = (invoice: any) => {

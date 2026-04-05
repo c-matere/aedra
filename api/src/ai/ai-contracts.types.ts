@@ -73,8 +73,19 @@ export interface UnifiedPlan {
     args: Record<string, any>;
     dependsOn?: string;     // tool name this step waits for
     required: boolean;      // if false, failure doesn't block rendering
+    isHighStakes?: boolean;  // financial/maintenance steps
+    claimedByPlan?: boolean; // did the LLM say it would complete this?
   }>;
   planReasoning?: string;    // for internal tracing/debugging
+}
+
+export interface VerifiedAction {
+  tool: string;
+  success: boolean;
+  status: 'COMPLETE' | 'PARTIAL' | 'FAILED' | 'NOT_RUN';
+  result?: any;           // raw tool output (only if success)
+  errorMessage?: string;
+  claimedByPlan?: boolean; // did the UnifiedPlan say this would happen?
 }
 
 export interface ActionContract {
@@ -99,7 +110,10 @@ export interface TruthObject {
   operationalAction?: ActionContract;
   data: any;
   context: any;
-  status: 'COMPLETE' | 'INCOMPLETE' | 'CONFLICT' | 'ERROR';
+  status: 'COMPLETE' | 'PARTIAL' | 'INSUFFICIENT_DATA' | 'CONFLICT' | 'ERROR' | 'AMBIGUOUS';
+  actions?: VerifiedAction[];           // every step that ran
+  missingRequirements?: string[];      // e.g. ["tenantId", "unitId"]
+  immediateSafetyInstructions?: string; // for emergencies
 }
 
 export interface ExecutionStep {

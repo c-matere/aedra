@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
+import { Loader2, MoreHorizontal, Pencil, Plus, Trash2, FileText } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,7 +25,9 @@ import {
   parseNumber,
   parseText,
 } from "@/lib/form-helpers"
+import { getPaymentPdf } from "@/lib/backend-api"
 import type { LeaseRecord, PaymentRecord } from "@/lib/backend-api"
+import type { UserRole } from "@/lib/rbac"
 import type { UserRole } from "@/lib/rbac"
 
 const PAYMENT_METHODS = ["MPESA", "BANK_TRANSFER", "CASH", "CHEQUE", "CARD", "OTHER"]
@@ -167,7 +169,7 @@ export function AddPaymentButton({ role, leases }: { role: UserRole | null; leas
   )
 }
 
-export function PaymentRowActions({ role, payment, leases }: { role: UserRole | null; payment: PaymentRecord; leases: LeaseRecord[] }) {
+export function PaymentRowActions({ role, payment, leases, token }: { role: UserRole | null; payment: PaymentRecord; leases: LeaseRecord[]; token: string }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -223,22 +225,46 @@ export function PaymentRowActions({ role, payment, leases }: { role: UserRole | 
     setLoading(false)
   }
 
+  async function onDownload() {
+    setLoading(true)
+    try {
+      // Use the token passed as prop
+      const res = await getPaymentPdf(token, payment.id)
+      if (res.data?.url) {
+        window.open(res.data.url, "_blank")
+      } else {
+        alert(res.error || "Failed to generate PDF")
+      }
+    } catch (err) {
+      alert("Failed to download PDF")
+    } finally {
+      setLoading(false)
+      setMenuOpen(false)
+    }
+  }
+
   return (
-    <div className="relative">
-      <Button variant="ghost" size="icon" disabled={loading || !canMutate(role)} onClick={() => setMenuOpen((v) => !v)}>
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+    <div className="flex items-center gap-2">
+      <Button variant="ghost" size="icon" disabled={loading} onClick={onDownload} title="Download Receipt">
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
       </Button>
 
-      {menuOpen ? (
-        <div className="absolute right-0 z-50 mt-1 w-32 rounded border border-white/10 bg-neutral-900">
-          <button className="w-full px-3 py-2 text-left text-sm hover:bg-white/10" onClick={() => { setMenuOpen(false); setOpen(true) }}>
-            <Pencil className="mr-2 inline h-3 w-3" /> Edit
-          </button>
-          <button className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/10" onClick={onDelete}>
-            <Trash2 className="mr-2 inline h-3 w-3" /> Delete
-          </button>
-        </div>
-      ) : null}
+      <div className="relative">
+        <Button variant="ghost" size="icon" disabled={loading || !canMutate(role)} onClick={() => setMenuOpen((v) => !v)}>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+
+        {menuOpen ? (
+          <div className="absolute right-0 z-50 mt-1 w-32 rounded border border-white/10 bg-neutral-900">
+            <button className="w-full px-3 py-2 text-left text-sm hover:bg-white/10" onClick={() => { setMenuOpen(false); setOpen(true) }}>
+              <Pencil className="mr-2 inline h-3 w-3" /> Edit
+            </button>
+            <button className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/10" onClick={onDelete}>
+              <Trash2 className="mr-2 inline h-3 w-3" /> Delete
+            </button>
+          </div>
+        ) : null}
+      </div>
 
       <SlidePanel open={open} onOpenChange={setOpen}>
         <SlidePanelContent>

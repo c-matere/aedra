@@ -27,8 +27,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     super({ adapter });
 
     this.txOptions = {
-      maxWait: Number(process.env.PRISMA_TX_MAX_WAIT_MS ?? 10_000),
-      timeout: Number(process.env.PRISMA_TX_TIMEOUT_MS ?? 20_000),
+      maxWait: Number(process.env.PRISMA_TX_MAX_WAIT_MS ?? 20_000),
+      timeout: Number(process.env.PRISMA_TX_TIMEOUT_MS ?? 60_000),
     };
 
     // Initialize the extended client
@@ -121,7 +121,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
             async $allOperations({ model, operation, args, query }) {
               const context = tenantContext.getStore();
               // Bypass RLS if no context is found (seeds, startup, etc) or for certain system operations
-              if (!context || model === 'AuditLog') {
+              // or if we're already in an RLS transaction to avoid infinite recursion
+              if (!context || model === 'AuditLog' || context.isRlsSecondary) {
                 return query(args);
               }
 
@@ -131,13 +132,18 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
                 await tx.$executeRaw`SELECT set_config('app.current_company_id', ${context.companyId || ''}, TRUE)`;
                 await tx.$executeRaw`SELECT set_config('app.is_super_admin', ${context.isSuperAdmin ? 'true' : 'false'}, TRUE)`;
                 await tx.$executeRaw`SELECT set_config('app.current_user_id', ${context.userId || ''}, TRUE)`;
+                await tx.$executeRaw`SELECT set_config('app.current_role', ${context.role || ''}, TRUE)`;
 
                 // Now we need a way to run the query via THIS transaction context.
                 // Note: query(args) from an extension might not automatically use the 'tx' here.
                 // We transform model name (e.g. 'AuditLog') to camelCase ('auditLog') to match Prisma properties.
                 const modelProp =
                   model.charAt(0).toLowerCase() + model.slice(1);
-                return (tx as any)[modelProp][operation](args);
+                
+                return tenantContext.run(
+                  { ...context, isRlsSecondary: true },
+                  () => (tx as any)[modelProp][operation](args),
+                );
               }, this.txOptions);
             },
           },

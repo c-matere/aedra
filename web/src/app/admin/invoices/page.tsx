@@ -88,7 +88,7 @@ export default async function InvoicesPage({
                     {invoice.description}
                   </p>
                 </div>
-                <InvoiceRowActions role={role} invoice={invoice} leases={leases.data?.data ?? []} />
+                <InvoiceRowActions role={role} invoice={invoice} leases={leases.data?.data ?? []} token={sessionToken} />
               </div>
             ))
           ) : (

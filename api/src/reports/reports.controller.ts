@@ -1,12 +1,17 @@
-import { Controller, Get, Req, Param } from '@nestjs/common';
+import { Controller, Get, Post, Req, Param } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../auth/roles.enum';
 import type { RequestWithUser } from '../auth/request-with-user.interface';
 
+import { AiReportToolService } from '../ai/ai-report-tool.service';
+
 @Controller('reports')
 export class ReportsController {
-  constructor(private readonly reportsService: ReportsService) {}
+  constructor(
+    private readonly reportsService: ReportsService,
+    private readonly aiReportTool: AiReportToolService,
+  ) {}
 
   @Get('summary')
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
@@ -30,5 +35,23 @@ export class ReportsController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
   async getPortfolioData(@Req() req: RequestWithUser, @Param('id') id: string) {
     return this.reportsService.getPortfolioData(id, req.user!);
+  }
+
+  @Post(':id/mckinsey')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
+  async getMcKinseyReport(@Req() req: RequestWithUser, @Param('id') id: string) {
+    const result = await this.aiReportTool.executeReportTool(
+      'get_mckinsey_style_report',
+      { propertyId: id },
+      req.user!,
+      req.user!.role,
+      'en',
+    );
+
+    if (result.error) {
+      throw new Error(result.message || result.error);
+    }
+
+    return result;
   }
 }

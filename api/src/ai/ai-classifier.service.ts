@@ -40,8 +40,8 @@ export interface ClassificationResult {
 export class AiClassifierService {
   private readonly logger = new Logger(AiClassifierService.name);
 
-  private readonly primaryModel = 'openai/gpt-oss-20b';
-  private readonly fallbackModel = 'llama-3.1-8b-instant';
+  private readonly primaryModel = 'gemini-2.0-flash';
+  private readonly fallbackModel = 'llama-3.3-70b-versatile';
   private readonly apiKey = process.env.GEMINI_API_KEY;
   private readonly swKeywords = [
     'habari',
@@ -134,6 +134,18 @@ export class AiClassifierService {
     /kushindwa/i
   ];
 
+  private readonly paymentTriggerPatterns = [
+    /trigger.*payment/i,
+    /request.*to.*pay/i,
+    /stk\s*push/i,
+    /send.*prompt/i,
+    /nionyeshe.*prompt/i,
+    /itisha.*malipo/i,
+    /nipe.*lipa/i,
+    /lipa.*sasa/i,
+    /check-out/i,
+  ];
+
   constructor(
     private readonly genAI: GoogleGenerativeAI,
     private readonly groq: Groq,
@@ -178,7 +190,7 @@ export class AiClassifierService {
       - list_companies, select_company, list_tenants, get_tenant_details, get_property_details
       - generate_mckinsey_report, generate_csv_report, check_rent_status, send_bulk_reminder, check_vacancy
       - report_maintenance, log_maintenance, maintenance_request, tenant_complaint
-      - record_payment, emergency_escalation, system_failure
+      - record_payment, initiate_payment, emergency_escalation, system_failure
       - request_receipt, add_tenant, bulk_create_tenants, onboard_property, update_property, create_unit, create_lease, collection_status, record_expense, list_expenses, general_query
 
       CRITICAL CLASSIFICATION RULES:
@@ -282,13 +294,13 @@ export class AiClassifierService {
     const intentsByRole = {
       TENANT: [
         'maintenance_request', 'payment_promise', 'payment_declaration', 
-        'tenant_complaint', 'emergency_escalation', 'general_query'
+        'tenant_complaint', 'emergency_escalation', 'general_query', 'initiate_payment'
       ],
       COMPANY_STAFF: [
         'onboard_property', 'bulk_create_tenants', 'add_tenant', 'update_property',
         'create_unit', 'create_lease', 'collection_status', 'record_expense',
         'list_expenses', 'check_rent_status', 'send_bulk_reminder', 'check_vacancy',
-        'general_query'
+        'general_query', 'initiate_payment'
       ],
       LANDLORD: [
         'collection_status', 'revenue_summary', 'vacancy_report', 'general_query'
@@ -327,6 +339,7 @@ export class AiClassifierService {
       - If message mentions "broken", "leaking", "no water", "no power", "maji imepotea", use "maintenance_request" or "emergency_escalation".
       - If message is a follow-up (e.g. "unit B4", "at 10am") to a maintenance request, keep "maintenance_request".
       - If message mentions "pay", "lipa", "nimetuma", use "payment_declaration" or "payment_promise".
+      - If message explicitly asks for a prompt, STK, or "request to pay", use "initiate_payment".
       ` : ''}
 
       User message: "${message}"
@@ -593,6 +606,8 @@ export class AiClassifierService {
     }
 
     // Guardrail: revenue/collection figure requests should route to financial tools, not property details.
+    const isPluralEntitySearch = /(?:tenants|members|people|guys|folks|ones|does|smiths|johns|marys)\b/i.test(text);
+    
     if (
       hasFinancialFigureRequest &&
       (result.intent === 'get_property_details' || result.intent === 'general_query')
@@ -600,13 +615,27 @@ export class AiClassifierService {
       return {
         ...result,
         intent: 'collection_status',
-        complexity: 1,
+        complexity: 2,
         executionMode: 'DIRECT_LOOKUP',
-        confidence: Math.max(baseConfidence ?? 0.6, 0.85),
-        reason: `${result.reason} (guardrail: financial figure request)`,
+        confidence: 0.9,
+        reason: `${result.reason} (guardrail: financial figure request detected)`,
       };
     }
 
+    // Normalization: Simple lookups should never be complexity 5, even if the model says so.
+    if (
+      (result.intent === 'list_tenants' || 
+       result.intent === 'get_tenant_details' || 
+       result.intent === 'search_tenants' ||
+       isPluralEntitySearch) && 
+      result.complexity >= 4
+    ) {
+        result.complexity = 1;
+        result.executionMode = 'DIRECT_LOOKUP';
+        result.reason = `${result.reason} (normalized complexity for entity search)`;
+    }
+
+    return result;
     // Guardrail: Emergency Override (Non-LLM)
     if (this.emergencyKeywords.some((kw) => text.includes(kw))) {
       return {
@@ -749,6 +778,22 @@ export class AiClassifierService {
         sentences.length,
         hasAttachments,
       );
+    }
+
+    // Payment Trigger (STK Push)
+    if (this.paymentTriggerPatterns.some(p => p.test(message))) {
+        const intent = 'initiate_payment';
+        return this.result(
+            intent,
+            1,
+            mode(intent),
+            lang,
+            'NORMAL',
+            'Payment trigger match',
+            isLong,
+            sentences.length,
+            hasAttachments,
+        );
     }
 
     // Receipt

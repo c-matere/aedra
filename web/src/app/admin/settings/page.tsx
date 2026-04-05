@@ -9,28 +9,47 @@ import {
     AlertCircle,
     ChevronRight,
     Building2,
+    CreditCard,
 } from "lucide-react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { fetchAdminSettings, fetchMe, getCompany } from "@/lib/backend-api"
+import { fetchAdminSettings, fetchMe, getCompany, backendBaseUrl, listCompanies, getLogoUrl } from "@/lib/backend-api"
 import { getRoleFromCookie, getSessionTokenFromCookie } from "@/lib/cookie-utils"
 import { CompanyEditButton } from "./company-edit-button"
+import { SecurityEditButton } from "./security-edit-button"
+import { NotificationsEditButton } from "./notifications-edit-button"
+import { IntegrationsEditButton } from "./integrations-edit-button"
+import { BillingEditButton } from "./billing-edit-button"
+import { CompanySelector } from "./company-selector"
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
     const role = await getRoleFromCookie()
     const token = await getSessionTokenFromCookie()
     const sessionToken = token || ""
+    const resolvedSearchParams = await searchParams
+    const queryCompanyId = resolvedSearchParams.companyId as string | undefined
 
     const [settingsResult, meResult] = await Promise.all([
         fetchAdminSettings(sessionToken),
         fetchMe(sessionToken),
     ])
 
-    const companyId = meResult.data?.user?.companyId
-    const companyResult = companyId ? await getCompany(sessionToken, companyId) : { data: null, error: "No company found" }
+    const userCompanyId = meResult.data?.user?.companyId
+    const effectiveCompanyId = (role === "SUPER_ADMIN" && queryCompanyId) ? queryCompanyId : userCompanyId
+
+    const [companyResult, allCompaniesResult] = await Promise.all([
+        effectiveCompanyId ? getCompany(sessionToken, effectiveCompanyId) : Promise.resolve({ data: null, error: "No company found" }),
+        role === "SUPER_ADMIN" ? listCompanies(sessionToken) : Promise.resolve({ data: null, error: null })
+    ])
+
     const company = companyResult.data
+    const allCompanies = allCompaniesResult.data || []
 
     const backendOnline = settingsResult.error === null && meResult.error === null
 
@@ -41,11 +60,15 @@ export default async function SettingsPage() {
             title: "Company Profile",
             description: "Update your company name, logo, and contact details.",
             items: [
+                { label: "Logo", value: company?.logo || "No logo uploaded" },
                 { label: "Company Name", value: company?.name ?? "Aedra Mombasa Ltd." },
                 { label: "Support Email", value: company?.email ?? "support@aedra.co.ke" },
                 { label: "Support Phone", value: company?.phone ?? "+254 700 000 000" },
                 { label: "Address", value: company?.address ?? "Mombasa, Kenya" },
             ],
+            editor: company && (role === "SUPER_ADMIN" || role === "COMPANY_ADMIN") ? (
+                <CompanyEditButton company={company} token={sessionToken} />
+            ) : null
         },
         {
             id: "security",
@@ -53,11 +76,14 @@ export default async function SettingsPage() {
             title: "Security & Access",
             description: "Manage authentication policies and role permissions.",
             items: [
-                { label: "Session Duration", value: "8 hours" },
-                { label: "Password Policy", value: "Min 8 chars + special character" },
-                { label: "Two-Factor Auth", value: "Disabled" },
-                { label: "IP Allowlist", value: "Not configured" },
+                { label: "Session Duration", value: `${company?.sessionDurationHours ?? 8} hours` },
+                { label: "Password Policy", value: company?.passwordPolicy ?? "Min 8 chars + special character" },
+                { label: "Two-Factor Auth", value: company?.twoFactorAuthEnabled ? "Enabled" : "Disabled" },
+                { label: "IP Allowlist", value: company?.ipAllowlist ?? "Not configured" },
             ],
+            editor: company && (role === "SUPER_ADMIN" || role === "COMPANY_ADMIN") ? (
+                <SecurityEditButton company={company} token={sessionToken} />
+            ) : null
         },
         {
             id: "notifications",
@@ -65,31 +91,44 @@ export default async function SettingsPage() {
             title: "Notifications",
             description: "Configure email and SMS alert preferences.",
             items: [
-                { label: "Rent Reminders", value: "3 days before due" },
-                { label: "Lease Expiry Alert", value: "90 days before expiry" },
-                { label: "Payment Receipts", value: "Enabled" },
-                { label: "Maintenance Updates", value: "Enabled" },
+                { label: "Rent Reminders", value: `${company?.rentReminderDaysBefore ?? 3} days before due` },
+                { label: "Lease Expiry Alert", value: `${company?.leaseExpiryAlertDaysBefore ?? 90} days before expiry` },
+                { label: "Payment Receipts", value: company?.paymentReceiptsEnabled ? "Enabled" : "Disabled" },
+                { label: "Maintenance Updates", value: company?.maintenanceUpdatesEnabled ? "Enabled" : "Disabled" },
             ],
+            editor: company && (role === "SUPER_ADMIN" || role === "COMPANY_ADMIN") ? (
+                <NotificationsEditButton company={company} token={sessionToken} />
+            ) : null
         },
         {
-            id: "api",
+            id: "integrations",
             icon: Globe,
             title: "API & Integrations",
             description: "Manage backend API connections and third-party integrations.",
             items: [
-                { label: "API Base URL", value: "http://localhost:4001" },
-                { label: "M-Pesa Integration", value: "Sandbox (Daraja API)" },
-                { label: "SMS Provider", value: "Africa's Talking" },
-                { label: "Map Provider", value: "Mapbox GL" },
+                { label: "API Base URL", value: backendBaseUrl() },
+                { label: "M-Pesa Integration", value: company?.mpesaShortcode ? `Shortcode: ${company.mpesaShortcode} (${company.mpesaEnvironment})` : "Not configured" },
+                { label: "SMS Provider", value: `${company?.smsProvider}${company?.africaTalkingApiKey ? " (Configured)" : " (Missing API Key)"}` },
+                { label: "Map Provider", value: `${company?.mapProvider}${company?.mapboxAccessToken ? " (Configured)" : " (Missing Token)"}` },
             ],
+            editor: company && (role === "SUPER_ADMIN" || role === "COMPANY_ADMIN") ? (
+                <IntegrationsEditButton company={company} token={sessionToken} />
+            ) : null
+        },
+        {
+            id: "billing",
+            icon: CreditCard,
+            title: "Billing & Invoicing",
+            description: "Manage automatic invoicing and billing cycles.",
+            items: [
+                { label: "Automatic Invoicing", value: company?.autoInvoicingEnabled ? "Enabled" : "Disabled" },
+                { label: "Invoicing Day", value: `Day ${company?.invoicingDay ?? 1} of the month` },
+            ],
+            editor: company && (role === "SUPER_ADMIN" || role === "COMPANY_ADMIN") ? (
+                <BillingEditButton company={company} token={sessionToken} />
+            ) : null
         },
     ]
-
-    const SECTION_EDIT_PATH: Record<string, string> = {
-        security: "/admin/staff",
-        notifications: "/admin/notifications",
-        api: "/admin/integrations",
-    }
 
     return (
         <div className="flex flex-col gap-8 pb-10">
@@ -118,6 +157,14 @@ export default async function SettingsPage() {
                     </div>
                 </div>
             </div>
+            
+            {/* Super Admin Company Selector */}
+            {role === "SUPER_ADMIN" && allCompanies.length > 0 && (
+                <CompanySelector 
+                    companies={allCompanies} 
+                    currentCompanyId={effectiveCompanyId || ""} 
+                />
+            )}
 
             {/* Role info card */}
             <div className={`flex items-start gap-4 rounded-xl border px-5 py-4 ${role === "SUPER_ADMIN"
@@ -179,15 +226,7 @@ export default async function SettingsPage() {
                                             <CardDescription className="text-xs text-neutral-500 mt-0.5">{section.description}</CardDescription>
                                         </div>
                                     </div>
-                                    {section.id === "company" && company && (role === "SUPER_ADMIN" || role === "COMPANY_ADMIN") ? (
-                                        <CompanyEditButton company={company} token={sessionToken} />
-                                    ) : (
-                                        <Button asChild variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity h-7 px-2 text-xs text-neutral-400">
-                                            <Link href={SECTION_EDIT_PATH[section.id] ?? "/admin/settings"}>
-                                                Edit <ChevronRight className="ml-1 h-3 w-3" />
-                                            </Link>
-                                        </Button>
-                                    )}
+                                    {section.editor}
                                 </div>
                             </CardHeader>
                             <CardContent className="pt-0">
@@ -195,7 +234,13 @@ export default async function SettingsPage() {
                                     {section.items.map((item) => (
                                         <div key={item.label} className="flex items-center justify-between py-1">
                                             <span className="text-xs text-neutral-500">{item.label}</span>
-                                            <span className="text-xs font-medium text-neutral-200 text-right max-w-[55%] truncate">{item.value}</span>
+                                            <span className="text-xs font-medium text-neutral-200 text-right max-w-[55%] truncate">
+                                                {item.label === "Logo" && item.value && item.value !== "No logo uploaded" ? (
+                                                    <img src={getLogoUrl(item.value as string) || ""} alt="Logo" className="h-8 w-8 object-contain rounded border border-white/10 ml-auto" />
+                                                ) : (
+                                                    item.value
+                                                )}
+                                            </span>
                                         </div>
                                     ))}
                                 </div>

@@ -5,7 +5,8 @@ import { withRetry } from '../common/utils/retry';
 
 export class PromptCompiler {
   private genAI: GoogleGenerativeAI;
-  private compilerModel = 'gemini-1.5-pro';
+  // Policy: Gemini 2.0 Flash only (Gemini 1.5 is discontinued).
+  private compilerModel = 'gemini-2.0-flash';
 
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY || 'dummy-key';

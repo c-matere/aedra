@@ -253,6 +253,54 @@ export interface CompanyRecord {
   address?: string;
   logo?: string;
   isActive: boolean;
+  // Security settings
+  sessionDurationHours: number;
+  passwordPolicy: string;
+  twoFactorAuthEnabled: boolean;
+  ipAllowlist?: string;
+  // Notification settings
+  rentReminderDaysBefore: number;
+  leaseExpiryAlertDaysBefore: number;
+  paymentReceiptsEnabled: boolean;
+  maintenanceUpdatesEnabled: boolean;
+  // Integration settings
+  smsProvider: string;
+  africaTalkingUsername: string | null;
+  africaTalkingApiKey: string | null;
+  mapProvider: string;
+  mapboxAccessToken: string | null;
+  mpesaConsumerKey: string | null;
+  mpesaConsumerSecret: string | null;
+  mpesaPasskey: string | null;
+  autoInvoicingEnabled: boolean;
+  invoicingDay: number;
+}
+
+export interface RoleRecord {
+  id: string;
+  name: string;
+  description?: string;
+  permissions: string[];
+  isSystem: boolean;
+  companyId?: string;
+}
+
+export interface CreateRolePayload {
+  name: string;
+  description?: string;
+  permissions: string[];
+}
+
+export interface PropertyAssignmentRecord {
+  id: string;
+  userId: string;
+  propertyId: string;
+  companyId?: string;
+  property?: {
+    id: string;
+    name: string;
+    address?: string;
+  };
 }
 
 export interface UpdateCompanyPayload {
@@ -261,6 +309,27 @@ export interface UpdateCompanyPayload {
   phone?: string;
   address?: string;
   logo?: string;
+  // Security settings
+  sessionDurationHours?: number;
+  passwordPolicy?: string;
+  twoFactorAuthEnabled?: boolean;
+  ipAllowlist?: string;
+  // Notification settings
+  rentReminderDaysBefore?: number;
+  leaseExpiryAlertDaysBefore?: number;
+  paymentReceiptsEnabled?: boolean;
+  maintenanceUpdatesEnabled?: boolean;
+  // Integration settings
+  smsProvider?: string;
+  africaTalkingUsername?: string | null;
+  africaTalkingApiKey?: string | null;
+  mapProvider?: string;
+  mapboxAccessToken?: string | null;
+  mpesaConsumerKey?: string | null;
+  mpesaConsumerSecret?: string | null;
+  mpesaPasskey?: string | null;
+  autoInvoicingEnabled?: boolean;
+  invoicingDay?: number;
 }
 
 export interface CreatePropertyPayload {
@@ -546,6 +615,8 @@ export const TARGET_ENDPOINTS = {
   officeIncome: "/finances/office/income",
   officeExpenses: "/finances/office/expenses",
   chatSessions: "/ai/chat/sessions",
+  roles: "/roles",
+  staffAssignments: "/staff",
 } as const;
 
 export function backendBaseUrl(): string {
@@ -555,6 +626,14 @@ export function backendBaseUrl(): string {
     "http://localhost:4001";
 
   return raw.endsWith("/") ? raw.slice(0, -1) : raw;
+}
+
+export function getLogoUrl(logo?: string | null): string | null {
+  if (!logo) return null;
+  if (logo.startsWith("http")) return logo;
+  const base = backendBaseUrl();
+  const normalizedLogo = logo.startsWith("/") ? logo : "/" + logo;
+  return `${base}${normalizedLogo}`;
 }
 
 async function backendGet<T>(
@@ -1064,6 +1143,12 @@ export async function getCompany(
   return backendRequest<CompanyRecord>(`${TARGET_ENDPOINTS.companies}/${id}`, token, "GET");
 }
 
+export async function listCompanies(
+  token: string,
+): Promise<BackendRequestResult<CompanyRecord[]>> {
+  return backendRequest<CompanyRecord[]>(TARGET_ENDPOINTS.companies, token, "GET");
+}
+
 export async function updateCompany(
   token: string,
   id: string,
@@ -1073,6 +1158,45 @@ export async function updateCompany(
     `${TARGET_ENDPOINTS.companies}/${id}`,
     token,
     "PATCH",
+    payload,
+  );
+}
+
+export async function testMpesaConnection(
+  token: string,
+  id: string,
+  payload?: UpdateCompanyPayload,
+): Promise<BackendRequestResult<{ success: boolean; message: string }>> {
+  return backendRequest<{ success: boolean; message: string }>(
+    `${TARGET_ENDPOINTS.companies}/${id}/test-mpesa`,
+    token,
+    "POST",
+    payload,
+  );
+}
+
+export async function testSmsConnection(
+  token: string,
+  id: string,
+  payload?: UpdateCompanyPayload,
+): Promise<BackendRequestResult<{ success: boolean; message: string }>> {
+  return backendRequest<{ success: boolean; message: string }>(
+    `${TARGET_ENDPOINTS.companies}/${id}/test-sms`,
+    token,
+    "POST",
+    payload,
+  );
+}
+
+export async function testMapsConnection(
+  token: string,
+  id: string,
+  payload?: UpdateCompanyPayload,
+): Promise<BackendRequestResult<{ success: boolean; message: string }>> {
+  return backendRequest<{ success: boolean; message: string }>(
+    `${TARGET_ENDPOINTS.companies}/${id}/test-maps`,
+    token,
+    "POST",
     payload,
   );
 }
@@ -1113,6 +1237,46 @@ export async function fetchReportRevenue(
   token: string,
 ): Promise<BackendRequestResult<ReportRevenue>> {
   return backendGet<ReportRevenue>(`${TARGET_ENDPOINTS.reports}/revenue`, token);
+}
+
+export interface PortfolioReportData {
+  property: {
+    id: string;
+    name: string;
+    manager: string;
+    address: string;
+    commissionPercentage: number;
+  };
+  totals: {
+    occupancy: number;
+    invoices: number;
+    payments: number;
+    expenses: number;
+    units: number;
+    occupied: number;
+    expensesByCategory: { category: string; amount: number }[];
+  };
+  maintenance: {
+    open: number;
+    resolved: number;
+  };
+  paymentMethods: { method: string; count: number }[];
+  tenantPayments: {
+    name: string;
+    unit: string;
+    rentAmount: number;
+    paidThisMonth: number;
+    ltv: number;
+    payments: { month: string; status: string }[];
+  }[];
+  month: string;
+}
+
+export async function getPortfolioReport(
+  token: string,
+  propertyId: string,
+): Promise<BackendRequestResult<PortfolioReportData>> {
+  return backendGet<PortfolioReportData>(`${TARGET_ENDPOINTS.reports}/${propertyId}/data`, token);
 }
 
 // Documents
@@ -1387,4 +1551,53 @@ export async function createOfficeExpense(
   }
 ): Promise<BackendRequestResult<ExpenseRecord>> {
   return backendRequest<ExpenseRecord>(`${TARGET_ENDPOINTS.officeExpenses}`, token, "POST", payload);
+}
+export async function getMcKinseyReport(
+  token: string,
+  propertyId: string,
+): Promise<BackendRequestResult<{ url: string; insightsSummary: string }>> {
+  return backendRequest<{ url: string; insightsSummary: string }>(
+    `${TARGET_ENDPOINTS.reports}/${propertyId}/mckinsey`,
+    token,
+    "POST",
+  );
+}
+// Roles
+export async function listRoles(token: string): Promise<BackendRequestResult<RoleRecord[]>> {
+  return backendGet<RoleRecord[]>(TARGET_ENDPOINTS.roles, token);
+}
+
+export async function createRole(token: string, payload: CreateRolePayload): Promise<BackendRequestResult<RoleRecord>> {
+  return backendRequest<RoleRecord>(TARGET_ENDPOINTS.roles, token, "POST", payload);
+}
+
+export async function updateRole(token: string, id: string, payload: Partial<CreateRolePayload>): Promise<BackendRequestResult<RoleRecord>> {
+  return backendRequest<RoleRecord>(`${TARGET_ENDPOINTS.roles}/${id}`, token, "PATCH", payload);
+}
+
+export async function deleteRole(token: string, id: string): Promise<BackendRequestResult<null>> {
+  return backendRequest<null>(`${TARGET_ENDPOINTS.roles}/${id}`, token, "DELETE");
+}
+
+// Staff Assignments
+export async function listStaffAssignments(token: string, userId: string): Promise<BackendRequestResult<PropertyAssignmentRecord[]>> {
+  return backendGet<PropertyAssignmentRecord[]>(`${TARGET_ENDPOINTS.staffAssignments}/${userId}/assignments`, token);
+}
+
+export async function setBulkStaffAssignments(token: string, userId: string, propertyIds: string[]): Promise<BackendRequestResult<PropertyAssignmentRecord[]>> {
+  return backendRequest<PropertyAssignmentRecord[]>(`${TARGET_ENDPOINTS.staffAssignments}/${userId}/assignments/bulk`, token, "POST", { propertyIds });
+}
+
+export async function getInvoicePdf(
+  token: string,
+  id: string,
+): Promise<BackendRequestResult<{ url: string }>> {
+  return backendGet<{ url: string }>(`${TARGET_ENDPOINTS.invoices}/${id}/pdf`, token);
+}
+
+export async function getPaymentPdf(
+  token: string,
+  id: string,
+): Promise<BackendRequestResult<{ url: string }>> {
+  return backendGet<{ url: string }>(`${TARGET_ENDPOINTS.payments}/${id}/pdf`, token);
 }

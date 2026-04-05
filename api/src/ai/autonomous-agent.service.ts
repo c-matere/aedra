@@ -36,12 +36,22 @@ export class AutonomousAgentService {
 
     // this.logger.log(`[AgentService] Found ${pausedAgents.length} agents to resume.`);
 
-    for (const agent of pausedAgents) {
-      this.logger.log(`[AgentService] Resuming agent ${agent.id}...`);
-      await this.workflowEngine.resume(agent.id, {
-        type: 'BACKGROUND_HEARTBEAT',
-        content: 'Heartbeat trigger',
-      });
+    const CONCURRENCY_LIMIT = 5;
+    for (let i = 0; i < pausedAgents.length; i += CONCURRENCY_LIMIT) {
+      const chunk = pausedAgents.slice(i, i + CONCURRENCY_LIMIT);
+      await Promise.all(
+        chunk.map(async (agent) => {
+          this.logger.log(`[AgentService] Resuming agent ${agent.id}...`);
+          try {
+            await this.workflowEngine.resume(agent.id, {
+              type: 'BACKGROUND_HEARTBEAT',
+              content: 'Heartbeat trigger',
+            });
+          } catch (e) {
+            this.logger.error(`Failed to resume agent ${agent.id}: ${e.message}`);
+          }
+        }),
+      );
     }
   }
 

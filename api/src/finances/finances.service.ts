@@ -157,4 +157,30 @@ export class FinancesService {
       },
     });
   }
+
+  async getTenantArrears(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      include: {
+        leases: {
+          where: { status: 'ACTIVE', deletedAt: null },
+          include: {
+            invoices: { where: { deletedAt: null } },
+            payments: { where: { deletedAt: null } },
+          },
+        },
+      },
+    });
+
+    if (!tenant) return 0;
+
+    let totalInvoices = 0;
+    let totalPayments = 0;
+    for (const lease of tenant.leases) {
+      totalInvoices += lease.invoices.reduce((sum, inv) => sum + inv.amount, 0);
+      totalPayments += lease.payments.reduce((sum, pay) => sum + pay.amount, 0);
+    }
+
+    return totalInvoices - totalPayments;
+  }
 }

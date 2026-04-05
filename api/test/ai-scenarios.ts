@@ -138,6 +138,19 @@ async function main() {
       ['invoice', 'confirm', '1500'],
     ],
   );
+ 
+  // Scenario 4: Super Admin Platform Oversight & Scoped Mutation
+  await runScenario(
+    'Super Admin Platform Oversight',
+    [
+      'Who is the tenant in Unit B4 across all properties?',
+      'Register a new company called Antigravity Alpha',
+    ],
+    [
+      ['B4', 'tenant'],
+      ['register_company', 'Antigravity Alpha'],
+    ],
+  );
 }
 
 main()

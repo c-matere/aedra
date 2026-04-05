@@ -5,51 +5,68 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/authenticated-user.interface';
+import { EncryptionService } from '../common/encryption.service';
+
+const SENSITIVE_FIELDS = [
+  'mpesaConsumerKey',
+  'mpesaConsumerSecret',
+  'mpesaPasskey',
+  'africaTalkingApiKey',
+  'mapboxAccessToken',
+];
 
 export interface UpdateCompanyDto {
   name?: string;
   email?: string;
   phone?: string;
   address?: string;
-  logo?: string;
+  logo?: string | null;
   waAccessToken?: string;
   waVerifyToken?: string;
   waPhoneNumberId?: string;
   waBusinessAccountId?: string;
   waOwnerPhone?: string;
+  // Security settings
+  sessionDurationHours?: number;
+  passwordPolicy?: string;
+  twoFactorAuthEnabled?: boolean;
+  ipAllowlist?: string;
+  // Notification settings
+  rentReminderDaysBefore?: number;
+  leaseExpiryAlertDaysBefore?: number;
+  paymentReceiptsEnabled?: boolean;
+  maintenanceUpdatesEnabled?: boolean;
+  // Integration settings
+  smsProvider?: string;
+  africaTalkingUsername?: string;
+  africaTalkingApiKey?: string;
+  mapProvider?: string;
+  mapboxAccessToken?: string;
+  mpesaConsumerKey?: string;
+  mpesaConsumerSecret?: string;
+  mpesaPasskey?: string;
+  // Billing & Invoicing
+  autoInvoicingEnabled?: boolean;
+  invoicingDay?: number;
 }
 
 @Injectable()
 export class CompaniesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly encryptionService: EncryptionService,
+  ) {}
 
-  async findOne(id: string, actor: AuthenticatedUser) {
-    if (actor.role !== 'SUPER_ADMIN' && actor.companyId !== id) {
-      throw new ForbiddenException('You cannot access this company profile.');
-    }
+  async findAll() {
 
-    const company = await this.prisma.company.findUnique({
-      where: { id },
+    const companies = await this.prisma.company.findMany({
+      orderBy: { name: 'asc' },
     });
 
-    if (!company) {
-      throw new NotFoundException('Company not found.');
-    }
-
-    return company;
+    return companies.map((c) => this.decryptCompany(c));
   }
 
-  async update(id: string, data: UpdateCompanyDto, actor: AuthenticatedUser) {
-    if (actor.role !== 'SUPER_ADMIN' && actor.companyId !== id) {
-      throw new ForbiddenException('You cannot update this company profile.');
-    }
-
-    // Only SUPER_ADMIN and COMPANY_ADMIN should be able to update
-    if (actor.role === 'COMPANY_STAFF') {
-      throw new ForbiddenException(
-        'Staff members cannot update company profile.',
-      );
-    }
+  async findOne(id: string) {
 
     const company = await this.prisma.company.findUnique({
       where: { id },
@@ -59,9 +76,145 @@ export class CompaniesService {
       throw new NotFoundException('Company not found.');
     }
 
-    return this.prisma.company.update({
+    return this.decryptCompany(company);
+  }
+
+  async update(id: string, data: UpdateCompanyDto) {
+
+
+    const company = await this.prisma.company.findUnique({
       where: { id },
-      data,
     });
+
+    if (!company) {
+      throw new NotFoundException('Company not found.');
+    }
+
+    // Encrypt sensitive fields
+    const encryptedData = { ...data };
+    for (const field of SENSITIVE_FIELDS) {
+      if (encryptedData[field as keyof UpdateCompanyDto]) {
+        encryptedData[field as keyof UpdateCompanyDto] = this.encryptionService.encrypt(
+          encryptedData[field as keyof UpdateCompanyDto] as string,
+        ) as any;
+      }
+    }
+
+    const updated = await this.prisma.company.update({
+      where: { id },
+      data: encryptedData,
+    });
+
+    return this.decryptCompany(updated);
+  }
+
+  private decryptCompany(company: any) {
+    const decrypted = { ...company };
+    for (const field of SENSITIVE_FIELDS) {
+      if (decrypted[field]) {
+        try {
+          decrypted[field] = this.encryptionService.decrypt(decrypted[field]);
+        } catch (e) {
+          // If decryption fails, keep as is (might not be encrypted yet)
+        }
+      }
+    }
+    return decrypted;
+  }
+
+  private mergeDecryptedData(stored: any, incoming: UpdateCompanyDto) {
+    return { ...stored, ...incoming };
+  }
+
+  async testMpesa(id: string, incoming: UpdateCompanyDto) {
+    const stored = await this.findOne(id);
+    const company = this.mergeDecryptedData(stored, incoming);
+    
+    if (!company.mpesaConsumerKey || !company.mpesaConsumerSecret) {
+      return { success: false, message: 'Missing M-Pesa credentials' };
+    }
+
+    const baseUrl = company.mpesaEnvironment === 'production' 
+      ? 'https://api.safaricom.co.ke' 
+      : 'https://sandbox.safaricom.co.ke';
+    
+    const auth = Buffer.from(`${company.mpesaConsumerKey}:${company.mpesaConsumerSecret}`).toString('base64');
+
+    try {
+      const url = `${baseUrl}/oauth/v1/generate?grant_type=client_credentials`;
+      console.log(`[M-Pesa Test] Requesting token from: ${url}`);
+      
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `Basic ${auth}`,
+        },
+      });
+
+      console.log(`[M-Pesa Test] Response status: ${res.status}`);
+
+      if (res.ok) {
+        return { success: true, message: 'M-Pesa credentials verified (OAuth token generated)' };
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        console.log(`[M-Pesa Test] Error response:`, JSON.stringify(errorData));
+        
+        let message = `M-Pesa verification failed: ${errorData.errorMessage || res.statusText}`;
+        if (res.status === 400) {
+          message += ". This often indicates invalid Consumer Key/Secret format or an issue with the Safaricom Sandbox environment. Please ensure there are no trailing spaces and that the keys match the selected environment.";
+        }
+        return { success: false, message };
+      }
+    } catch (e) {
+      return { success: false, message: `Network error connecting to M-Pesa: ${(e as Error).message}` };
+    }
+  }
+
+  async testSms(id: string, incoming: UpdateCompanyDto) {
+    const stored = await this.findOne(id);
+    const company = this.mergeDecryptedData(stored, incoming);
+
+    if (!company.africaTalkingUsername || !company.africaTalkingApiKey) {
+      return { success: false, message: 'Missing Africa\'s Talking credentials' };
+    }
+
+    try {
+      const res = await fetch(`https://api.africastalking.com/version1/user?username=${company.africaTalkingUsername}`, {
+        headers: {
+          'apiKey': company.africaTalkingApiKey,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (res.ok) {
+        return { success: true, message: 'Africa\'s Talking credentials verified' };
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        return { success: false, message: `SMS verification failed: ${errorData.errorMessage || res.statusText}` };
+      }
+    } catch (e) {
+      return { success: false, message: `Network error connecting to Africa's Talking: ${(e as Error).message}` };
+    }
+  }
+
+  async testMaps(id: string, incoming: UpdateCompanyDto) {
+    const stored = await this.findOne(id);
+    const company = this.mergeDecryptedData(stored, incoming);
+
+    if (!company.mapboxAccessToken) {
+      return { success: false, message: 'Missing Mapbox access token' };
+    }
+
+    try {
+      const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/Nairobi.json?access_token=${company.mapboxAccessToken}&limit=1`);
+
+      if (res.ok) {
+        return { success: true, message: 'Mapbox access token verified' };
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        return { success: false, message: `Mapbox verification failed: ${errorData.message || res.statusText}` };
+      }
+    } catch (e) {
+      return { success: false, message: `Network error connecting to Mapbox: ${(e as Error).message}` };
+    }
   }
 }

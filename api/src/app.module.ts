@@ -20,10 +20,7 @@ import { ExpensesController } from './expenses/expenses.controller';
 import { ExpensesService } from './expenses/expenses.service';
 import { LeasesController } from './leases/leases.controller';
 import { LeasesService } from './leases/leases.service';
-import { PaymentsController } from './payments/payments.controller';
-import { PaymentsService } from './payments/payments.service';
-import { MpesaController } from './payments/mpesa.controller';
-import { MpesaService } from './payments/mpesa.service';
+import { PaymentsModule } from './payments/payments.module';
 import { MaintenanceRequestsController } from './maintenance-requests/maintenance-requests.controller';
 import { MaintenanceRequestsService } from './maintenance-requests/maintenance-requests.service';
 import { AuditModule } from './audit/audit.module';
@@ -41,12 +38,16 @@ import { MessagingModule } from './messaging/messaging.module';
 import { BullModule } from '@nestjs/bullmq';
 import { WorkflowModule } from './workflows/workflow.module';
 import { TodoModule } from './todo/todo.module';
+import { RolesModule } from './roles/roles.module';
+import { StaffModule } from './staff/staff.module';
 
 @Module({
   imports: [
     PrismaModule,
-    AiModule,
     AuditModule,
+    MessagingModule,
+    PaymentsModule,
+    AiModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
@@ -90,9 +91,10 @@ import { TodoModule } from './todo/todo.module';
     ReportsModule,
     UnitsModule,
     FinancesModule,
-    MessagingModule,
     TodoModule,
     WorkflowModule,
+    RolesModule,
+    StaffModule,
   ],
   controllers: [
     AppController,
@@ -103,8 +105,6 @@ import { TodoModule } from './todo/todo.module';
     LandlordsController,
     ExpensesController,
     LeasesController,
-    PaymentsController,
-    MpesaController,
     MaintenanceRequestsController,
   ],
   providers: [
@@ -116,8 +116,6 @@ import { TodoModule } from './todo/todo.module';
     LandlordsService,
     ExpensesService,
     LeasesService,
-    PaymentsService,
-    MpesaService,
     MaintenanceRequestsService,
     {
       provide: APP_GUARD,

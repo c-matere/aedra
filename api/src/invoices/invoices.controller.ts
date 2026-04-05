@@ -11,13 +11,19 @@ import {
 } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto, UpdateInvoiceDto } from './dto/invoice.dto';
+import { PrismaService } from '../prisma/prisma.service';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../auth/roles.enum';
 import type { RequestWithUser } from '../auth/request-with-user.interface';
+import { ReportsGeneratorService } from '../reports/reports-generator.service';
 
 @Controller('invoices')
 export class InvoicesController {
-  constructor(private readonly invoicesService: InvoicesService) {}
+  constructor(
+    private readonly invoicesService: InvoicesService,
+    private readonly reportsGenerator: ReportsGeneratorService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Post()
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF)
@@ -64,5 +70,37 @@ export class InvoicesController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF)
   remove(@Param('id') id: string, @Req() req: RequestWithUser) {
     return this.invoicesService.remove(id, req.user!);
+  }
+
+  @Get(':id/pdf')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF)
+  async downloadPdf(@Param('id') id: string, @Req() req: RequestWithUser) {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id },
+      include: {
+        lease: {
+          include: {
+            tenant: true,
+            property: true,
+            unit: true,
+          },
+        },
+      },
+    });
+
+    if (!invoice) throw new Error('Invoice not found');
+
+    const company = await this.prisma.company.findUnique({
+      where: { id: invoice.lease.tenant.companyId },
+    });
+
+    const fileName = `invoice_${id.slice(0, 8)}.pdf`;
+    const url = await this.reportsGenerator.generateInvoicePdf(
+      invoice,
+      company,
+      fileName,
+    );
+
+    return { url };
   }
 }

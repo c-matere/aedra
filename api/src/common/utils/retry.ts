@@ -9,6 +9,12 @@ export interface RetryOptions {
   maxDelay?: number;
   factor?: number;
   retryableStatuses?: number[];
+  /**
+   * Optional fixed retry schedule (ms) used instead of exponential backoff.
+   * Index 0 is the delay before retry #1, index 1 before retry #2, etc.
+   * If shorter than maxRetries-1, remaining retries fall back to exponential backoff.
+   */
+  delaySequenceMs?: number[];
 }
 
 const logger = new Logger('RetryUtility');
@@ -31,6 +37,7 @@ export async function withRetry<T>(
     maxDelay = 10000,
     factor = 2,
     retryableStatuses = [429, 502, 503, 504],
+    delaySequenceMs,
   } = options;
 
   let lastError: any;
@@ -60,10 +67,15 @@ export async function withRetry<T>(
 
       if (isNetworkError || isRetryableStatus) {
         if (i < maxRetries - 1) {
-          const backoff = Math.min(
-            initialDelay * Math.pow(factor, i),
-            maxDelay,
-          );
+          const scheduledDelay =
+            Array.isArray(delaySequenceMs) && delaySequenceMs[i] != null
+              ? Number(delaySequenceMs[i])
+              : null;
+
+          const backoff =
+            typeof scheduledDelay === 'number' && Number.isFinite(scheduledDelay)
+              ? Math.max(0, scheduledDelay)
+              : Math.min(initialDelay * Math.pow(factor, i), maxDelay);
           const jitter = Math.random() * 1000;
           const delay = backoff + jitter;
           logger.warn(

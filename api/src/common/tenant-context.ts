@@ -7,6 +7,7 @@ export interface TenantContextData {
   isSuperAdmin: boolean;
   role: UserRole;
   chatId?: string;
+  isRlsSecondary?: boolean;
 }
 
 export const tenantContext = new AsyncLocalStorage<TenantContextData>();

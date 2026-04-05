@@ -48,6 +48,7 @@ export interface SessionContext {
   activeTenantId?: string;
   activeUnitId?: string;
   activeCompanyId?: string;
+  companyId?: string;
   activeMaintenanceId?: string;
   activeTenant?: { id: string; name: string; unit?: string; arrears?: number; phone?: string };
   activeProperty?: { id: string; name: string; address?: string };

@@ -53,20 +53,30 @@ export class ReportsGeneratorService {
     data: any,
     title: string,
     fileName: string,
+    companyLogo?: string,
   ): Promise<string> {
+    const resolvedLogo = this.resolveLogoUrl(companyLogo || null);
     const html = `
       <html>
         <head>
           <style>
-            body { font-family: 'Helvetica', sans-serif; padding: 50px; }
-            h1 { text-align: center; color: #333; }
-            .date { text-align: center; color: #666; margin-bottom: 30px; }
-            pre { background: #f4f4f4; padding: 15px; border-radius: 5px; }
+            body { font-family: 'Helvetica', sans-serif; padding: 40px; color: #333; }
+            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 20px; }
+            .logo { max-height: 60px; max-width: 200px; }
+            .company-info { text-align: right; }
+            h1 { margin: 0; color: #0f1923; }
+            .date { color: #666; font-size: 14px; }
+            pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
           </style>
         </head>
         <body>
-          <h1>${title}</h1>
-          <div class="date">Generated on: ${new Date().toLocaleString()}</div>
+          <div class="header">
+            ${resolvedLogo ? `<img src="${resolvedLogo}" class="logo" />` : '<div></div>'}
+            <div class="company-info">
+              <h1>${title}</h1>
+              <div class="date">Generated on: ${new Date().toLocaleString()}</div>
+            </div>
+          </div>
           ${Array.isArray(data) ? this.renderBasicTable(data) : `<pre>${JSON.stringify(data, null, 2)}</pre>`}
         </body>
       </html>
@@ -81,8 +91,36 @@ export class ReportsGeneratorService {
     insights: any,
     propertiesData: any,
     fileName: string,
+    companyLogo?: string,
   ): Promise<string> {
-    const html = this.renderPremiumHtml(insights, propertiesData);
+    const resolvedLogo = this.resolveLogoUrl(companyLogo || null);
+    const html = this.renderPremiumHtml(insights, propertiesData, resolvedLogo || undefined);
+    return this.generatePdfFromHtml(html, fileName);
+  }
+
+  async generateInvoicePdf(
+    invoice: any,
+    company: any,
+    fileName: string,
+  ): Promise<string> {
+    const resolvedCompany = {
+      ...company,
+      logo: this.resolveLogoUrl(company.logo),
+    };
+    const html = this.renderInvoiceHtml(invoice, resolvedCompany);
+    return this.generatePdfFromHtml(html, fileName);
+  }
+
+  async generateReceiptPdf(
+    payment: any,
+    company: any,
+    fileName: string,
+  ): Promise<string> {
+    const resolvedCompany = {
+      ...company,
+      logo: this.resolveLogoUrl(company.logo),
+    };
+    const html = this.renderReceiptHtml(payment, resolvedCompany);
     return this.generatePdfFromHtml(html, fileName);
   }
 
@@ -103,15 +141,55 @@ export class ReportsGeneratorService {
     const filePath = path.join(this.reportsDir, fileName);
     let browser;
     try {
+      this.logger.log(`Launching Puppeteer browser...`);
       browser = await puppeteer.launch({
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--disable-extensions',
+          '--remote-debugging-port=0',
+          '--no-zygote',
+        ],
         headless: true,
+        timeout: 90000,
       });
+      this.logger.log(`Puppeteer browser launched successfully!`);
       const page = await browser.newPage();
+      await page.setRequestInterception(true);
+      page.on('request', (req) => {
+        const url = req.url();
+        const isLocal =
+          url.includes('localhost') ||
+          url.includes('127.0.0.1') ||
+          (process.env.API_URL && url.includes(process.env.API_URL));
+
+        if (isLocal || req.resourceType() === 'document') {
+          req.continue();
+        } else {
+          this.logger.debug(`Aborting external request: ${url}`);
+          req.abort();
+        }
+      });
+
+      page.on('console', (msg) => this.logger.debug(`PAGE LOG: ${msg.text()}`));
+      page.on('pageerror', (err: any) =>
+        this.logger.error(`PAGE ERROR: ${err.message}`),
+      );
+      page.on('requestfailed', (req) => {
+        if (req.url().includes('localhost') || req.url().includes('127.0.0.1')) {
+          this.logger.error(
+            `REQUEST FAILED: ${req.url()} - ${req.failure()?.errorText}`,
+          );
+        }
+      });
+
       this.logger.log(`Generating PDF for ${fileName} to path: ${filePath}...`);
       await page.setContent(html, {
         waitUntil: 'load',
-        timeout: 60000,
+        timeout: 30000,
       });
       await page.pdf({
         path: filePath,
@@ -162,7 +240,205 @@ export class ReportsGeneratorService {
     `;
   }
 
-  private renderPremiumHtml(insights: any, propertiesData: any): string {
+  private renderInvoiceHtml(invoice: any, company: any): string {
+    const formattedAmount = new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(invoice.amount);
+    const dueDate = new Date(invoice.dueDate).toLocaleDateString();
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+          body { font-family: 'Inter', sans-serif; color: #111; padding: 50px; line-height: 1.5; margin: 0; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 60px; }
+          .logo { max-height: 50px; filter: grayscale(100%); }
+          .invoice-label { font-size: 48px; font-weight: 800; text-transform: uppercase; letter-spacing: -1px; margin: 0; line-height: 1; }
+          .metadata { text-align: right; font-size: 14px; }
+          .metadata p { margin: 2px 0; }
+          .metadata span { font-weight: 600; color: #666; text-transform: uppercase; font-size: 11px; margin-right: 5px; }
+
+          .addresses { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; margin-bottom: 60px; }
+          .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #999; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+          .address-box p { margin: 0; font-size: 14px; }
+          .address-box .name { font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+
+          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+          .items-table th { text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #999; padding: 12px 0; border-bottom: 2px solid #111; }
+          .items-table td { padding: 16px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+          .items-table .amount { text-align: right; font-weight: 600; }
+
+          .footer-section { display: flex; justify-content: space-between; }
+          .notes { width: 50%; font-size: 12px; color: #666; }
+          .totals { width: 35%; }
+          .total-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; }
+          .total-row.grand { border-top: 2px solid #111; margin-top: 8px; padding-top: 12px; font-weight: 800; font-size: 18px; }
+          
+          .bottom-bar { margin-top: 100px; border-top: 1px solid #eee; padding-top: 20px; text-align: center; font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            ${company.logo ? `<img src="${company.logo}" class="logo" />` : '<div style="width:50px; height:50px; background:#eee;"></div>'}
+          </div>
+          <div class="metadata">
+            <h1 class="invoice-label">Invoice</h1>
+            <p><span>Number</span> #INV-${invoice.id.slice(0, 8).toUpperCase()}</p>
+            <p><span>Date</span> ${new Date().toLocaleDateString()}</p>
+            <p><span>Due Date</span> ${dueDate}</p>
+          </div>
+        </div>
+
+        <div class="addresses">
+          <div class="address-box">
+            <div class="section-label">From</div>
+            <p class="name">${company.name}</p>
+            <p>${company.address || ''}</p>
+            <p>${company.email || ''}</p>
+            <p>${company.phone || ''}</p>
+          </div>
+          <div class="address-box">
+            <div class="section-label">Bill To</div>
+            <p class="name">${invoice.lease.tenant.firstName} ${invoice.lease.tenant.lastName}</p>
+            <p>Unit ${invoice.lease.unit?.unitNumber || 'N/A'}</p>
+            <p>${invoice.lease.property.name}</p>
+          </div>
+        </div>
+
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th width="60%">Description</th>
+              <th width="20%">Date</th>
+              <th width="20%" style="text-align: right;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>${invoice.description}</td>
+              <td>${new Date(invoice.createdAt).toLocaleDateString()}</td>
+              <td class="amount">${formattedAmount}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="footer-section">
+          <div class="notes">
+            <div class="section-label">Notes</div>
+            <p>Please ensure payment is made by the due date. Quote the invoice number as reference when paying.</p>
+          </div>
+          <div class="totals">
+            <div class="total-row">
+              <span>Subtotal</span>
+              <span>${formattedAmount}</span>
+            </div>
+            <div class="total-row grand">
+              <span>Total Due</span>
+              <span>${formattedAmount}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bottom-bar">
+          Generated via Aedra Management System • Mombasa, Kenya
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  private renderReceiptHtml(payment: any, company: any): string {
+    const formattedAmount = new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(payment.amount);
+    const paidAt = new Date(payment.paidAt).toLocaleString();
+    const paymentFor = `${payment.type} - ${new Date(payment.paidAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`;
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+          body { font-family: 'Inter', sans-serif; color: #111; padding: 50px; line-height: 1.5; margin: 0; display: flex; justify-content: center; }
+          .receipt-container { width: 100%; max-width: 600px; border: 1px solid #111; padding: 40px; position: relative; }
+          
+          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
+          .logo { max-height: 40px; filter: grayscale(100%); }
+          .receipt-label { font-size: 32px; font-weight: 800; text-transform: uppercase; letter-spacing: -1px; margin: 0; line-height: 1; }
+          .metadata { text-align: right; font-size: 13px; }
+          .metadata p { margin: 2px 0; }
+          .metadata span { font-weight: 600; color: #666; text-transform: uppercase; font-size: 10px; margin-right: 5px; }
+
+          .section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #999; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 4px; margin-top: 30px; }
+          
+          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+          .info-item { margin-bottom: 15px; }
+          .info-item .label { font-size: 10px; font-weight: 600; text-transform: uppercase; color: #999; margin-bottom: 2px; display: block; }
+          .info-item .value { font-size: 14px; font-weight: 600; }
+
+          .amount-box { border: 2px solid #111; padding: 25px; margin: 40px 0; text-align: center; }
+          .amount-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 5px; }
+          .amount-value { font-size: 36px; font-weight: 800; }
+
+          .stamp { position: absolute; bottom: 100px; right: 40px; border: 3px solid #111; padding: 8px 15px; border-radius: 4px; font-weight: 800; text-transform: uppercase; transform: rotate(-12deg); opacity: 0.15; font-size: 20px; letter-spacing: 2px; }
+
+          .footer { text-align: center; margin-top: 40px; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 20px; text-transform: uppercase; letter-spacing: 1px; }
+        </style>
+      </head>
+      <body>
+        <div class="receipt-container">
+          <div class="header">
+            <div>
+              ${company.logo ? `<img src="${company.logo}" class="logo" />` : '<div style="width:40px; height:40px; background:#eee;"></div>'}
+            </div>
+            <div class="metadata">
+              <h1 class="receipt-label">Receipt</h1>
+              <p><span>Reference</span> #RCP-${payment.id.slice(0, 8).toUpperCase()}</p>
+              <p><span>Date</span> ${paidAt}</p>
+            </div>
+          </div>
+
+          <div class="section-label">Payment Details</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="label">Received From</span>
+              <span class="value">${payment.lease.tenant.firstName} ${payment.lease.tenant.lastName}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Property / Unit</span>
+              <span class="value">${payment.lease.property.name} / Unit ${payment.lease.unit?.unitNumber || 'N/A'}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Payment For</span>
+              <span class="value">${paymentFor}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Payment Method</span>
+              <span class="value">${payment.method || payment.type} ${payment.reference ? `(${payment.reference})` : ''}</span>
+            </div>
+          </div>
+
+          <div class="amount-box">
+            <div class="amount-label">Total Amount Paid</div>
+            <div class="amount-value">${formattedAmount}</div>
+          </div>
+
+          <div class="stamp">Paid</div>
+
+          <div class="footer">
+            Official Receipt • Generated by Aedra AI • ${company.name}
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  private renderPremiumHtml(
+    insights: any,
+    propertiesData: any,
+    companyLogo?: string,
+  ): string {
     const {
       execBadge,
       execSummary,
@@ -296,11 +572,14 @@ export class ReportsGeneratorService {
           <div class="wrap">
               <!-- COVER -->
               <div class="cover">
-                <div class="cover-top">
-                  <div class="cover-eyebrow">Homeet Intelligence · Monthly Portfolio Report</div>
-                  <div class="cover-title">${propertiesData.property?.name || 'Portfolio Overview'}</div>
-                  <div class="cover-sub">${new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' })} · Managed by ${propertiesData.property?.manager || 'Aedra'} · Prepared by Homeet AI</div>
-                </div>
+                  <div class="cover-top" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex: 1;">
+                      <div class="cover-eyebrow">Homeet Intelligence · Monthly Portfolio Report</div>
+                      <div class="cover-title">${propertiesData.property?.name || 'Portfolio Overview'}</div>
+                      <div class="cover-sub">${new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' })} · Managed by ${propertiesData.property?.manager || 'Aedra'} · Prepared by Homeet AI</div>
+                    </div>
+                    ${companyLogo ? `<img src="${companyLogo}" style="max-height: 80px; max-width: 180px; border-radius: 8px; margin-left: 20px; background: white; padding: 5px;" />` : ''}
+                  </div>
                 <div class="cover-metrics">
                   <div class="m-box">
                     <div class="m-lbl">Occupancy</div>
@@ -525,6 +804,15 @@ export class ReportsGeneratorService {
       </body>
       </html>
     `;
+  }
+
+  private resolveLogoUrl(logo: string | null): string | null {
+    if (!logo) return null;
+    if (logo.startsWith('http')) return logo;
+    const baseUrl = process.env.API_URL || 'http://localhost:4001';
+    const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const normalizedLogo = logo.startsWith('/') ? logo : '/' + logo;
+    return `${normalizedBase}${normalizedLogo}`;
   }
 
   private getFileUrl(fileName: string): string {

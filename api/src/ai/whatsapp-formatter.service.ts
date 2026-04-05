@@ -76,10 +76,37 @@ export class WhatsAppFormatterService {
 
       case 'get_tenant_details':
         text = formatters.formatTenantDetails(data);
+        if (data?.id) {
+          interactive = this.buildButtonMessage(
+            text,
+            [
+              {
+                key: 'arrears',
+                label: language === 'sw' ? '📌 Deni' : '📌 Arrears',
+                action: `get_tenant_arrears:${data.id}`,
+              },
+              {
+                key: 'statement',
+                label: language === 'sw' ? '📄 Statement' : '📄 Statement',
+                action: `get_tenant_statement:${data.id}`,
+              },
+              {
+                key: 'tenants',
+                label: language === 'sw' ? '👤 Wapangaji' : '👤 Tenants',
+                action: 'list_tenants',
+              },
+            ],
+            language,
+          );
+        }
         break;
 
       case 'get_company_summary':
         text = formatters.formatCompanySummary(data);
+        break;
+
+      case 'get_financial_summary':
+        text = formatters.formatFinancialSummary(data, language as any);
         break;
 
       case 'get_tenant_statement':

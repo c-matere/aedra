@@ -28,7 +28,7 @@ import { SignOutButton } from "@/components/auth/sign-out-button"
 import { TopNavProfile } from "@/components/auth/top-nav-profile"
 import { MobileSidebar, type NavItem } from "@/components/admin/mobile-sidebar"
 import { canAccessRoute, roleLabel } from "@/lib/rbac"
-import { fetchMe } from "@/lib/backend-api"
+import { fetchMe, getCompany, getLogoUrl } from "@/lib/backend-api"
 import { getRoleFromCookie, getSessionTokenFromCookie } from "@/lib/cookie-utils"
 import { SidebarNav } from "@/components/admin/sidebar-nav"
 
@@ -41,6 +41,10 @@ export default async function AdminLayout({
     const sessionToken = await getSessionTokenFromCookie()
     const meResult = await fetchMe(sessionToken!)
     const rawRole = meResult.data?.user.role ?? null
+    const companyId = meResult.data?.user.companyId
+
+    const companyResult = companyId ? await getCompany(sessionToken!, companyId) : { data: null }
+    const company = companyResult.data
 
     if (!rawRole) {
         redirect("/login?reason=unauthorized")
@@ -121,12 +125,18 @@ export default async function AdminLayout({
             {/* Top Navbar */}
             <nav className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center border-b border-white/10 bg-neutral-950 px-6 shadow-sm">
                 <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-800 border border-neutral-700 shadow-inner">
-                        <Building2 className="h-5 w-5 text-white" />
-                    </div>
-                    <span className="text-white">
-                        Aedra
-                    </span>
+                    {company?.logo ? (
+                        <>
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-800 border border-neutral-700 shadow-inner overflow-hidden">
+                                <img src={getLogoUrl(company.logo) || ""} alt="Logo" className="h-full w-full object-contain p-1" />
+                            </div>
+                            <span className="text-white">
+                                {company.name}
+                            </span>
+                        </>
+                    ) : (
+                        <img src="/aedra logo.png" alt="Aedra" className="h-8 w-auto hover:opacity-90 transition-opacity" />
+                    )}
                 </div>
 
                 <div className="ml-auto flex items-center gap-3">

@@ -251,16 +251,32 @@ export class ReportsService {
           return { month: label, status: hasPayment ? 'ok' : 'missed' };
         });
 
+        const paidThisMonth = lease.payments
+          .filter(p => p.paidAt >= start && p.paidAt <= end)
+          .reduce((sum, p) => sum + p.amount, 0);
+
         const okCount = monthlyStatus.filter((s) => s.status === 'ok').length;
         const ltv = Math.round((okCount / monthLabels.length) * 100);
 
         return {
           name: `${lease.tenant.firstName} ${lease.tenant.lastName}`,
           unit: u.unitNumber,
+          rentAmount: lease.rentAmount,
+          paidThisMonth,
           payments: monthlyStatus,
           ltv,
         };
       });
+
+    const expensesGrouped = await this.prisma.expense.groupBy({
+      by: ['category'],
+      where: {
+        propertyId,
+        date: { gte: start, lte: end },
+        deletedAt: null,
+      },
+      _sum: { amount: true },
+    });
 
     const user = await this.prisma.user.findUnique({ where: { id: actor.id } });
 
@@ -272,6 +288,7 @@ export class ReportsService {
           ? `${user.firstName} ${user.lastName}`
           : 'Aedra Resident Manager',
         address: property.address,
+        commissionPercentage: property.commissionPercentage,
       },
       totals: {
         occupancy: occupancyRate,
@@ -280,6 +297,10 @@ export class ReportsService {
         expenses: expensesAgg._sum.amount || 0,
         units: totalUnits,
         occupied: occupiedUnits,
+        expensesByCategory: expensesGrouped.map(eg => ({
+          category: eg.category,
+          amount: eg._sum.amount || 0,
+        })),
       },
       maintenance: {
         open: openMaintenance,

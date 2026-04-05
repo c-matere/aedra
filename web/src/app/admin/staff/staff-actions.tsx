@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, MoreHorizontal, Pencil, Plus, Trash2, Share2, Copy, Check } from "lucide-react"
+import { Loader2, MoreHorizontal, Pencil, Plus, Trash2, Share2, Copy, Check, Building } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,7 @@ import { createUserAction, deleteUserAction, updateUserAction, createInvitationA
 import type { UserRecord } from "@/lib/backend-api"
 import type { UserRole } from "@/lib/rbac"
 import { getWhatsAppInviteLink } from "@/lib/whatsapp"
+import { StaffPropertyScoping } from "./staff-scoping"
 
 const USER_ROLES: UserRole[] = ["SUPER_ADMIN", "COMPANY_ADMIN", "COMPANY_STAFF"]
 
@@ -193,6 +194,7 @@ export function StaffRowActions({ role, user }: { role: UserRole | null; user: U
   const [menuOpen, setMenuOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [scopingOpen, setScopingOpen] = useState(false)
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -257,15 +259,26 @@ export function StaffRowActions({ role, user }: { role: UserRole | null; user: U
       </Button>
 
       {menuOpen ? (
-        <div className="absolute right-0 z-50 mt-1 w-32 rounded border border-white/10 bg-neutral-900">
-          <button className="w-full px-3 py-2 text-left text-sm hover:bg-white/10" onClick={() => { setMenuOpen(false); setOpen(true) }}>
-            <Pencil className="mr-2 inline h-3 w-3" /> Edit
+        <div className="absolute right-0 z-50 mt-1 w-32 rounded border border-white/10 bg-neutral-900 shadow-xl overflow-hidden">
+          <button className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center" onClick={() => { setMenuOpen(false); setOpen(true) }}>
+            <Pencil className="mr-2 inline h-3.5 w-3.5" /> Edit Profile
           </button>
-          <button className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/10" onClick={onDelete}>
-            <Trash2 className="mr-2 inline h-3 w-3" /> Delete
+          
+          <button className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center" onClick={() => { setMenuOpen(false); setScopingOpen(true) }}>
+            <Building className="mr-2 h-3.5 w-3.5" /> Scope Properties
+          </button>
+
+          <button className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center" onClick={onDelete}>
+            <Trash2 className="mr-2 inline h-3.5 w-3.5" /> Delete
           </button>
         </div>
       ) : null}
+
+      <StaffPropertyScoping 
+        user={user} 
+        open={scopingOpen} 
+        onOpenChange={setScopingOpen} 
+      />
 
       <SlidePanel open={open} onOpenChange={setOpen}>
         <SlidePanelContent>

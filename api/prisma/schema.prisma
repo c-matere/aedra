@@ -37,46 +37,105 @@ model User {
   deletedAt              DateTime?
   permissions            String[]             @default([])
   language               String               @default("en")
+  roleId                 String?
   chatHistories          ChatHistory[]
   maintenanceAssignments MaintenanceRequest[]
+  propertyAssignments    PropertyAssignment[]
   todos                  TodoItem[]
   company                Company?             @relation(fields: [companyId], references: [id])
+  customRole             Role?                @relation(fields: [roleId], references: [id])
 
   @@index([companyId])
   @@index([role])
+  @@index([roleId])
   @@index([deletedAt])
 }
 
 /// A property management company operating in Mombasa.
 /// This is the tenant isolation boundary — all business data is scoped here.
 model Company {
-  id                    String                 @id @default(uuid())
-  name                  String
-  email                 String?
-  phone                 String?
-  address               String?
-  logo                  String?
-  isActive              Boolean                @default(true)
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  waAccessToken         String?
-  waBusinessAccountId   String?
-  waOwnerPhone          String?
-  waPhoneNumberId       String?
-  waVerifyToken         String?
-  authorizationRequests AuthorizationRequest[]
-  chatHistories         ChatHistory[]
-  documents             Document[]
-  expenses              Expense[]
-  incomes               Income[]
-  invitations           Invitation[]
-  landlords             Landlord[]
-  maintenanceRequests   MaintenanceRequest[]
-  properties            Property[]
-  tenants               Tenant[]
-  users                 User[]
-  whatsappLogs          WhatsAppLog[]
-  workflows             WorkflowInstance[]
+  id                         String                 @id @default(uuid())
+  name                       String
+  email                      String?
+  phone                      String?
+  address                    String?
+  logo                       String?
+  isActive                   Boolean                @default(true)
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
+  waAccessToken              String?
+  waBusinessAccountId        String?
+  waOwnerPhone               String?
+  waPhoneNumberId            String?
+  waVerifyToken              String?
+  africaTalkingApiKey        String?
+  africaTalkingUsername      String?
+  autoInvoicingEnabled       Boolean                @default(false)
+  invoicingDay               Int                    @default(1)
+  ipAllowlist                String?
+  leaseExpiryAlertDaysBefore Int                    @default(90)
+  maintenanceUpdatesEnabled  Boolean                @default(true)
+  mapProvider                String                 @default("Mapbox GL")
+  mapboxAccessToken          String?
+  mpesaConsumerKey           String?
+  mpesaConsumerSecret        String?
+  mpesaEnvironment           String?                @default("sandbox")
+  mpesaPasskey               String?
+  mpesaShortcode             String?                @unique
+  passwordPolicy             String                 @default("Min 8 chars + special character")
+  paymentReceiptsEnabled     Boolean                @default(true)
+  rentReminderDaysBefore     Int                    @default(3)
+  sessionDurationHours       Int                    @default(8)
+  smsProvider                String                 @default("Africa's Talking")
+  twoFactorAuthEnabled       Boolean                @default(false)
+  authorizationRequests      AuthorizationRequest[]
+  chatHistories              ChatHistory[]
+  documents                  Document[]
+  expenses                   Expense[]
+  incomes                    Income[]
+  invitations                Invitation[]
+  landlords                  Landlord[]
+  maintenanceRequests        MaintenanceRequest[]
+  properties                 Property[]
+  propertyAssignments        PropertyAssignment[]
+  roles                      Role[]
+  tenants                    Tenant[]
+  users                      User[]
+  whatsappLogs               WhatsAppLog[]
+  workflows                  WorkflowInstance[]
+}
+
+/// A custom role within a company, defining a set of permissions.
+model Role {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  permissions String[] @default([])
+  isSystem    Boolean  @default(false)
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id])
+  users       User[]
+
+  @@unique([name, companyId])
+  @@index([companyId])
+}
+
+/// Assigns a user (staff) to a specific property for scoped access.
+model PropertyAssignment {
+  id         String   @id @default(uuid())
+  userId     String
+  propertyId String
+  companyId  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  company    Company? @relation(fields: [companyId], references: [id])
+  property   Property @relation(fields: [propertyId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, propertyId])
+  @@index([userId])
+  @@index([propertyId])
+  @@index([companyId])
 }
 
 /// A landlord / property owner managed by a Company.
@@ -125,6 +184,7 @@ model Property {
   maintenanceRequests  MaintenanceRequest[]
   company              Company                @relation(fields: [companyId], references: [id])
   landlord             Landlord?              @relation(fields: [landlordId], references: [id])
+  assignments          PropertyAssignment[]
   tenants              Tenant[]
   units                Unit[]
 
@@ -174,9 +234,9 @@ model Tenant {
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
   deletedAt    DateTime?
+  language     String                 @default("en")
   semanticTags String?
   embedding    Unsupported("vector")?
-  language     String                 @default("en")
   documents    Document[]
   leases       Lease[]
   company      Company                @relation(fields: [companyId], references: [id])
@@ -568,6 +628,23 @@ model AuthorizationRequest {
 
   @@index([companyId])
   @@index([status])
+}
+
+/// Records tenant/landlord satisfaction scores after high-stakes interactions.
+model ConversationFeedback {
+  id         String   @id @default(uuid())
+  phone      String
+  traceId    String?
+  intentType String
+  score      Int
+  comment    String?
+  language   String   @default("en")
+  companyId  String?
+  createdAt  DateTime @default(now())
+
+  @@index([phone])
+  @@index([intentType])
+  @@index([companyId])
 }
 
 /// Global user roles across the platform

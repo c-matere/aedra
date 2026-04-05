@@ -18,8 +18,6 @@ import {
     FileText,
     ChevronDown
 } from "lucide-react"
-import { jsPDF } from "jspdf"
-import autoTable from "jspdf-autotable"
 import {
     SlidePanel,
     SlidePanelContent,
@@ -27,7 +25,13 @@ import {
     SlidePanelTitle,
     SlidePanelDescription
 } from "@/components/ui/slide-panel"
-import { getPropertyById, type PropertyRecord } from "@/lib/backend-api"
+import {
+    getPropertyById,
+    getPortfolioReport,
+    getMcKinseyReport,
+    backendBaseUrl
+} from '@/lib/backend-api'
+import type { PropertyRecord, PortfolioReportData } from '@/lib/backend-api'
 import type { UserRole } from "@/lib/rbac"
 import { ClipboardList } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -59,71 +63,120 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
         if (!property) return
         setIsGenerating(true)
 
-        // Give it a small delay for UX "generating" feel
-        await new Promise(r => setTimeout(r, 800))
+        try {
+            // Give it a small delay for UX "generating" feel
+            await new Promise(r => setTimeout(r, 800))
 
-        if (format === 'CSV') {
-            const csvRows = [
-                ["PROPERTY REPORT", property.name],
-                ["ADDRESS", property.address || "N/A"],
-                ["GENERATED AT", new Date().toLocaleString()],
-                [""],
-                ["UNIT NUMBER", "STATUS", "RENT", "BEDS", "BATHS"],
-                ...(property.units?.map(u => [
-                    u.unitNumber,
-                    u.status,
-                    u.rentAmount || 0,
-                    u.bedrooms || 0,
-                    u.bathrooms || 0
-                ]) || [])
-            ]
+            if (format === 'CSV') {
+                const reportRes = await getPortfolioReport(token, property.id)
+                if (reportRes.error || !reportRes.data) {
+                    alert(`Failed to fetch financial data: ${reportRes.error || "Unknown error"}`)
+                    return
+                }
 
-            const csvContent = "data:text/csv;charset=utf-8," + csvRows.map(e => e.join(",")).join("\n")
-            const encodedUri = encodeURI(csvContent)
-            const link = document.createElement("a")
-            link.setAttribute("href", encodedUri)
-            link.setAttribute("download", `${property.name.replace(/\s+/g, '_')}_Inventory_Report.csv`)
-            document.body.appendChild(link)
-            link.click()
-            document.body.removeChild(link)
-        } else {
-            const doc = new jsPDF()
+                const data = reportRes.data
+                const totals = data.totals || {}
+                const propertyInfo = data.property || {}
+                const expensesByCategory = totals.expensesByCategory || []
 
-            // Header
-            doc.setFontSize(20)
-            doc.setTextColor(16, 185, 129) // Emerald-500
-            doc.text("PROPERTY REPORT", 14, 22)
+                const commissionAmount = ((totals.payments || 0) * (propertyInfo.commissionPercentage || 0)) / 100
 
-            doc.setFontSize(14)
-            doc.setTextColor(0, 0, 0)
-            doc.text(property.name, 14, 32)
+                const maintenanceExpenses = expensesByCategory
+                    .filter(e => ['MAINTENANCE', 'REPAIR'].includes(e.category))
+                    .reduce((sum, e) => sum + e.amount, 0)
 
-            doc.setFontSize(10)
-            doc.setTextColor(100, 100, 100)
-            doc.text(`${property.address || 'No address provided'}`, 14, 38)
-            doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 44)
+                const utilityExpenses = expensesByCategory
+                    .filter(e => e.category === 'UTILITY')
+                    .reduce((sum, e) => sum + e.amount, 0)
 
-            // Table
-            const tableData = property.units?.map(u => [
-                u.unitNumber,
-                u.status,
-                `KES ${u.rentAmount?.toLocaleString() || 0}`,
-                u.bedrooms || 0,
-                u.bathrooms || 0
-            ]) || []
+                const otherExpenses = (totals.expenses || 0) - maintenanceExpenses - utilityExpenses
+                const netLandlordShare = (totals.payments || 0) - commissionAmount - (totals.expenses || 0)
 
-            autoTable(doc, {
-                startY: 55,
-                head: [['Unit', 'Status', 'Rent', 'Beds', 'Baths']],
-                body: tableData,
-                headStyles: { fillColor: [16, 185, 129] },
-                alternateRowStyles: { fillColor: [245, 245, 245] },
-            })
+                const csvRows = [
+                    ["PROPERTY FINANCIAL REPORT", (propertyInfo.name || property.name).toUpperCase()],
+                    ["ADDRESS", propertyInfo.address || property.address || "N/A"],
+                    ["REPORT MONTH", data.month || "Current Month"],
+                    ["GENERATED AT", new Date().toLocaleString()],
+                    [""],
+                    ["BUILDING SUMMARY (FOR THE MONTH)"],
+                    ["TOTAL RENT COLLECTED", `KES ${(totals.payments || 0).toLocaleString()}`],
+                    ["AGENT COMMISSION", `KES ${commissionAmount.toLocaleString()} (${propertyInfo.commissionPercentage || 0}%)`],
+                    ["MAINTENANCE & REPAIRS", `KES ${maintenanceExpenses.toLocaleString()}`],
+                    ["UTILITIES", `KES ${utilityExpenses.toLocaleString()}`],
+                    ["OTHER EXPENSES", `KES ${otherExpenses.toLocaleString()}`],
+                    ["-----------------------------------"],
+                    ["NET LANDLORD SHARE", `KES ${netLandlordShare.toLocaleString()}`],
+                    [""],
+                    ["UNIT BREAKDOWN"],
+                    ["UNIT NUMBER", "TENANT", "STATUS", "EXPECTED RENT", "ACTUAL PAID", "BALANCE"],
+                    ...(data.tenantPayments.map(tp => [
+                        tp.unit,
+                        tp.name,
+                        "OCCUPIED",
+                        tp.rentAmount || 0,
+                        tp.paidThisMonth || 0,
+                        (tp.rentAmount || 0) - (tp.paidThisMonth || 0)
+                    ]) || [])
+                ]
 
-            doc.save(`${property.name.replace(/\s+/g, '_')}_Inventory_Report.pdf`)
+                // Add vacant units to the breakdown
+                const occupiedUnitNumbers = new Set(data.tenantPayments.map(tp => tp.unit))
+                property.units?.forEach(u => {
+                    if (!occupiedUnitNumbers.has(u.unitNumber)) {
+                        csvRows.push([
+                            u.unitNumber,
+                            "N/A",
+                            u.status,
+                            u.rentAmount || 0,
+                            0,
+                            0
+                        ])
+                    }
+                })
+
+                // Helper to escape CSV values
+                const escapeCSV = (val: any) => {
+                    const s = String(val ?? "");
+                    if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes(" ")) {
+                        return `"${s.replace(/"/g, '""')}"`;
+                    }
+                    return s;
+                };
+
+                const csvContent = "\uFEFF" + csvRows.map(row => row.map(escapeCSV).join(",")).join("\n")
+                const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+                const url = URL.createObjectURL(blob)
+                const link = document.createElement("a")
+                link.setAttribute("href", url)
+                link.setAttribute("download", `${property.name.replace(/\s+/g, '_')}_Financial_Report_${data.month.replace(/\s+/g, '_')}.csv`)
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+                URL.revokeObjectURL(url)
+            } else if (format === 'PDF') {
+                const reportRes = await getMcKinseyReport(token, property.id)
+                if (reportRes.error || !reportRes.data) {
+                    alert(`Failed to generate McKinsey report: ${reportRes.error || "Unknown error"}`)
+                    return
+                }
+
+                // Construct absolute URL
+                const absoluteUrl = `${backendBaseUrl()}${reportRes.data.url}`
+
+                // Open in new tab using hidden anchor to bypass popup blockers
+                const link = document.createElement('a')
+                link.href = absoluteUrl
+                link.target = '_blank'
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+            }
+        } catch (err) {
+            console.error("Report generation error:", err)
+            alert("An unexpected error occurred during report generation. Please try again.")
+        } finally {
+            setIsGenerating(false)
         }
-
-        setIsGenerating(false)
     }
 
     useEffect(() => {

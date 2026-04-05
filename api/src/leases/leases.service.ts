@@ -104,29 +104,30 @@ export class LeasesService {
       this.prisma.lease.count({ where }),
     ]);
 
-    // Calculate balances for each lease
-    const dataWithBalances = await Promise.all(
-      leases.map(async (lease) => {
-        const [sumInvoices, sumPayments] = await Promise.all([
-          this.prisma.invoice.aggregate({
-            where: { leaseId: lease.id },
-            _sum: { amount: true },
-          }),
-          this.prisma.payment.aggregate({
-            where: { leaseId: lease.id },
-            _sum: { amount: true },
-          }),
-        ]);
+    // Optimized: Batch fetch aggregates for all leases in the page
+    const leaseIds = leases.map((l) => l.id);
+    const invoiceSums = await this.prisma.invoice.groupBy({
+      by: ['leaseId'],
+      _sum: { amount: true },
+      where: { leaseId: { in: leaseIds } },
+    });
+    const paymentSums = await this.prisma.payment.groupBy({
+      by: ['leaseId'],
+      _sum: { amount: true },
+      where: { leaseId: { in: leaseIds } },
+    });
 
-        const billed = sumInvoices._sum.amount || 0;
-        const paid = sumPayments._sum.amount || 0;
+    const invoiceMap = new Map(invoiceSums.map(s => [s.leaseId, s._sum.amount || 0]));
+    const paymentMap = new Map(paymentSums.map(s => [s.leaseId, s._sum.amount || 0]));
 
-        return {
-          ...lease,
-          balance: billed - paid,
-        };
-      }),
-    );
+    const dataWithBalances = leases.map((lease) => {
+      const billed = invoiceMap.get(lease.id) || 0;
+      const paid = paymentMap.get(lease.id) || 0;
+      return {
+        ...lease,
+        balance: billed - paid,
+      };
+    });
 
     return {
       data: dataWithBalances,

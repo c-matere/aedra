@@ -12,13 +12,8 @@ export default function Home() {
 
       {/* Navbar */}
       <header className="fixed top-0 left-0 right-0 z-50 flex h-20 items-center border-b border-white/10 bg-neutral-950 px-6 md:px-12">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-800 border border-neutral-700 shadow-inner">
-            <Building2 className="h-6 w-6 text-white" />
-          </div>
-          <span className="text-2xl font-bold tracking-tight text-white">
-            Aedra
-          </span>
+        <div className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer">
+          <img src="/aedra logo.png" alt="Aedra" className="h-10 w-auto" />
         </div>
         <div className="ml-auto flex items-center gap-4">
           <Link href="/login">

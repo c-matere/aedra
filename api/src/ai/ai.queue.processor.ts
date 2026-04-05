@@ -15,7 +15,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { AI_BACKGROUND_QUEUE } from './ai.constants';
 
-@Processor(AI_BACKGROUND_QUEUE)
+@Processor(AI_BACKGROUND_QUEUE, { lockDuration: 300000 })
 export class AiQueueProcessor extends WorkerHost implements OnApplicationBootstrap {
   private readonly logger = new Logger(AiQueueProcessor.name);
 

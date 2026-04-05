@@ -78,7 +78,16 @@ import {
     type CreateInvoicePayload,
     type UpdateInvoicePayload,
     type RegisterCompanyPayload,
-    type AcceptInvitationPayload
+    type AcceptInvitationPayload,
+    listRoles,
+    createRole,
+    updateRole,
+    deleteRole,
+    listStaffAssignments,
+    setBulkStaffAssignments,
+    type CreateRolePayload,
+    type RoleRecord,
+    type PropertyAssignmentRecord
 } from "./backend-api"
 import type { UserRole } from "./rbac"
 import { getSessionTokenFromCookie } from "./cookie-utils"
@@ -374,4 +383,36 @@ export async function createOfficeExpenseAction(payload: {
 }) {
     const token = await getSessionTokenFromCookie();
     return createOfficeExpense(token!, payload);
+}
+
+// Roles
+export async function listRolesAction() {
+    const token = await getSessionTokenFromCookie();
+    return listRoles(token!);
+}
+
+export async function createRoleAction(payload: CreateRolePayload) {
+    const token = await getSessionTokenFromCookie();
+    return createRole(token!, payload);
+}
+
+export async function updateRoleAction(id: string, payload: Partial<CreateRolePayload>) {
+    const token = await getSessionTokenFromCookie();
+    return updateRole(token!, id, payload);
+}
+
+export async function deleteRoleAction(id: string) {
+    const token = await getSessionTokenFromCookie();
+    return deleteRole(token!, id);
+}
+
+// Staff Assignments
+export async function listStaffAssignmentsAction(userId: string) {
+    const token = await getSessionTokenFromCookie();
+    return listStaffAssignments(token!, userId);
+}
+
+export async function setBulkStaffAssignmentsAction(userId: string, propertyIds: string[]) {
+    const token = await getSessionTokenFromCookie();
+    return setBulkStaffAssignments(token!, userId, propertyIds);
 }

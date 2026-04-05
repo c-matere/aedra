@@ -387,6 +387,7 @@ export class UnitsService {
         partial_payments,
         total_expected: totalExpected,
         total_collected: totalCollected,
+        balance: totalExpected - totalCollected,
         collection_rate:
           totalExpected > 0
             ? Math.round((totalCollected / totalExpected) * 100)
@@ -394,6 +395,32 @@ export class UnitsService {
       };
     }
 
-    return snapshot;
+    // Sort properties by balance descending (highest arrears first)
+    const sortedEntries = Object.entries(snapshot).sort(
+      (a, b) => b[1].balance - a[1].balance,
+    );
+
+    const portfolioTotals = sortedEntries.reduce(
+      (acc, [_, data]) => {
+        acc.expected += data.total_expected;
+        acc.collected += data.total_collected;
+        return acc;
+      },
+      { expected: 0, collected: 0 },
+    );
+
+    return {
+      properties: Object.fromEntries(sortedEntries),
+      totals: {
+        ...portfolioTotals,
+        balance: portfolioTotals.expected - portfolioTotals.collected,
+        rate:
+          portfolioTotals.expected > 0
+            ? Math.round(
+                (portfolioTotals.collected / portfolioTotals.expected) * 100,
+              )
+            : 0,
+      },
+    };
   }
 }

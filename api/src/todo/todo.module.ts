@@ -11,7 +11,7 @@ import { AI_BACKGROUND_QUEUE } from '../ai/ai.constants';
 @Module({
   imports: [
     PrismaModule,
-    MessagingModule,
+    forwardRef(() => MessagingModule),
     BullModule.registerQueue({
       name: AI_BACKGROUND_QUEUE,
     }),

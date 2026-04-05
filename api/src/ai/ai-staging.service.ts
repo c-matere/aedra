@@ -30,8 +30,18 @@ export class AiStagingService {
    */
   async retrieve<T = any>(jobId: string, key: string): Promise<T | null> {
     const stagingKey = this.getPrefix(jobId, key);
-    const result = await this.cacheManager.get<T>(stagingKey);
-    return result === undefined ? null : result;
+    const result: any = await this.cacheManager.get<any>(stagingKey);
+    if (result === undefined) return null;
+    if (typeof result === 'string') {
+      try {
+        return JSON.parse(result) as T;
+      } catch {
+        // Some stores return raw strings (or already-serialized values). In that case,
+        // return the original to avoid breaking callers expecting text.
+        return result as unknown as T;
+      }
+    }
+    return result as T;
   }
 
   /**

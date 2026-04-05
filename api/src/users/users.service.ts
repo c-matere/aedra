@@ -17,6 +17,7 @@ export interface CreateUserDto {
   lastName: string;
   phone?: string;
   role?: UserRole;
+  roleId?: string;
   companyId?: string;
   permissions?: string[];
   isActive?: boolean;
@@ -29,6 +30,7 @@ export interface UpdateUserDto {
   lastName?: string;
   phone?: string;
   role?: UserRole;
+  roleId?: string;
   companyId?: string;
   permissions?: string[];
   isActive?: boolean;
@@ -140,6 +142,7 @@ export class UsersService {
     return this.prisma.user.create({
       data: {
         ...writeData,
+        roleId: data.roleId,
         password: hashedPassword,
       },
       select: this.safeUserSelect(),
@@ -183,7 +186,10 @@ export class UsersService {
 
     return this.prisma.user.update({
       where: { id },
-      data: nextData,
+      data: {
+        ...nextData,
+        roleId: data.roleId,
+      },
       select: this.safeUserSelect(),
     });
   }
@@ -332,6 +338,7 @@ export class UsersService {
       lastName: true,
       phone: true,
       role: true,
+      roleId: true,
       permissions: true,
       companyId: true,
       isActive: true,

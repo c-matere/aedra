@@ -15,6 +15,7 @@ import { NextStepOrchestrator } from './next-step-orchestrator.service';
 import { ErrorRecoveryService } from './error-recovery.service';
 import { WaCrudButtonsService } from './wa-crud-buttons.service';
 import { WorkflowEngine } from '../workflows/workflow.engine';
+import { FeedbackService } from './feedback.service';
 
 describe('AiWhatsappOrchestratorService - Actionable Echo', () => {
   let service: AiWhatsappOrchestratorService;
@@ -26,6 +27,7 @@ describe('AiWhatsappOrchestratorService - Actionable Echo', () => {
   let mockCache: any;
   let mockStaging: any;
   let mockFormatter: any;
+  let menuRouterMock: any;
 
   beforeEach(async () => {
     mockPrisma = {
@@ -48,6 +50,8 @@ describe('AiWhatsappOrchestratorService - Actionable Echo', () => {
       sendReaction: jest.fn(),
       sendTextMessage: jest.fn(),
       sendInteractiveMessage: jest.fn(),
+      sendDocumentTemplate: jest.fn(),
+      sendDocument: jest.fn(),
     };
     mockClassifier = {
       classify: jest.fn(),
@@ -58,7 +62,17 @@ describe('AiWhatsappOrchestratorService - Actionable Echo', () => {
       formatToolResponse: jest
         .fn()
         .mockResolvedValue({ text: 'ok', interactive: undefined }),
-      executeTool: jest.fn().mockResolvedValue({}),
+      executeToolAction: jest.fn().mockResolvedValue({ success: true, action: 'noop', data: {} }),
+      generateTakeoverAdvice: jest.fn().mockResolvedValue({
+        text: 'I can generate a richer report. Should I proceed?',
+        suggestions: [
+          {
+            label: 'Full report',
+            tool: 'get_financial_report',
+            args: { range: 'last_30_days' },
+          },
+        ],
+      }),
     };
     mockCache = {
       get: jest.fn(),
@@ -107,18 +121,49 @@ describe('AiWhatsappOrchestratorService - Actionable Echo', () => {
             }),
           },
         },
+        {
+          provide: FeedbackService,
+          useValue: {
+            recordFeedback: jest.fn().mockResolvedValue({}),
+          },
+        },
       ],
     }).compile();
 
     service = moduleRef.get<AiWhatsappOrchestratorService>(
       AiWhatsappOrchestratorService,
     );
+    menuRouterMock = moduleRef.get(MenuRouterService);
     // Mock groq transcription to avoid external calls
     (service as any).transcribeAudio = jest.fn();
   });
 
   afterEach(async () => {
     await moduleRef?.close();
+  });
+
+  it('resends the last cached report when user asks to resend report', async () => {
+    const phone = '254782730463';
+    const text = 'please resend the report';
+
+    mockPrisma.chatHistory.findFirst.mockResolvedValue({
+      id: 'chat1',
+      companyId: 'c1',
+      updatedAt: new Date(),
+    });
+
+    mockCache.get.mockImplementation(async (key: string) => {
+      if (key.startsWith('lock:wa:')) return null;
+      if (key === `last_report:${phone}`) return { text: 'REPORT TEXT', generatedFiles: [] };
+      return null;
+    });
+
+    await service.handleIncomingWhatsapp(phone, text, undefined, undefined, 'wamid_x');
+
+    expect(mockWhatsapp.sendTextMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ to: phone, text: 'REPORT TEXT' }),
+    );
+    expect(mockAiService.chat).not.toHaveBeenCalled();
   });
 
   it('should trigger Actionable Echo for write intents', async () => {
@@ -150,31 +195,102 @@ describe('AiWhatsappOrchestratorService - Actionable Echo', () => {
     expect(mockAiService.chat).not.toHaveBeenCalled();
   });
 
-  it('should use direct property lookup for "interested in house N" (skip classifier)', async () => {
-    const phone = '254700000000';
-    const text = 'im intrested in house 32:"House No. 032"';
+  it('handles "<name> profile" deterministically via tools (no LLM chat)', async () => {
+    const phone = '254700000001';
+    const text = 'mary atieno profile';
 
-    mockPrisma.property.findMany.mockResolvedValue([
-      { id: 'p1', name: 'House No. 032' },
-    ]);
-    mockAiService.executeTool.mockResolvedValue({ id: 'p1', name: 'House No. 032' });
+    mockPrisma.chatHistory.findFirst.mockResolvedValue({
+      id: 'chat1',
+      companyId: 'c1',
+      updatedAt: new Date(),
+    });
+
+    mockAiService.executeToolAction.mockImplementation(async (name: string) => {
+      if (name === 'search_tenants') {
+        return {
+          success: true,
+          action: 'search_tenants',
+          data: [{ id: 'tenant_1', firstName: 'Mary', lastName: 'Atieno' }],
+        };
+      }
+      if (name === 'get_tenant_details') {
+        return {
+          success: true,
+          action: 'get_tenant_details',
+          data: { id: 'tenant_1', firstName: 'Mary', lastName: 'Atieno' },
+        };
+      }
+      return { success: true, action: name, data: {} };
+    });
+
     mockAiService.formatToolResponse.mockResolvedValue({
-      text: 'House details',
+      text: 'Mary Atieno details',
+      interactive: { type: 'button' },
+    });
+
+    await service.handleIncomingWhatsapp(phone, text);
+
+    expect(mockAiService.executeToolAction).toHaveBeenCalledWith(
+      'search_tenants',
+      expect.objectContaining({ query: expect.any(String) }),
+      expect.any(Object),
+      expect.any(String),
+      expect.any(String),
+    );
+    expect(mockAiService.executeToolAction).toHaveBeenCalledWith(
+      'get_tenant_details',
+      { tenantId: 'tenant_1' },
+      expect.any(Object),
+      expect.any(String),
+      expect.any(String),
+    );
+    expect(mockAiService.chat).not.toHaveBeenCalled();
+  });
+
+  it('triggers takeover suggestions (permissioned) when menu result is too simple', async () => {
+    const prev = process.env.WHATSAPP_LLM_TAKEOVER;
+    process.env.WHATSAPP_LLM_TAKEOVER = 'true';
+
+    const phone = '254700000002';
+    const text = 'get_financial_report';
+
+    mockPrisma.chatHistory.findFirst.mockResolvedValue({
+      id: 'chat1',
+      companyId: 'c1',
+      updatedAt: new Date(),
+    });
+
+    menuRouterMock.routeMessage.mockResolvedValue({
+      handled: true,
+      tool: { name: 'get_financial_report', args: {} },
+    });
+
+    mockAiService.executeToolAction.mockResolvedValue({
+      success: true,
+      action: 'get_financial_report',
+      data: {
+        totals: { payments: 200000, expenses: 0, invoices: 0 },
+        breakdown: { payments: [], expenses: [], invoices: [] },
+      },
+    });
+    mockAiService.formatToolResponse.mockResolvedValue({
+      text: 'Payments: 200,000',
       interactive: undefined,
     });
 
     await service.handleIncomingWhatsapp(phone, text);
 
-    expect(mockClassifier.classify).not.toHaveBeenCalled();
-    expect(mockAiService.executeTool).toHaveBeenCalledWith(
-      'get_property_details',
-      { propertyId: 'p1' },
-      expect.objectContaining({ phone }),
+    expect(mockAiService.generateTakeoverAdvice).toHaveBeenCalled();
+    expect(mockWhatsapp.sendInteractiveMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: phone,
+        interactive: { type: 'button' },
+      }),
     );
-    expect(mockWhatsapp.sendTextMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ to: phone, text: 'House details' }),
-    );
+
+    process.env.WHATSAPP_LLM_TAKEOVER = prev;
   });
+
 
   it('should ask to disambiguate when message mentions a house but intent looks like a write guess', async () => {
     const phone = '254700000000';
@@ -244,6 +360,43 @@ describe('AiWhatsappOrchestratorService - Actionable Echo', () => {
     expect(mockStaging.purge).toHaveBeenCalled();
   });
 
+  it('should proceed with staged action when plan_approve is received', async () => {
+    const phone = '254700000000';
+    const text = 'plan_approve';
+    const stagedData = {
+      text: 'Send reminder to Bob Smith',
+      classification: { intent: 'send_notification' },
+      history: [],
+      chatId: 'chat1',
+      attachments: [],
+    };
+
+    mockStaging.retrieve.mockResolvedValue(stagedData);
+    mockAiService.chat.mockResolvedValue({ response: 'Reminder sent!' });
+
+    await service.handleIncomingWhatsapp(phone, text);
+
+    expect(mockStaging.retrieve).toHaveBeenCalledWith(
+      expect.any(String),
+      'pending_action',
+    );
+    expect(mockAiService.chat).toHaveBeenCalledWith(
+      [],
+      stagedData.text,
+      stagedData.chatId,
+      expect.any(String),
+      undefined,
+      [],
+      'en',
+      stagedData.classification,
+      phone,
+    );
+    expect(mockWhatsapp.sendTextMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ text: 'Reminder sent!' }),
+    );
+    expect(mockStaging.purge).toHaveBeenCalled();
+  });
+
   it('should run chat with chosen intent when intent_choose is received', async () => {
     const phone = '254700000000';
     const text = 'intent_choose:get_property_details';
@@ -297,5 +450,104 @@ describe('AiWhatsappOrchestratorService - Actionable Echo', () => {
         text: expect.stringContaining('cancelled'),
       }),
     );
+  });
+});
+
+describe('AiWhatsappOrchestratorService - Menu Selections', () => {
+  it('routes list_reply ids to MenuRouter without clearing selection state', async () => {
+    const store = new Map<string, any>();
+    const phone = '254700000000';
+    const sender = { id: 'u1', role: UserRole.COMPANY_ADMIN, companyId: 'c1' };
+    const tenantId = 'tenant-brian-002';
+
+    const mockPrisma: any = {
+      chatHistory: { findFirst: jest.fn(), create: jest.fn() },
+      chatMessage: { create: jest.fn() },
+      company: { findUnique: jest.fn() },
+      property: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+
+    const mockWhatsapp: any = {
+      identifySenderByPhone: jest.fn().mockResolvedValue(sender),
+      getWhatsAppProfile: jest.fn().mockResolvedValue({ language: 'en' }),
+      sendReaction: jest.fn(),
+      sendTextMessage: jest.fn(),
+      sendInteractiveMessage: jest.fn(),
+    };
+
+    const mockAiService: any = {
+      chat: jest.fn(),
+      getChatHistory: jest.fn().mockResolvedValue([]),
+      executeToolAction: jest.fn().mockResolvedValue({ success: true, action: 'get_tenant_details', data: { ok: true } }),
+      formatToolResponse: jest
+        .fn()
+        .mockResolvedValue({ text: 'tenant details', interactive: undefined }),
+    };
+
+    const mockCache: any = {
+      get: jest.fn(async (key: string) => store.get(key)),
+      set: jest.fn(async (key: string, value: any) => {
+        store.set(key, value);
+      }),
+      del: jest.fn(async (key: string) => {
+        store.delete(key);
+      }),
+    };
+
+    // Seed selection state in session; active list exists but doesn't contain the id,
+    // forcing the flow to rely on MenuRouter + session.lastResults.
+    store.set(`ai_session:${sender.id}`, {
+      awaitingSelection: 'tenant',
+      lastResults: [{ id: tenantId, name: 'Brian Ochieng', type: 'tenant' }],
+      userId: sender.id,
+    });
+    store.set(`list:${sender.id}`, { items: [], chatId: null });
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        AiWhatsappOrchestratorService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: WhatsappService, useValue: mockWhatsapp },
+        { provide: AiClassifierService, useValue: { classify: jest.fn() } },
+        { provide: AiService, useValue: mockAiService },
+        { provide: CACHE_MANAGER, useValue: mockCache },
+        MenuRouterService,
+        { provide: MainMenuService, useValue: { getMainMenu: jest.fn() } },
+        {
+          provide: WhatsAppFormatterService,
+          useValue: {
+            buildListMessage: jest.fn(),
+            buildActionableEchoButtons: jest.fn(),
+            buildButtonMessage: jest.fn(),
+          },
+        },
+        { provide: QuorumBridgeService, useValue: {} },
+        { provide: AiStagingService, useValue: { stage: jest.fn(), retrieve: jest.fn(), delete: jest.fn(), purge: jest.fn() } },
+        { provide: WaCrudButtonsService, useValue: { buildPlanButtons: jest.fn() } },
+        { provide: WorkflowEngine, useValue: { hasHandlers: jest.fn().mockReturnValue(true) } },
+        { provide: NextStepOrchestrator, useValue: {} },
+        { provide: ErrorRecoveryService, useValue: { buildInteractiveErrorRecovery: jest.fn() } },
+        { provide: FeedbackService, useValue: { recordFeedback: jest.fn() } },
+      ],
+    }).compile();
+
+    const service = moduleRef.get(AiWhatsappOrchestratorService);
+    (service as any).transcribeAudio = jest.fn();
+
+    await service.handleIncomingWhatsapp(phone, tenantId, undefined, undefined, 'wamid1');
+
+    expect(mockAiService.executeToolAction).toHaveBeenCalledWith(
+      'get_tenant_details',
+      { tenantId },
+      expect.objectContaining({ userId: sender.id, phone }),
+      sender.role,
+      'en',
+    );
+    expect(mockAiService.chat).not.toHaveBeenCalled();
+    expect(mockWhatsapp.sendTextMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ to: phone, text: 'tenant details' }),
+    );
+
+    await moduleRef.close();
   });
 });

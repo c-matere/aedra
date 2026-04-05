@@ -8,6 +8,7 @@ import { AiClassifierService } from './ai-classifier.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ReportsModule } from '../reports/reports.module';
 import { MessagingModule } from '../messaging/messaging.module';
+import { PaymentsModule } from '../payments/payments.module';
 import { AuthService } from '../auth/auth.service';
 import { UnitsModule } from '../units/units.module';
 import { CacheModule } from '@nestjs/cache-manager';
@@ -45,6 +46,7 @@ import { QuorumBridgeService } from './quorum-bridge.service';
 import { TodoModule } from '../todo/todo.module';
 import { AiPythonExecutorService } from './ai-python-executor.service';
 import { WaCrudButtonsService } from './wa-crud-buttons.service';
+import { FeedbackService } from './feedback.service';
 import { AutonomousAgentService } from './autonomous-agent.service';
 import { AiEntityResolutionService } from './ai-entity-resolution.service';
 import { ContextMemoryService } from './context-memory.service';
@@ -73,6 +75,7 @@ import { StaffIntentStrategy } from './strategies/staff-intent.strategy';
 import { LandlordIntentStrategy } from './strategies/landlord-intent.strategy';
 import { WorkflowStateMachineService } from './workflow-state-machine.service';
 
+import { FinancesModule } from '../finances/finances.module';
 @Module({
   imports: [
     PrismaModule,
@@ -86,6 +89,7 @@ import { WorkflowStateMachineService } from './workflow-state-machine.service';
     WorkflowModule,
     forwardRef(() => TodoModule),
     CacheModule.register(),
+    FinancesModule,
   ],
   controllers: [AiController],
   providers: [
@@ -121,6 +125,7 @@ import { WorkflowStateMachineService } from './workflow-state-machine.service';
     MainMenuService,
     AiPythonExecutorService,
     WaCrudButtonsService,
+    FeedbackService,
     AutonomousAgentService,
     AiEntityResolutionService,
     ContextMemoryService,
@@ -189,6 +194,7 @@ import { WorkflowStateMachineService } from './workflow-state-machine.service';
     MainMenuService,
     AiPythonExecutorService,
     WaCrudButtonsService,
+    FeedbackService,
     AutonomousAgentService,
     AiEntityResolutionService,
     ContextMemoryService,

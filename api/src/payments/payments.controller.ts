@@ -15,11 +15,17 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../auth/roles.enum';
 import type { RequestWithUser } from '../auth/request-with-user.interface';
 import { PaymentsService } from './payments.service';
+import { ReportsGeneratorService } from '../reports/reports-generator.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('payments')
 @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF)
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(
+    private readonly paymentsService: PaymentsService,
+    private readonly reportsGenerator: ReportsGeneratorService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Get()
   findAll(
@@ -101,5 +107,37 @@ export class PaymentsController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
   remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: RequestWithUser) {
     return this.paymentsService.remove(id, req.user!);
+  }
+
+  @Get(':id/pdf')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF)
+  async downloadPdf(@Param('id') id: string, @Req() req: RequestWithUser) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id },
+      include: {
+        lease: {
+          include: {
+            tenant: true,
+            property: true,
+            unit: true,
+          },
+        },
+      },
+    });
+
+    if (!payment) throw new Error('Payment not found');
+
+    const company = await this.prisma.company.findUnique({
+      where: { id: payment.lease.tenant.companyId },
+    });
+
+    const fileName = `receipt_${id.slice(0, 8)}.pdf`;
+    const url = await this.reportsGenerator.generateReceiptPdf(
+      payment,
+      company,
+      fileName,
+    );
+
+    return { url };
   }
 }

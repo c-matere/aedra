@@ -19,7 +19,7 @@ import {
     Phone,
     Plus
 } from "lucide-react"
-import { AddInvoiceButton, AddPaymentButton, VacationNoticeButton, TerminateLeaseButton } from "./lease-actions"
+import { AddInvoiceButton, AddPaymentButton, VacationNoticeButton, TerminateLeaseButton, CreateLeaseButton } from "./lease-actions"
 import { UserRole } from "@/lib/rbac"
 import {
     SlidePanel,
@@ -28,7 +28,7 @@ import {
     SlidePanelTitle,
     SlidePanelDescription
 } from "@/components/ui/slide-panel"
-import { getUnitById, type UnitRecord } from "@/lib/backend-api"
+import { getUnitById, listTenants, type UnitRecord, type TenantRecord } from "@/lib/backend-api"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -42,6 +42,7 @@ interface UnitDetailsPanelProps {
 
 export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPanelProps) {
     const [unit, setUnit] = useState<UnitRecord | null>(null)
+    const [tenants, setTenants] = useState<TenantRecord[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -55,6 +56,15 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
         } else {
             setUnit(res.data)
         }
+        
+        // Also fetch tenants if they haven't been fetched yet
+        if (tenants.length === 0) {
+            const tenantsRes = await listTenants(token, { limit: 100 })
+            if (!tenantsRes.error && tenantsRes.data) {
+                setTenants(tenantsRes.data.data)
+            }
+        }
+
         setLoading(false)
     }
 
@@ -149,6 +159,7 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
                             <section className="space-y-4">
                                 <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
                                     Lease History ({unit.leases?.length || 0})
+                                    <CreateLeaseButton unit={unit} role={role} tenants={tenants} onSuccess={fetchDetails} />
                                 </h3>
 
                                 {unit.leases && unit.leases.length > 0 ? (

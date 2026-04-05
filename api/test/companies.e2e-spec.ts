@@ -36,6 +36,21 @@ describe('Companies (e2e)', () => {
       }
       return Promise.resolve({ ...mockCompany, ...data });
     }),
+    findAll: jest.fn().mockImplementation((actor) => {
+      if (actor.role !== 'SUPER_ADMIN') {
+        throw new ForbiddenException('Only Super Admins can list all companies.');
+      }
+      return Promise.resolve([mockCompany]);
+    }),
+    testMpesa: jest.fn().mockImplementation((id, actor) => {
+      return Promise.resolve({ success: true, message: 'M-Pesa connection verified' });
+    }),
+    testSms: jest.fn().mockImplementation((id, actor) => {
+      return Promise.resolve({ success: true, message: 'SMS service verified' });
+    }),
+    testMaps: jest.fn().mockImplementation((id, actor) => {
+      return Promise.resolve({ success: true, message: 'Map services verified' });
+    }),
   };
 
   function bearer(role: UserRole, companyId = 'company-a') {
@@ -91,11 +106,22 @@ describe('Companies (e2e)', () => {
   });
 
   describe('PATCH /companies/:id', () => {
-    it('allows COMPANY_ADMIN to update their company', () => {
+    it('allows COMPANY_ADMIN to update their company and new settings fields', () => {
       return request(app.getHttpServer())
         .patch('/companies/company-a')
         .set('Authorization', bearer(UserRole.COMPANY_ADMIN, 'company-a'))
-        .send({ name: 'Updated Company' })
+        .send({
+          name: 'Updated Company',
+          sessionDurationHours: 12,
+          passwordPolicy: 'Strong',
+          twoFactorAuthEnabled: true,
+          rentReminderDaysBefore: 5,
+          smsProvider: "Twilio",
+          autoInvoicingEnabled: true,
+          invoicingDay: 5,
+          africaTalkingApiKey: "AT_API_KEY",
+          mapboxAccessToken: "MAPBOX_TOKEN"
+        })
         .expect(200);
     });
 
@@ -105,6 +131,51 @@ describe('Companies (e2e)', () => {
         .set('Authorization', bearer(UserRole.COMPANY_STAFF, 'company-a'))
         .send({ name: 'Fail' })
         .expect(403);
+    });
+  });
+
+  describe('GET /companies', () => {
+    it('allows SUPER_ADMIN to list all companies', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/companies')
+        .set('Authorization', bearer(UserRole.SUPER_ADMIN))
+        .expect(200);
+
+      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body.length).toBeGreaterThan(0);
+    });
+
+    it('forbids COMPANY_ADMIN from listing all companies', async () => {
+      await request(app.getHttpServer())
+        .get('/companies')
+        .set('Authorization', bearer(UserRole.COMPANY_ADMIN))
+        .expect(403);
+    });
+  });
+
+  describe('POST /companies/:id/test-*', () => {
+    it('allows COMPANY_ADMIN to test M-Pesa connection with body', async () => {
+      await request(app.getHttpServer())
+        .post('/companies/company-a/test-mpesa')
+        .set('Authorization', bearer(UserRole.COMPANY_ADMIN))
+        .send({ mpesaConsumerKey: 'key', mpesaConsumerSecret: 'secret' })
+        .expect(201);
+    });
+
+    it('allows COMPANY_ADMIN to test SMS connection with body', async () => {
+      await request(app.getHttpServer())
+        .post('/companies/company-a/test-sms')
+        .set('Authorization', bearer(UserRole.COMPANY_ADMIN))
+        .send({ africaTalkingUsername: 'user', africaTalkingApiKey: 'key' })
+        .expect(201);
+    });
+
+    it('allows COMPANY_ADMIN to test Maps connection with body', async () => {
+      await request(app.getHttpServer())
+        .post('/companies/company-a/test-maps')
+        .set('Authorization', bearer(UserRole.COMPANY_ADMIN))
+        .send({ mapboxAccessToken: 'token' })
+        .expect(201);
     });
   });
 });

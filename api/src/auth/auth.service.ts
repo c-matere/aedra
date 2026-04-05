@@ -13,6 +13,9 @@ export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
 
   async login(email: string, password: string) {
+    if (!email || typeof email !== 'string') {
+      throw new BadRequestException('Email is required and must be a string.');
+    }
     const normalizedEmail = email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
@@ -55,6 +58,13 @@ export class AuthService {
     firstName: string;
     lastName: string;
   }) {
+    if (!data.email || typeof data.email !== 'string') {
+      throw new BadRequestException('Email is required for registration.');
+    }
+    if (!data.companyName || !data.password || !data.firstName || !data.lastName) {
+      throw new BadRequestException('All fields (companyName, email, password, firstName, lastName) are required.');
+    }
+
     const normalizedEmail = data.email.trim().toLowerCase();
 
     // Check if user already exists

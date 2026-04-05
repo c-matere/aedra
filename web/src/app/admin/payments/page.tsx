@@ -86,7 +86,7 @@ export default async function PaymentsPage({
                     KSH {payment.amount.toLocaleString()} • {payment.method} {payment.reference ? `• Ref: ${payment.reference}` : ""}
                   </p>
                 </div>
-                <PaymentRowActions role={role} payment={payment} leases={leases.data?.data ?? []} />
+                <PaymentRowActions role={role} payment={payment} leases={leases.data?.data ?? []} token={sessionToken} />
               </div>
             ))
           ) : (

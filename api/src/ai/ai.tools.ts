@@ -92,6 +92,14 @@ export const coreReadTools = [
           type: SchemaType.STRING,
           description: 'Filter by property UUID',
         },
+        propertyName: {
+          type: SchemaType.STRING,
+          description: 'Filter by property name',
+        },
+        unitNumber: {
+          type: SchemaType.STRING,
+          description: 'Filter by unit number',
+        },
         status: {
           type: SchemaType.STRING,
           description: 'Filter by unit status',
@@ -142,6 +150,18 @@ export const coreReadTools = [
         propertyId: {
           type: SchemaType.STRING,
           description: 'Filter by property UUID',
+        },
+        propertyName: {
+          type: SchemaType.STRING,
+          description: 'Filter by property name (e.g. "Palm Grove"). Use this when the user mentions a specific property but you do not have its UUID.',
+        },
+        tenantName: {
+          type: SchemaType.STRING,
+          description: 'Filter by tenant name (e.g. "Fatuma Ali"). Use this when the user mentions a specific tenant but you do not have their UUID.',
+        },
+        query: {
+          type: SchemaType.STRING,
+          description: 'General search filter',
         },
         limit: {
           type: SchemaType.NUMBER,
@@ -205,9 +225,17 @@ export const coreReadTools = [
           type: SchemaType.STRING,
           description: 'Filter by property UUID',
         },
+        propertyName: {
+          type: SchemaType.STRING,
+          description: 'Filter by property name',
+        },
         tenantId: {
           type: SchemaType.STRING,
           description: 'Filter by tenant UUID',
+        },
+        tenantName: {
+          type: SchemaType.STRING,
+          description: 'Filter by tenant name',
         },
         status: {
           type: SchemaType.STRING,
@@ -254,9 +282,17 @@ export const coreReadTools = [
           type: SchemaType.STRING,
           description: 'Filter by property UUID',
         },
+        propertyName: {
+          type: SchemaType.STRING,
+          description: 'Filter by property name',
+        },
         tenantId: {
           type: SchemaType.STRING,
           description: 'Filter by tenant UUID',
+        },
+        tenantName: {
+          type: SchemaType.STRING,
+          description: 'Filter by tenant name',
         },
         query: {
           type: SchemaType.STRING,
@@ -295,9 +331,17 @@ export const coreReadTools = [
           type: SchemaType.STRING,
           description: 'Filter by property UUID',
         },
+        propertyName: {
+          type: SchemaType.STRING,
+          description: 'Filter by property name',
+        },
         tenantId: {
           type: SchemaType.STRING,
           description: 'Filter by tenant UUID',
+        },
+        tenantName: {
+          type: SchemaType.STRING,
+          description: 'Filter by tenant name',
         },
         query: {
           type: SchemaType.STRING,
@@ -325,6 +369,10 @@ export const coreReadTools = [
         propertyId: {
           type: SchemaType.STRING,
           description: 'Filter by property UUID (or name, will be resolved)',
+        },
+        propertyName: {
+          type: SchemaType.STRING,
+          description: 'Filter by property name',
         },
         category: {
           type: SchemaType.STRING,
@@ -467,6 +515,10 @@ export const coreReadTools = [
         propertyId: {
           type: SchemaType.STRING,
           description: 'Optional property UUID to filter results',
+        },
+        propertyName: {
+          type: SchemaType.STRING,
+          description: 'Optional property name (to be resolved)',
         },
       },
     },
@@ -612,6 +664,29 @@ export const coreReadTools = [
   {
     name: 'maintenance_emergency',
     description: 'Special intent for urgent maintenance (leak, fire, etc.). Does not require tool call, triggers emergency instructions.',
+  },
+  {
+    name: 'get_mckinsey_style_report',
+    description:
+      'Generate a high-fidelity McKinsey-grade portfolio intelligence report in PDF format. Includes AI insights, yield waterfalls, and trend analysis.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        propertyId: {
+          type: SchemaType.STRING,
+          description: 'The UUID of the property',
+        },
+        dateFrom: {
+          type: SchemaType.STRING,
+          description: 'ISO date string for report start',
+        },
+        dateTo: {
+          type: SchemaType.STRING,
+          description: 'ISO date string for report end',
+        },
+      },
+      required: ['propertyId'],
+    },
   },
 ];
 
@@ -1496,6 +1571,19 @@ export const coreWriteTools = [
         confirm: { type: SchemaType.BOOLEAN, description: 'Must be true' },
       },
       required: ['title', 'confirm'],
+    },
+  },
+  {
+    name: 'initiate_payment',
+    description: 'Trigger an M-Pesa STK Push to the tenant for a specific amount. If amount is omitted, it defaults to the current balance.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        tenantId: { type: SchemaType.STRING, description: 'Tenant UUID' },
+        amount: { type: SchemaType.NUMBER, description: 'Amount to pay in KES' },
+        confirm: { type: SchemaType.BOOLEAN, description: 'Must be true to trigger' },
+      },
+      required: ['confirm'],
     },
   },
 ];

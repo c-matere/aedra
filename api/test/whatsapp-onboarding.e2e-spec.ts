@@ -13,8 +13,16 @@ describe('WhatsApp Onboarding (e2e)', () => {
   let prisma: PrismaService;
 
   const phone = '254700000000';
+  const originalFetch = (global as any).fetch;
 
   beforeAll(async () => {
+    // Prevent real network calls to Meta during tests.
+    (global as any).fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ messages: [{ id: 'wamid.test' }] }),
+    });
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -37,6 +45,7 @@ describe('WhatsApp Onboarding (e2e)', () => {
     await prisma.whatsAppProfile.deleteMany({ where: { phone } });
     await prisma.whatsAppLog.deleteMany({ where: { to: phone } });
     await app.close();
+    (global as any).fetch = originalFetch;
   });
 
   it('Flow 1: New User -> Language Prompt', async () => {

@@ -2,8 +2,9 @@ import { Injectable, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { WhatsAppFormatterService } from './whatsapp-formatter.service';
 import { MainMenuService } from './main-menu.service';
+import * as natural from 'natural';
 
-type MenuSelectionType = 'company';
+type MenuSelectionType = 'company' | 'property' | 'tenant' | 'unit';
 
 interface MenuSessionState {
   userId: string;
@@ -37,7 +38,18 @@ export class MenuRouterService {
     if (!cached) {
       return { userId: uid };
     }
-    return { ...cached, userId: uid };
+    const parsed =
+      typeof cached === 'string'
+        ? (() => {
+            try {
+              return JSON.parse(cached);
+            } catch {
+              return null;
+            }
+          })()
+        : cached;
+    if (!parsed || typeof parsed !== 'object') return { userId: uid };
+    return { ...(parsed as any), userId: uid };
   }
 
   private async saveSession(uid: string, session: Partial<MenuSessionState>) {
@@ -120,6 +132,62 @@ export class MenuRouterService {
   ): Promise<MenuRouteResult> {
     if (!message) return { handled: false };
     const text = message.trim();
+    const lowered = text.toLowerCase();
+
+    // Direct tool IDs from interactive list replies (bypass LLM planner)
+    // Example: list_reply.id = "get_portfolio_arrears"
+    const directToolIds = new Set([
+      'get_portfolio_arrears',
+      'get_financial_summary',
+      'get_financial_report',
+      'list_vacant_units',
+      'list_properties',
+      'list_units',
+      'list_tenants',
+      'list_companies',
+    ]);
+    if (directToolIds.has(text)) {
+      return { handled: true, tool: { name: text } };
+    }
+
+    // Deterministic action strings from WhatsApp buttons (tool:id)
+    // Example: "get_tenant_arrears:0078...1175"
+    const actionMatch = text.match(
+      /^([a-z_]+):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?::(.+))?$/i,
+    );
+    if (actionMatch) {
+      const tool = actionMatch[1];
+      const id = actionMatch[2];
+      const tenantIdTools = new Set([
+        'get_tenant_details',
+        'get_tenant_arrears',
+        'get_tenant_statement',
+      ]);
+      const propertyIdTools = new Set(['get_property_details', 'get_property_arrears']);
+      const unitIdTools = new Set(['get_unit_details']);
+
+      if (tenantIdTools.has(tool)) {
+        return {
+          handled: true,
+          tool: {
+            name: tool,
+            args: {
+              tenantId: id,
+              ...(tool === 'get_tenant_details' ? { id } : {}),
+            },
+          },
+        };
+      }
+      if (propertyIdTools.has(tool)) {
+        return {
+          handled: true,
+          tool: { name: tool === 'get_property_arrears' ? 'get_portfolio_arrears' : tool, args: { propertyId: id } },
+        };
+      }
+      if (unitIdTools.has(tool)) {
+        return { handled: true, tool: { name: tool, args: { unitId: id } } };
+      }
+    }
 
     // Handle Main Menu selections (Ids starting with menu_)
     if (text.startsWith('menu_')) {
@@ -131,7 +199,177 @@ export class MenuRouterService {
       return this.handleAuthSelection(text, language);
     }
 
+    // Harden common interactive IDs (avoid underscores/planning issues/spaces)
+    const cleanLower = lowered.replace(/_/g, ' ').trim();
+    if (cleanLower === 'list tenants' || cleanLower === 'view tenants' || text === 'list_tenants') {
+      return { handled: true, tool: { name: 'list_tenants', args: { limit: 20 } } };
+    }
+    if (cleanLower === 'list companies' || cleanLower === 'view companies' || text === 'list_companies' || text === 'menu_companies') {
+      return { handled: true, tool: { name: 'list_companies' } };
+    }
+    if (cleanLower === 'list properties' || cleanLower === 'view properties' || text === 'list_properties') {
+      return { handled: true, tool: { name: 'list_properties' } };
+    }
+
+    // Common power-user commands (bypass LLM planner for deterministic output)
+    if (/^(list|show|view)\s+tenants\b/.test(lowered) || /^tenants\b/.test(lowered) || text.startsWith('list_tenants')) {
+      const parts = text.split(':');
+      return {
+        handled: true,
+        tool: { 
+          name: 'list_tenants', 
+          args: { 
+            limit: 20,
+            ...(parts[1] ? { propertyId: parts[1] } : {})
+          } 
+        },
+      };
+    }
+
+    if (text.startsWith('get_property_arrears:')) {
+      const parts = text.split(':');
+      return {
+        handled: true,
+        tool: {
+          name: 'get_portfolio_arrears',
+          args: { propertyId: parts[1] },
+        },
+      };
+    }
+
+    // Reports (avoid LLM/tool-planning ambiguity; generate a default PDF)
+    // Supported examples:
+    // - "report" -> company summary (requires selected company)
+    // - "report platform" -> platform summary (SUPER_ADMIN only)
+    // - "report property Palm Grove" / "report Palm Grove" -> property scoped (requires selected company)
+    if (/^repor(t|ts)?\b/.test(lowered) || lowered === 'repor') {
+      const normalized = lowered.replace(/\s+/g, ' ').trim();
+      const afterKeyword = normalized.replace(/^repor(t|ts)?\b\s*/i, '').trim();
+      const wantsPlatform = /\bplatform\b/.test(normalized);
+      const wantsCompany = /\bcompany\b/.test(normalized);
+
+      // Property form: "property <name>" OR "report <name>"
+      let propertyName: string | undefined;
+      const propMatch = afterKeyword.match(/^property\s+(.+)$/i);
+      if (propMatch?.[1]) propertyName = propMatch[1].trim();
+      else if (afterKeyword && !wantsPlatform && !wantsCompany) propertyName = afterKeyword;
+
+      return {
+        handled: true,
+        tool: {
+          name: 'generate_report_file',
+          args: {
+            reportType: 'Summary',
+            format: 'pdf',
+            scope: wantsPlatform ? 'platform' : propertyName ? 'property' : 'company',
+            ...(propertyName ? { propertyName } : {}),
+          },
+        },
+      };
+    }
+
+    if (text.startsWith('generate_report_file:')) {
+      const parts = text.split(':');
+      return {
+        handled: true,
+        tool: {
+          name: 'generate_report_file',
+          args: {
+            propertyId: parts[1],
+            reportType: parts[2] || 'Summary',
+            format: 'pdf',
+            scope: 'property',
+          },
+        },
+      };
+    }
+
     const session = await this.loadSession(uid);
+    if (!session.awaitingSelection) return { handled: false };
+
+    // Generic selection handler for cached lists (numeric replies OR list_reply ids)
+    const selectionToolForType = (
+      type: MenuSelectionType,
+    ): { name: string; argKey: string } | null => {
+      switch (type) {
+        case 'company':
+          return { name: 'select_company', argKey: 'companyId' };
+        case 'property':
+          return { name: 'get_property_details', argKey: 'propertyId' };
+        case 'tenant':
+          return { name: 'get_tenant_details', argKey: 'tenantId' };
+        case 'unit':
+          return { name: 'get_unit_details', argKey: 'unitId' };
+        default:
+          return null;
+      }
+    };
+
+    const resolveSelection = (input: string) => {
+      const idx = this.extractSelectionIndex(input);
+      if (idx) return session.lastResults?.[idx - 1] || null;
+
+      // 1. Try exact UUID match
+      const uuidMatch = session.lastResults?.find((r) => r.id === input);
+      if (uuidMatch) return uuidMatch;
+
+      // 2. Try Name Match (Case-Insensitive OR Fuzzy)
+      if (session.lastResults && session.lastResults.length > 0) {
+        const query = input.toLowerCase().trim();
+        
+        // Exact / Substring match (normalized)
+        const directMatch = session.lastResults.find(r => 
+          r.name.toLowerCase().includes(query) || 
+          query.includes(r.name.toLowerCase())
+        );
+        if (directMatch) return directMatch;
+
+        // Fuzzy match using Jaro-Winkler (threshold 0.85)
+        const candidates = session.lastResults.map(r => ({
+          ...r,
+          score: natural.JaroWinklerDistance(query, r.name.toLowerCase(), { ignoreCase: true })
+        })).sort((a, b) => b.score - a.score);
+
+        if (candidates[0] && candidates[0].score >= 0.85) {
+          return candidates[0];
+        }
+      }
+
+      return null;
+    };
+
+    // If we're awaiting ANY selection (company/property/tenant/unit), attempt to resolve.
+    const selectedGeneric = resolveSelection(text);
+    if (
+      selectedGeneric &&
+      (selectedGeneric.type === session.awaitingSelection ||
+        session.awaitingSelection === 'company')
+    ) {
+      const mapping = selectionToolForType(
+        selectedGeneric.type as MenuSelectionType,
+      );
+      if (mapping) {
+        await this.saveSession(uid, {
+          activeCompanyId:
+            selectedGeneric.type === 'company'
+              ? selectedGeneric.id
+              : session.activeCompanyId,
+          awaitingSelection: undefined,
+        });
+        return {
+          handled: true,
+          tool: { name: mapping.name, args: { [mapping.argKey]: selectedGeneric.id } },
+          response:
+            selectedGeneric.type === 'company'
+              ? language === 'sw'
+                ? `✅ Umehamia ${selectedGeneric.name}.`
+                : `✅ Switched to ${selectedGeneric.name}.`
+              : undefined,
+        };
+      }
+    }
+
+    // Existing company-selection disambiguation UX
     if (session.awaitingSelection !== 'company') return { handled: false };
 
     const index1 = this.extractSelectionIndex(text);
@@ -299,13 +537,13 @@ export class MenuRouterService {
       case 'menu_units':
         return { handled: true, tool: { name: 'list_units' } };
       case 'menu_financials':
-        return { handled: true, tool: { name: 'get_company_summary' } };
+        return { handled: true, tool: { name: 'get_financial_summary' } };
       case 'menu_reports':
         return {
           handled: true,
           tool: {
             name: 'generate_report_file',
-            args: { reportType: 'Summary', format: 'pdf' },
+            args: { reportType: 'Summary', format: 'pdf', scope: 'company' },
           },
         };
 
@@ -313,7 +551,7 @@ export class MenuRouterService {
       case 'menu_companies':
         return { handled: true, tool: { name: 'list_companies' } };
       case 'menu_system_health':
-        return { handled: true, tool: { name: 'get_company_summary' } }; // Use default summary for health for now
+        return { handled: true, tool: { name: 'get_financial_summary' } }; // Use portfolio summary as health snapshot for now
       case 'menu_platform_report':
         return {
           handled: true,

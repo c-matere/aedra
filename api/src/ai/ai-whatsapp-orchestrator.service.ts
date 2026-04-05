@@ -1411,7 +1411,31 @@ export class AiWhatsappOrchestratorService {
                 language ?? undefined,
               );
 
-            if (!result.interactive) {
+            const tools = Array.isArray(result.metadata?.tools)
+              ? result.metadata!.tools
+              : [];
+            const listishTools = new Set([
+              'list_tenants',
+              'search_tenants',
+              'list_properties',
+              'search_properties',
+              'list_units',
+              'search_units',
+              'list_companies',
+              'search_companies',
+            ]);
+            const cameFromListTool = tools.some((t: string) =>
+              listishTools.has(String(t || '').trim()),
+            );
+            const responseLooksLikeSelection =
+              /selection required|select\b|choose\b|chagua\b|hagua\b|which\b|mean\b|match|found\b|correct\b/i.test(
+                finalResponse,
+              );
+
+            if (
+              !result.interactive &&
+              (!result.metadata?.clarificationNeeded || responseLooksLikeSelection)
+            ) {
               if (result.vcSummary) {
                 result.interactive = this.crudButtons.buildCrudButtons(
                   result.vcSummary,
@@ -1422,10 +1446,21 @@ export class AiWhatsappOrchestratorService {
                   `list:${uid}`,
                 );
                 if (
-                  justCachedList &&
-                  justCachedList.items &&
-                  justCachedList.items.length > 0
+                  (cameFromListTool && responseLooksLikeSelection) ||
+                  (justCachedList &&
+                    justCachedList.items &&
+                    justCachedList.items.length > 0)
                 ) {
+                  // If we didn't explicitly detect a list tool but have a cached list and selection text, show it.
+                  if (!justCachedList && (cameFromListTool || responseLooksLikeSelection)) {
+                      this.logger.warn(`[WhatsApp] Selection required but no list found in cache for ${uid}`);
+                  }
+                  
+                  if (
+                    justCachedList &&
+                    justCachedList.items &&
+                    justCachedList.items.length > 0
+                  ) {
                   const items = justCachedList.items.slice(0, 10);
                   result.interactive = {
                     type: 'list',
@@ -1448,6 +1483,7 @@ export class AiWhatsappOrchestratorService {
                       ],
                     },
                   };
+                }
                 }
               }
             }

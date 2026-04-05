@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listUsers, listInvitations } from "@/lib/backend-api";
 import { getRoleFromCookie, getSessionTokenFromCookie } from "@/lib/cookie-utils";
 import { AddStaffButton, StaffRowActions } from "./staff-actions";
+import { RoleManager } from "./role-manager";
 
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
@@ -53,7 +54,10 @@ export default async function StaffPage({
           <h1 className="text-2xl font-bold text-white">Staff</h1>
           <p className="text-sm text-neutral-300">Team access and role administration.</p>
         </div>
-        <AddStaffButton role={role} />
+        <div className="flex items-center gap-3">
+          <RoleManager />
+          <AddStaffButton role={role} />
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

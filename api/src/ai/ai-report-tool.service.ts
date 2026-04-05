@@ -8,12 +8,13 @@ import { AiStagingService } from './ai-staging.service';
 import { AuthService } from '../auth/auth.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { 
+import {
   AI_BACKGROUND_QUEUE,
   ALLOWED_REPORT_GROUP_BY,
-  ALLOWED_REPORT_INCLUDE 
+  ALLOWED_REPORT_INCLUDE,
 } from './ai.constants';
 import * as minifier from './ai-minifier.util';
+import { AiEntityResolutionService } from './ai-entity-resolution.service';
 
 @Injectable()
 export class AiReportToolService {
@@ -27,8 +28,90 @@ export class AiReportToolService {
     private readonly whatsappService: WhatsappService,
     private readonly staging: AiStagingService,
     private readonly authService: AuthService,
+    private readonly resolutionService: AiEntityResolutionService,
     @InjectQueue(AI_BACKGROUND_QUEUE) private readonly backgroundQueue: Queue,
   ) {}
+
+  private resolveScope(args: any): 'platform' | 'company' | 'property' {
+    const scope = (args?.scope || '').toString().toLowerCase().trim();
+    if (scope === 'platform') return 'platform';
+    if (scope === 'property') return 'property';
+    return 'company';
+  }
+
+  private async resolveFinancialReportInputs(
+    args: any,
+    context: any,
+    role: UserRole,
+  ): Promise<
+    | { ok: true; args: any; scope: 'platform' | 'company' | 'property' }
+    | { ok: false; error: string; message: string }
+  > {
+    const scope = this.resolveScope(args);
+    const isSuperAdmin =
+      role === UserRole.SUPER_ADMIN || context.role === UserRole.SUPER_ADMIN;
+
+    if (scope === 'platform') {
+      if (!isSuperAdmin) {
+        return {
+          ok: false,
+          error: 'UNAUTHORIZED',
+          message: 'Platform reports are only available to Super Admins.',
+        };
+      }
+      return { ok: true, args, scope };
+    }
+
+    if (!context.companyId) {
+      return {
+        ok: false,
+        error: 'MISSING_COMPANY',
+        message:
+          'Please select a company workspace first, or type "report platform" for a platform-wide report.',
+      };
+    }
+
+    if (scope === 'property') {
+      let propertyId = args?.propertyId;
+      if (!propertyId && args?.propertyName) {
+        const resolved = await this.resolutionService.resolveId(
+          'property',
+          args.propertyName,
+          context.companyId,
+        );
+        if (resolved?.id) propertyId = resolved.id;
+        else if (
+          resolved?.mode === 'AMBIGUOUS' &&
+          resolved?.candidates?.length
+        ) {
+          return {
+            ok: false,
+            error: 'AMBIGUOUS_PROPERTY',
+            message: `I found multiple properties matching "${args.propertyName}". Please be more specific.`,
+          };
+        } else {
+          return {
+            ok: false,
+            error: 'PROPERTY_NOT_FOUND',
+            message: `I couldn't find a property matching "${args.propertyName}".`,
+          };
+        }
+      }
+
+      if (!propertyId) {
+        return {
+          ok: false,
+          error: 'MISSING_PROPERTY',
+          message:
+            'Please specify a property. Example: "report property Palm Grove".',
+        };
+      }
+
+      return { ok: true, args: { ...args, propertyId }, scope };
+    }
+
+    return { ok: true, args, scope };
+  }
 
   async executeReportTool(
     name: string,
@@ -42,7 +125,19 @@ export class AiReportToolService {
         case 'get_financial_report': {
           const canDisableScrub =
             role === UserRole.SUPER_ADMIN || role === UserRole.COMPANY_ADMIN;
-          const data = await this.getFinancialReportData(args, context);
+          const resolved = await this.resolveFinancialReportInputs(
+            args,
+            context,
+            role,
+          );
+          if (!resolved.ok)
+            return { error: resolved.error, message: resolved.message };
+
+          const data = await this.getFinancialReportData(
+            resolved.args,
+            context,
+            resolved.scope,
+          );
 
           let insights = null;
           if (args?.explain) {
@@ -98,7 +193,19 @@ export class AiReportToolService {
         case 'generate_report_file': {
           const canDisableScrub =
             role === UserRole.SUPER_ADMIN || role === UserRole.COMPANY_ADMIN;
-          let data = await this.getFinancialReportData(args, context);
+          const resolved = await this.resolveFinancialReportInputs(
+            args,
+            context,
+            role,
+          );
+          if (!resolved.ok)
+            return { error: resolved.error, message: resolved.message };
+
+          let data = await this.getFinancialReportData(
+            resolved.args,
+            context,
+            resolved.scope,
+          );
           const shouldScrub =
             args?.scrubPII === false && canDisableScrub ? false : true;
           if (shouldScrub) data = this.scrubPII(data);
@@ -114,10 +221,13 @@ export class AiReportToolService {
               const date = d instanceof Date ? d : new Date(d);
               return Number.isNaN(date.getTime()) ? '' : date.toISOString();
             };
-            const toAmount = (a: any) => (a === null || a === undefined ? '' : a?.toString?.() ?? String(a));
+            const toAmount = (a: any) =>
+              a === null || a === undefined
+                ? ''
+                : (a?.toString?.() ?? String(a));
 
             const rows = [
-              ...data.payments.map((p) => ({
+              ...data.payments.map((p: any) => ({
                 type: 'PAYMENT',
                 amount: toAmount(p.amount),
                 date: toIso(p.paidAt),
@@ -125,7 +235,7 @@ export class AiReportToolService {
                 category: '',
                 status: '',
               })),
-              ...data.expenses.map((e) => ({
+              ...data.expenses.map((e: any) => ({
                 type: 'EXPENSE',
                 amount: toAmount(e.amount),
                 date: toIso(e.date),
@@ -133,7 +243,7 @@ export class AiReportToolService {
                 category: e.category || '',
                 status: '',
               })),
-              ...data.invoices.map((i) => ({
+              ...data.invoices.map((i: any) => ({
                 type: 'INVOICE',
                 amount: toAmount(i.amount),
                 date: toIso(i.createdAt),
@@ -160,6 +270,10 @@ export class AiReportToolService {
             const targetPhone = context.phone || args.targetPhone;
             if (!targetPhone) {
               // Non-WhatsApp clients (/ai/chat) still need a downloadable file.
+              const company = await this.prisma.company.findUnique({
+                where: { id: context.companyId },
+              });
+
               const url = await this.reportsGenerator.generatePdf(
                 {
                   dateRange: {
@@ -171,13 +285,15 @@ export class AiReportToolService {
                 },
                 `${reportType} Report`,
                 fileName,
+                company?.logo || undefined,
               );
               return { message: `PDF report generated successfully.`, url };
             }
 
             await this.backgroundQueue.add('generate_report_pdf', {
               reportType,
-              companyId: context.companyId,
+              companyId:
+                resolved.scope === 'platform' ? undefined : context.companyId,
               targetPhone,
               userName: context.firstName || 'User',
               language,
@@ -186,7 +302,7 @@ export class AiReportToolService {
                 end: new Date(data.end).toISOString(),
               },
               filters: {
-                propertyId: args.propertyId,
+                propertyId: resolved.args.propertyId,
                 groupBy: data.groupBy,
                 include: data.include,
               },
@@ -225,14 +341,27 @@ export class AiReportToolService {
           };
         }
 
-        case 'register_company':
+        case 'register_company': {
+          if (!args?.email) {
+            return {
+              requires_clarification: true,
+              message: 'To register your company, I need your email address. Could you please share it?',
+            };
+          }
+          if (!args?.companyName) {
+            return {
+              requires_clarification: true,
+              message: 'What is the name of the company you would like to register?',
+            };
+          }
           return await this.authService.registerCompany({
             companyName: args.companyName,
             email: args.email,
-            password: args.password,
-            firstName: args.firstName,
-            lastName: args.lastName,
+            password: args.password || 'Temporary123!', // Auto-generate or use placeholder if missing
+            firstName: args.firstName || 'User',
+            lastName: args.lastName || 'Owner',
           });
+        }
 
         case 'list_tenants_staged': {
           const tenants = await this.prisma.tenant.findMany({
@@ -301,6 +430,10 @@ export class AiReportToolService {
             invoices,
           });
 
+          const company = await this.prisma.company.findUnique({
+            where: { id: args.companyId || context.companyId },
+          });
+
           const reportUrl = await this.reportsGenerator.generatePremiumPdf(
             {
               execSummary: `Portfolio Risk Assessment Job ${args.jobId}. Collection rate at ${Math.round(financialInsights.collection_rate * 100)}%.`,
@@ -321,8 +454,126 @@ export class AiReportToolService {
               },
             },
             `staged_report_${args.jobId}.pdf`,
+            company?.logo || undefined,
           );
           return { status: 'success', url: reportUrl };
+        }
+
+        case 'get_mckinsey_style_report': {
+          if (args?.propertyId) args.scope = 'property';
+          const resolved = await this.resolveFinancialReportInputs(
+            args,
+            context,
+            role,
+          );
+          if (!resolved.ok)
+            return { error: resolved.error, message: resolved.message };
+
+          const data = await this.getFinancialReportData(
+            { ...resolved.args, dateFrom: resolved.args.dateFrom || new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString() },
+            context,
+            resolved.scope,
+          );
+
+          // Fetch Full Property Details if scope is property
+          let property: any = null;
+          if (resolved.scope === 'property' && resolved.args.propertyId) {
+             property = await this.prisma.property.findUnique({
+                where: { id: resolved.args.propertyId },
+                include: { units: true }
+             });
+          }
+
+          // Fetch Tenant Payment History for Heatmap
+          const tenantPayments = await this.prisma.payment.findMany({
+            where: {
+                deletedAt: null,
+                lease: {
+                    propertyId: resolved.args.propertyId,
+                    deletedAt: null
+                }
+            },
+            include: {
+                lease: {
+                    include: {
+                        tenant: true,
+                        unit: true
+                    }
+                }
+            },
+            orderBy: { paidAt: 'desc' },
+            take: 200
+          });
+
+          // Process tenantPayments into heatmap format
+          const heatmapGrouped = new Map();
+          for (const p of tenantPayments) {
+            const t = p.lease?.tenant;
+            if (!t) continue;
+            const key = t.id;
+            if (!heatmapGrouped.has(key)) {
+                heatmapGrouped.set(key, {
+                    name: `${t.firstName} ${t.lastName}`,
+                    unit: p.lease.unit?.unitNumber || '?',
+                    payments: [],
+                    ltv: 90 // Default
+                });
+            }
+            const month = new Date(p.paidAt).toLocaleDateString(undefined, { month: 'short' });
+            heatmapGrouped.get(key).payments.push({ month, status: 'ok' });
+          }
+
+          const occupancy = property?.units?.length 
+            ? Math.round((property.units.filter((u: any) => u.status === 'OCCUPIED').length / property.units.length) * 100)
+            : 0;
+
+          const combinedData = {
+            ...data,
+            property: {
+                ...property,
+                manager: property?.managedBy || 'Aedra'
+            },
+            totals: {
+                ...data.totals,
+                occupancy,
+                units: property?.units?.length || 0,
+                occupied: property?.units?.filter((u: any) => u.status === 'OCCUPIED').length || 0
+            },
+            maintenance: {
+                open: data.expenses.length, // Rough proxy for activity
+                resolved: 0
+            },
+            tenantPayments: Array.from(heatmapGrouped.values()),
+            month: new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
+            companyId: context.companyId
+          };
+
+          this.logger.log(`Generating McKinsey insights for property ${resolved.args.propertyId}...`);
+          const insights = await this.reportIntelligence.generatePremiumInsights(
+            combinedData,
+            this.modelName,
+          );
+
+          const timestamp = Date.now();
+          const fileName = `mckinsey_report_${resolved.args.propertyId}_${timestamp}.pdf`;
+
+          const company = await this.prisma.company.findUnique({
+            where: { id: context.companyId },
+          });
+
+          this.logger.log(`Rendering Premium PDF for ${fileName}...`);
+          await this.reportsGenerator.generatePremiumPdf(
+            insights,
+            data,
+            fileName,
+            company?.logo || undefined,
+          );
+
+          return {
+            message: `PDF report generated successfully.`,
+            url: `/documents/files/${fileName}`,
+            insightsSummary: (insights.execSummary || '').slice(0, 500) + '...',
+          };
         }
 
         default:
@@ -332,11 +583,18 @@ export class AiReportToolService {
       this.logger.error(
         `Error executing report tool ${name}: ${error.message}`,
       );
-      return { error: 'Report generation failed. Please try again.' };
+      // Propagate specific error messages if they exist
+      return {
+        error: error.response?.message || error.message || 'Report generation failed. Please try again.',
+      };
     }
   }
 
-  private async getFinancialReportData(args: any, context: any) {
+  private async getFinancialReportData(
+    args: any,
+    context: any,
+    scope: 'platform' | 'company' | 'property' = 'company',
+  ) {
     const { start, end } = this.getDateRange(args, 30);
     const groupBy = (args?.groupBy || 'none').toLowerCase();
     const include = (args?.include || 'all').toLowerCase();
@@ -357,6 +615,23 @@ export class AiReportToolService {
     const includeInvoices = include === 'all' || include === 'invoices';
 
     const role = context.role || context.userRole || UserRole.UNIDENTIFIED;
+    const propertyCompanyFilter: any =
+      scope === 'platform'
+        ? { deletedAt: null }
+        : { companyId: context.companyId, deletedAt: null };
+
+    if (scope === 'property' && args?.propertyId) {
+      propertyCompanyFilter.id = args.propertyId;
+    }
+
+    const expenseCompanyFilter: any =
+      scope === 'platform' ? {} : { companyId: context.companyId };
+
+    if (scope === 'property' && args?.propertyId) {
+      expenseCompanyFilter.propertyId = args.propertyId;
+    }
+
+    this.logger.log(`Fetching financial data for scope: ${scope}, propertyId: ${args?.propertyId || 'none'}`);
 
     const [payments, expenses, invoices]: [any[], any[], any[]] =
       await Promise.all([
@@ -366,7 +641,7 @@ export class AiReportToolService {
                 deletedAt: null,
                 paidAt: { gte: start, lte: end },
                 lease: {
-                  property: { companyId: context.companyId, deletedAt: null },
+                  property: propertyCompanyFilter,
                   ...(role === UserRole.TENANT
                     ? { tenantId: context.userId }
                     : {}),
@@ -388,7 +663,7 @@ export class AiReportToolService {
         includeExpenses
           ? this.prisma.expense.findMany({
               where: {
-                companyId: context.companyId,
+                ...expenseCompanyFilter,
                 deletedAt: null,
                 date: { gte: start, lte: end },
                 ...(role === UserRole.LANDLORD
@@ -411,7 +686,7 @@ export class AiReportToolService {
                 deletedAt: null,
                 createdAt: { gte: start, lte: end },
                 lease: {
-                  property: { companyId: context.companyId, deletedAt: null },
+                  property: propertyCompanyFilter,
                   ...(role === UserRole.TENANT
                     ? { tenantId: context.userId }
                     : {}),

@@ -54,15 +54,15 @@ export class WhatsappController {
     const value = changes?.value;
     const message = value?.messages?.[0];
 
+    // Only log when a real user message arrives (skip status callbacks)
     if (message?.from) {
+      console.log(`[WhatsApp] ▶ Incoming from ${message.from} type=${message.type || 'text'} wamid=${message.id}`);
       const messageId = message.id;
       if (messageId) {
         const cacheKey = `wa_msg_${messageId}`;
         const isProcessing = await this.cacheManager.get(cacheKey);
         if (isProcessing) {
-          console.log(
-            `[WhatsappController] Duplicate message detected (wamid: ${messageId}), skipping.`,
-          );
+          console.log(`[WhatsApp] Duplicate message (wamid: ${messageId}), skipping.`);
           return { status: 'duplicate' };
         }
         // Mark as processing for 5 minutes (retries usually happen within seconds/minutes)
@@ -75,11 +75,28 @@ export class WhatsappController {
       let mimeType = null;
 
       if (type === 'interactive') {
-        const interactive = message.interactive;
-        if (interactive.type === 'list_reply') {
-          text = interactive.list_reply.id;
-        } else if (interactive.type === 'button_reply') {
-          text = interactive.button_reply.id;
+        const interactive = message?.interactive;
+        const interactiveType = interactive?.type;
+        if (interactiveType === 'list_reply') {
+          text = interactive?.list_reply?.id;
+        } else if (interactiveType === 'button_reply') {
+          text = interactive?.button_reply?.id;
+        } else {
+          // Meta sometimes sends "interactive" messages with errors but without an interactive payload.
+          // Treat these as non-user actions and safely ignore.
+          if (Array.isArray(message?.errors) && message.errors.length > 0) {
+            console.warn(
+              `[WhatsappController] Ignoring interactive webhook error payload: ${JSON.stringify(
+                message.errors,
+              ).substring(0, 200)}`,
+            );
+          } else {
+            console.warn(
+              `[WhatsappController] Unsupported interactive payload: ${JSON.stringify(
+                message,
+              ).substring(0, 200)}`,
+            );
+          }
         }
       } else if (type === 'text') {
         text = message.text.body;

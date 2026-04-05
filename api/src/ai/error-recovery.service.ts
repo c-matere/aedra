@@ -17,6 +17,10 @@ export class ErrorRecoveryService {
       en: `Couldn't switch companies right now. Try again or type the company name directly.\n\n1. Retry selection\n2. List all companies`,
       sw: `Sikuweza kubadilisha kampuni sasa hivi. Jaribu tena au andika jina la kampuni moja kwa moja.\n\n1. Jaribu tena\n2. Onyesha kampuni zote`,
     },
+    get_payment_details: {
+      en: `I couldn't retrieve those payment details right now. Please check the ID or try again later.\n\n1. Retry request\n2. List recent payments`,
+      sw: `Sikuweza kupata maelezo ya malipo hayo sasa hivi. Tafadhali kagua ID au jaribu tena baadaye.\n\n1. Jaribu tena\n2. Onyesha malipo ya hivi karibuni`,
+    },
     default: {
       en: `Something went wrong. Please try again or type your request differently.\n\n1. Try again\n2. Show main menu`,
       sw: `Kuna tatizo. Tafadhali jaribu tena au andika ombi lako tofauti.\n\n1. Jaribu tena\n2. Onyesha menyu kuu`,
@@ -25,23 +29,39 @@ export class ErrorRecoveryService {
 
   buildErrorRecovery(
     action: string,
-    error: Error,
+    error: Error | any,
     context: { userId?: string },
     language: 'en' | 'sw' = 'en',
   ): string {
+    const errorMsg =
+      error?.message || (typeof error === 'string' ? error : 'Unknown error');
     const maskedUserId = context.userId
       ? `${context.userId.substring(0, 4)}...${context.userId.substring(context.userId.length - 4)}`
       : 'anon';
-    this.logger.error(
-      `Action ${action} failed: ${error.message}`,
-      error.stack,
-      {
-        userId: maskedUserId,
-        action,
-      },
-    );
 
-    if (error.message.includes('select a company workspace first')) {
+    this.logger.error(`Action ${action} failed: ${errorMsg}`, error?.stack || 'No stack trace', {
+      userId: maskedUserId,
+      action,
+    });
+
+    if (
+      errorMsg.includes('429') ||
+      errorMsg.toLowerCase().includes('resource exhausted') ||
+      errorMsg.toLowerCase().includes('fetch failed') ||
+      errorMsg.toLowerCase().includes('timeout')
+    ) {
+      return language === 'sw'
+        ? `Huduma ya AI ina shughuli nyingi sana sasa hivi (Rate Limit). Tafadhali jaribu tena baada ya dakika moja.\n\n1. Jaribu tena sasa\n2. Rudi baadaye`
+        : `The AI service is currently very busy (Rate Limit). Please try again in a minute.\n\n1. Try again now\n2. Come back later`;
+    }
+
+    if (errorMsg.includes('not implemented')) {
+      return language === 'sw'
+        ? `Samahani, kipengele hiki kinasasishwa na hakipatikani kwa sasa.\n\n1. Jaribu kitendo kingine\n2. Rudi menyu kuu`
+        : `Apologies, this feature is currently being updated and is temporarily unavailable.\n\n1. Try another action\n2. Back to main menu`;
+    }
+
+    if (errorMsg.includes('select a company workspace first')) {
       return language === 'sw'
         ? `Kufanya hivyo, unahitaji kuchagua kampuni kwanza.\n\n1. Onyesha kampuni zote\n2. Rudi menyu kuu`
         : `To do that, you need to select a company first.\n\n1. Show company list\n2. Back to main menu`;

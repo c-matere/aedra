@@ -17,6 +17,35 @@ export class WhatsappService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  private async parseMetaResponse(response: Response): Promise<any> {
+    const raw = await response.text().catch(() => '');
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return { raw };
+    }
+  }
+
+  private formatMetaApiError(result: any, status: number): string {
+    const metaMsg =
+      result?.error?.message ||
+      result?.message ||
+      (typeof result === 'string' ? result : null) ||
+      (result?.raw ? String(result.raw).slice(0, 500) : null);
+
+    const metaCode =
+      result?.error?.code ||
+      result?.error?.error_subcode ||
+      result?.code ||
+      result?.status;
+
+    const parts = [`Meta API request failed (HTTP ${status})`];
+    if (metaCode) parts.push(`code=${metaCode}`);
+    if (metaMsg) parts.push(String(metaMsg));
+    return parts.join(': ');
+  }
+
   private getDefaultTemplateLanguageCode(): string {
     return (
       (process.env.WA_DEFAULT_TEMPLATE_LANGUAGE_CODE || 'en_US').trim() ||
@@ -277,7 +306,7 @@ export class WhatsappService {
           }),
         ).finally(() => clearTimeout(timeoutId));
 
-        result = await response.json();
+        result = await this.parseMetaResponse(response);
 
         if (response.ok) break;
         // 132001: template exists but not for this language translation
@@ -303,13 +332,14 @@ export class WhatsappService {
       if (!response?.ok) {
         this.logger.error(`Meta API error: ${JSON.stringify(result)}`);
         throw new InternalServerErrorException(
-          result?.error?.message || 'Failed to send WhatsApp message',
+          this.formatMetaApiError(result, response?.status || 0),
         );
       }
 
       return { ...result, senderType };
     } catch (error) {
-      this.logger.error(`Failed to send WhatsApp message: ${error.message}`);
+      const isNetwork = error.message?.includes('fetch failed') || error.code === 'UND_ERR_CONNECT_TIMEOUT';
+      this.logger.error(`[WhatsApp] Failed to send template message: ${error.message}${isNetwork ? ' (Network/Meta API unreachable)' : ''}`);
       throw error;
     }
   }
@@ -360,6 +390,13 @@ export class WhatsappService {
       interactive,
     };
 
+    if (!payload.to) {
+      throw new BadRequestException('Recipient phone number is missing.');
+    }
+    if (!payload.interactive) {
+      throw new BadRequestException('Interactive payload is missing.');
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
@@ -377,7 +414,7 @@ export class WhatsappService {
         }),
       ).finally(() => clearTimeout(timeoutId));
 
-      const result = await response.json();
+      const result = await this.parseMetaResponse(response);
       const status = response.ok ? 'SENT' : 'FAILED';
       const metaMessageId = result?.messages?.[0]?.id;
 
@@ -386,7 +423,7 @@ export class WhatsappService {
         data: {
           companyId,
           to,
-          templateName: `INTERACTIVE_${interactive.type.toUpperCase()}`,
+          templateName: `INTERACTIVE_${String(payload.interactive?.type || 'UNKNOWN').toUpperCase()}`,
           senderType,
           status,
           metaMessageId: metaMessageId || null,
@@ -396,6 +433,9 @@ export class WhatsappService {
       if (!response.ok) {
         this.logger.error(
           `Meta API interactive error: ${JSON.stringify(result)}`,
+        );
+        throw new InternalServerErrorException(
+          this.formatMetaApiError(result, response.status),
         );
       }
 
@@ -560,6 +600,9 @@ export class WhatsappService {
     if (!payload.to) {
       throw new BadRequestException('Recipient phone number is missing.');
     }
+    if (typeof text !== 'string' || text.trim().length === 0) {
+      throw new BadRequestException('Text body is missing.');
+    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 45000);
@@ -578,7 +621,7 @@ export class WhatsappService {
         }),
       ).finally(() => clearTimeout(timeoutId));
 
-      const result = await response.json();
+      const result = await this.parseMetaResponse(response);
       const status = response.ok ? 'SENT' : 'FAILED';
       const metaMessageId = result?.messages?.[0]?.id;
 
@@ -596,11 +639,15 @@ export class WhatsappService {
 
       if (!response.ok) {
         this.logger.error(`Meta API error: ${JSON.stringify(result)}`);
+        throw new InternalServerErrorException(
+          this.formatMetaApiError(result, response.status),
+        );
       }
 
       return { ...result, senderType };
     } catch (error) {
-      this.logger.error(`Failed to send WhatsApp text: ${error.message}`);
+      const isNetwork = error.message?.includes('fetch failed') || error.code === 'UND_ERR_CONNECT_TIMEOUT';
+      this.logger.error(`[WhatsApp] Failed to send text message: ${error.message}${isNetwork ? ' (Network/Meta API unreachable)' : ''}`);
       throw error;
     }
   }
@@ -674,7 +721,7 @@ export class WhatsappService {
         }),
       ).finally(() => clearTimeout(timeoutId));
 
-      const result = await response.json();
+      const result = await this.parseMetaResponse(response);
       const status = response.ok ? 'SENT' : 'FAILED';
       const metaMessageId = result?.messages?.[0]?.id;
 
@@ -692,6 +739,9 @@ export class WhatsappService {
 
       if (!response.ok) {
         this.logger.error(`Meta API document error: ${JSON.stringify(result)}`);
+        throw new InternalServerErrorException(
+          this.formatMetaApiError(result, response.status),
+        );
       }
 
       return { ...result, senderType };
@@ -877,9 +927,10 @@ export class WhatsappService {
    * Handle incoming data from Meta Webhook.
    */
   async handleWebhook(body: any) {
-    this.logger.log(
-      `Received WhatsApp Webhook: ${JSON.stringify(body, null, 2)}`,
-    );
+    // Only log if there's a real message — status callbacks are silent
+    if (body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
+      this.logger.log(`[Webhook] Incoming message from ${body.entry[0].changes[0].value.messages[0].from}`);
+    }
 
     const entry = body?.entry?.[0];
     const changes = entry?.changes?.[0];
