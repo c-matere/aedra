@@ -272,6 +272,8 @@ export interface CompanyRecord {
   mpesaConsumerKey: string | null;
   mpesaConsumerSecret: string | null;
   mpesaPasskey: string | null;
+  mpesaShortcode: string | null;
+  mpesaEnvironment: string | null;
   autoInvoicingEnabled: boolean;
   invoicingDay: number;
 }
@@ -328,6 +330,8 @@ export interface UpdateCompanyPayload {
   mpesaConsumerKey?: string | null;
   mpesaConsumerSecret?: string | null;
   mpesaPasskey?: string | null;
+  mpesaShortcode?: string | null;
+  mpesaEnvironment?: string | null;
   autoInvoicingEnabled?: boolean;
   invoicingDay?: number;
 }
