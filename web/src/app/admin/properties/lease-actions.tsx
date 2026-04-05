@@ -25,7 +25,8 @@ import { Combobox } from "@/components/ui/combobox"
 import {
     CreateInvoicePayload,
     CreatePaymentPayload,
-    UpdateUnitPayload
+    UpdateUnitPayload,
+    CreateLeasePayload
 } from "@/lib/backend-api"
 import { parseForm, parseNumber, parseText, parseDate, FieldSchema } from "@/lib/form-helpers"
 import type { UserRole } from "@/lib/rbac"
@@ -395,7 +396,7 @@ export function CreateLeaseButton({ unit, role, tenants, onSuccess }: { unit: Un
             ...values,
             unitId: unit.id,
             propertyId: unit.propertyId,
-        })
+        } as CreateLeasePayload)
 
         if (res.error) {
             setError(res.error)
