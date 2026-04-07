@@ -209,7 +209,10 @@ export class AiService implements OnModuleInit {
     classification?: ClassificationResult,
     phone?: string,
     temperature?: number,
+    confirmed?: boolean,
   ): Promise<AiServiceChatResponse> {
+    const isAffirmative = /^(yes|proceed|confirmed|it is correct|ndio|endelea|sawa|haina shida|plan_approve|correction_proceed)$/i.test((message || '').trim());
+    const finalConfirmed = confirmed || isAffirmative;
     const store = tenantContext.getStore() as any;
     const userId = store?.userId || 'SYSTEM';
     const role = store?.role || UserRole.COMPANY_STAFF;
@@ -225,7 +228,7 @@ export class AiService implements OnModuleInit {
         .replace(/^Simulate responding as if speaking to a \w+\.\s*Message:\s*/i, '')
         .replace(/^(Message|Input|Request|User):\s*/i, '')
         .trim(); 
-    const finalChatId = chatId || (await this.getOrCreateChat(userId, companyId));
+    const finalChatId = chatId || (await this.getOrCreateChat(userId, companyId, phone));
     
     // Phase 0: Ensure Context Hydration (v5.8)
     const context: any = { userId, role: effectiveRole, chatId: finalChatId, companyId, companyName, attachments, language, phone };
@@ -257,7 +260,7 @@ export class AiService implements OnModuleInit {
       this.logger.log(`[AiService] chat() Starting trace: ${trace.id}`);
       
       // 1. Security & Firewall
-      if (this.securityService.isSecurityViolation(message)) {
+      if (this.securityService.isSecurityViolation(message, effectiveRole as UserRole)) {
         return { response: this.securityService.getRefusalMessage(), chatId: finalChatId };
       }
 
@@ -276,6 +279,7 @@ export class AiService implements OnModuleInit {
       
       // Phase 0: Merge Hydrated Context (v5.9)
       Object.assign(context, sessionContext, { companyId: effectiveCompanyId, chatId: finalChatId });
+      this.logger.debug(`[AiService] Hydrated Context: ${JSON.stringify(context.registrationData || {})}`);
 
       // 3. Unified LLM-Driven Planning (v5.2)
       let finalHistory = history || [];
@@ -334,8 +338,21 @@ export class AiService implements OnModuleInit {
           );
 
         // Let upstream (WhatsApp orchestrator) handle trivial/greeting/menu messages.
-        // For everything else, ask the user to pick an action.
+        // For everything else, ask the user to pick an action OR use the AI's immediate response.
         if (!isTrivial) {
+          if (plan.immediateResponse) {
+            await this.persistTraceMetadata(trace, context, userId, { response: plan.immediateResponse });
+            return {
+              response: plan.immediateResponse,
+              chatId: finalChatId,
+              metadata: {
+                status: 'COMPOSED',
+                traceId: trace.id,
+                intent: plan.intent,
+              },
+            };
+          }
+
           await this.persistTraceMetadata(trace, context, userId, {});
           return {
             response:
@@ -387,6 +404,10 @@ export class AiService implements OnModuleInit {
         
         // 5a. Dependency Resolution
         const resolvedArgs = { ...step.args };
+        if (finalConfirmed) {
+          resolvedArgs.confirm = true;
+          this.logger.log(`[ExecutionLoop] Injecting confirm=true into ${step.tool} arguments`);
+        }
         
         // Handle "DEPENDS" keyword
         if (step.dependsOn) {
@@ -496,30 +517,31 @@ export class AiService implements OnModuleInit {
 
           // Phase 0: In-flight Hydration (v5.8)
           if (success && result) {
-            if (result.companyId) context.companyId = result.companyId;
-            if (result.tenantId) context.tenantId = result.tenantId;
-            if (result.unitId) context.unitId = result.unitId;
-            if (result.propertyId) context.propertyId = result.propertyId;
+            const data = result.data || {};
+            if (data.companyId) context.companyId = data.companyId;
+            if (data.tenantId) context.tenantId = data.tenantId;
+            if (data.unitId) context.unitId = data.unitId;
+            if (data.propertyId) context.propertyId = data.propertyId;
 
             // Harvest common entities for sequential context when tools return raw Prisma models.
-            if (step.tool === 'get_tenant_details' && result?.id) {
-              resultsMap.entities.tenantId = result.id;
-              if (result.firstName) {
-                resultsMap.entities.tenantName = `${result.firstName} ${result.lastName || ''}`.trim();
+            if (step.tool === 'get_tenant_details' && data?.id) {
+              resultsMap.entities.tenantId = data.id;
+              if (data.firstName) {
+                resultsMap.entities.tenantName = `${data.firstName} ${data.lastName || ''}`.trim();
               }
             }
-            if (step.tool === 'get_unit_details' && result?.id) {
-              resultsMap.entities.unitId = result.id;
-              if (result.unitNumber) resultsMap.entities.unitNumber = result.unitNumber;
+            if (step.tool === 'get_unit_details' && data?.id) {
+              resultsMap.entities.unitId = data.id;
+              if (data.unitNumber) resultsMap.entities.unitNumber = data.unitNumber;
             }
-            if (step.tool === 'get_property_details' && result?.id) {
-              resultsMap.entities.propertyId = result.id;
-              if (result.name) resultsMap.entities.propertyName = result.name;
+            if (step.tool === 'get_property_details' && data?.id) {
+              resultsMap.entities.propertyId = data.id;
+              if (data.name) resultsMap.entities.propertyName = data.name;
             }
             
             // Sync to trace metadata for integrity checks
             trace.metadata.companyId = context.companyId;
-            trace.metadata.activeUnitId = result.unitId || trace.metadata.activeUnitId;
+            trace.metadata.activeUnitId = data.unitId || trace.metadata.activeUnitId;
           }
           
           resultsMap[step.tool] = { success, result };
@@ -627,6 +649,10 @@ export class AiService implements OnModuleInit {
                s?.result?.requires_clarification || 
                s?.result?.data?.requires_clarification
             ),
+            requires_confirmation: trace.steps.some((s: any) => 
+               s?.result?.requires_confirmation || 
+               s?.result?.data?.requires_confirmation
+            ),
         }
       };
 
@@ -708,6 +734,26 @@ export class AiService implements OnModuleInit {
     const newUnitId = resolvedEntities?.unitId || (isConflict ? undefined : context.activeUnitId);
     const newPropId = resolvedEntities?.propertyId || (isConflict ? undefined : context.activePropertyId);
 
+    const existingData = context.registrationData || {};
+    const newData = { ...existingData };
+    
+    // Additive merge: only update if the new entity has a truthy value
+    if (plan.entities) {
+      for (const [key, value] of Object.entries(plan.entities)) {
+        if (!value) continue;
+        
+        // Normalize keys for Property Onboarding
+        let targetKey = key;
+        if (key === 'name' || key === 'propName') targetKey = 'propertyName';
+        if (key === 'address' || key === 'propAddress') targetKey = 'propertyAddress';
+        if (key === 'units' || key === 'count') targetKey = 'unitCount';
+        
+        newData[targetKey] = value as string;
+      }
+    }
+
+    this.logger.debug(`[AiService] Persisting RegistrationData: ${JSON.stringify(newData)}`);
+
     await this.contextMemory.setContext(contextUid, { 
       lastIntent: plan.intent,
       lastPriority: plan.priority,
@@ -716,6 +762,7 @@ export class AiService implements OnModuleInit {
       activePropertyId: newPropId,
       activeUnitNumber: plan.entities?.unitNumber || (isConflict ? undefined : context.activeUnitNumber),
       activeTenantName: plan.entities?.tenantName || (isConflict ? undefined : context.activeTenantName),
+      registrationData: newData,
       lockedState: {
         lockedIntent: plan.intent !== AiIntent.GENERAL_QUERY ? plan.intent : (context.lockedState?.lockedIntent || null),
         activeTenantId: newTenantId || null,
@@ -794,7 +841,7 @@ export class AiService implements OnModuleInit {
     }
   }
 
-  async getOrCreateChat(userId: string | null, companyId?: string): Promise<string> {
+  async getOrCreateChat(userId: string | null, companyId?: string, phone?: string): Promise<string> {
     const effectiveUserId = (userId === 'unidentified' || userId === 'SYSTEM') ? null : userId;
     const effectiveCompanyId = (companyId === 'NONE' || !companyId) ? null : companyId;
 
@@ -804,12 +851,19 @@ export class AiService implements OnModuleInit {
         orderBy: { updatedAt: 'desc' },
       });
       if (existing) return existing.id;
+    } else if (phone) {
+      const existing = await this.prisma.chatHistory.findFirst({
+        where: { waPhone: phone, userId: null, deletedAt: null },
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (existing) return existing.id;
     }
 
     const created = await this.prisma.chatHistory.create({
       data: {
         userId: effectiveUserId,
         companyId: effectiveCompanyId,
+        waPhone: effectiveUserId ? null : phone,
         title: 'New Conversation',
       },
     });
@@ -921,29 +975,33 @@ export class AiService implements OnModuleInit {
     return this.whatsappOrchestrator.handleIncomingWhatsapp(phone, text, mediaId, mimeType);
   }
 
-  async executeTool(name: string, args: any, context: any, role?: string, language?: string) {
-    return this.registry.executeTool(name, args, context, (role || UserRole.COMPANY_STAFF) as UserRole, language || 'en');
+  async executeTool(name: string, args: any, context: any, role?: string, language?: string): Promise<ActionResult> {
+    // Safety check: if role looks like a language code (e.g. 'en', 'sw'), it might be a swap
+    let finalRole = role;
+    let finalLang = language;
+    if (role && (role.toLowerCase() === 'en' || role.toLowerCase() === 'sw')) {
+      this.logger.warn(`[AiService] Detected potential role/language swap! role=${role}, recovering role from context...`);
+      finalRole = context?.role || context?.userRole || role;
+      finalLang = role;
+    }
+
+    const raw = await this.registry.executeTool(
+      name, 
+      args, 
+      context, 
+      (finalRole || UserRole.COMPANY_STAFF) as UserRole, 
+      finalLang || 'en'
+    );
+
+    return this.normalizeAndPersistToolResult(name, args, context, raw);
   }
 
-  /**
-   * Executes a tool and normalizes the output to an ActionResult for UI formatting paths
-   * (e.g., WhatsApp menu selections) that bypass the LLM execution loop.
-   */
-  async executeToolAction(
+  private async normalizeAndPersistToolResult(
     name: string,
     args: any,
     context: any,
-    role?: string,
-    language?: string,
+    raw: any,
   ): Promise<ActionResult> {
-    const raw = await this.registry.executeTool(
-      name,
-      args,
-      context,
-      (role || UserRole.COMPANY_STAFF) as UserRole,
-      language || 'en',
-    );
-
     // Already normalized
     if (
       raw &&
@@ -964,6 +1022,19 @@ export class AiService implements OnModuleInit {
       return normalized;
     }
 
+    // Tool-level "confirmation" should be handled as a blocked action
+    if (raw && typeof raw === 'object' && (raw as any).requires_confirmation) {
+      const normalized = {
+        success: false,
+        action: name,
+        data: raw,
+        message: (raw as any).message || 'This action requires confirmation.',
+        requires_confirmation: true,
+      } as any as ActionResult;
+      await this.persistActionContext(name, args, normalized?.data, context);
+      return normalized;
+    }
+
     // Tool-level "clarification" should be rendered to the user, not treated as a generic crash.
     if (raw && typeof raw === 'object' && (raw as any).requires_clarification) {
       const normalized = {
@@ -972,6 +1043,8 @@ export class AiService implements OnModuleInit {
         data: raw,
         message: (raw as any).message || 'More details are required to proceed.',
         error: 'REQUIRES_CLARIFICATION',
+        requires_clarification: true,
+        options: (raw as any).options,
       } as ActionResult;
       await this.persistActionContext(name, args, normalized?.data, context);
       return normalized;
@@ -990,10 +1063,33 @@ export class AiService implements OnModuleInit {
       return normalized;
     }
 
-    // Default: successful data payload
+    // Fallback: Default to successful data capture
     const normalized = { success: true, action: name, data: raw } as ActionResult;
+    
+    // Propagate session-critical fields for legacy loop compatibility
+    if (raw && typeof raw === 'object') {
+      if (raw.companyId) normalized.companyId = raw.companyId;
+      if (raw.tenantId) normalized.tenantId = raw.tenantId;
+      if (raw.unitId) normalized.unitId = raw.unitId;
+      if (raw.propertyId) normalized.propertyId = raw.propertyId;
+    }
+
     await this.persistActionContext(name, args, normalized?.data, context);
     return normalized;
+  }
+
+  /**
+   * Executes a tool and normalizes the output to an ActionResult for UI formatting paths
+   * (e.g., WhatsApp menu selections) that bypass the LLM execution loop.
+   */
+  async executeToolAction(
+    name: string,
+    args: any,
+    context: any,
+    role?: string,
+    language?: string,
+  ): Promise<ActionResult> {
+    return this.executeTool(name, args, context, role, language);
   }
 
   async formatToolResponse(result: ActionResult, sender: any, companyId: string, language: string) {
@@ -1054,10 +1150,16 @@ export class AiService implements OnModuleInit {
    * This prevents "MISSING_SESSION" errors in benchmarks and real flows.
    */
   private async ensureContext(context: any, reqBody: any): Promise<void> {
-    if (!context.companyId) {
-      context.companyId = reqBody?.companyId || 'bench-company-001'; // Benchmark fallback
-      if (!reqBody?.companyId) {
-        this.logger.warn(`[ContextHydration] Missing companyId — using fallback for bench: ${context.companyId}`);
+    if (!context.companyId || context.companyId === 'bench-company-001') {
+      const resolved = await this.getCompanyIdForContext(context.phone, context.userId);
+      if (resolved) {
+        context.companyId = resolved;
+        this.logger.debug(`[ContextHydration] Resolved companyId: ${resolved}`);
+      } else {
+        context.companyId = reqBody?.companyId || 'bench-company-001';
+        if (!reqBody?.companyId) {
+          this.logger.warn(`[ContextHydration] Missing companyId — using fallback for bench: ${context.companyId}`);
+        }
       }
     }
 
@@ -1072,7 +1174,27 @@ export class AiService implements OnModuleInit {
    * @deprecated Use chat() instead. Maintained for legacy service compatibility.
    */
   async executePlan(userId: string, phone: string, message?: string) {
-    return this.chat([], message || '', 'legacy-session', undefined, userId, [], 'en', undefined, phone);
+    const lastChat = await this.prisma.chatHistory.findFirst({
+      where: { waPhone: phone, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      include: { messages: { orderBy: { createdAt: 'desc' }, take: 20 } }
+    });
+
+    const history = (lastChat?.messages || [])
+      .reverse()
+      .map(m => ({ role: m.role, content: m.content }));
+
+    return this.chat(
+      history, 
+      message || '', 
+      lastChat?.id || 'session-fallback', 
+      lastChat?.companyId || undefined, 
+      userId, 
+      [], 
+      'en', 
+      undefined, 
+      phone
+    );
   }
 
   getSystemInstruction(context?: any): string {
@@ -1180,8 +1302,15 @@ export class AiService implements OnModuleInit {
       const hasFinancialReportTool = trace.steps.some((s) => s.tool === 'get_financial_report' && s.success);
       const hasFinancialSummaryTool = trace.steps.some((s) => s.tool === 'get_financial_summary' && s.success);
       truthObject.status = (hasCriticalSuccess || hasRevenueTool || hasArrearsTool || hasFinancialReportTool || hasFinancialSummaryTool) ? 'COMPLETE' : 'PARTIAL';
+    } else if (intent === AiIntent.ONBOARDING) {
+      const hasCreationTool = trace.steps.some((s) => {
+        const isCreation = s.tool === 'create_property' || s.tool === 'register_company';
+        const isConfirmed = !s.result?.requires_confirmation && !s.result?.requires_clarification;
+        return isCreation && s.success && isConfirmed;
+      });
+      truthObject.status = (hasCriticalSuccess && hasCreationTool) ? 'COMPLETE' : 'PARTIAL';
     } else {
-      truthObject.status = hasCriticalSuccess ? 'COMPLETE' : 'PARTIAL';
+      truthObject.status = (hasCriticalSuccess && trace.steps.every(s => !s.result?.requires_confirmation)) ? 'COMPLETE' : 'PARTIAL';
     }
 
     this.logger.log(`[Truth] Aggregated truth for ${intent}: ${truthObject.status}`);
@@ -1248,7 +1377,12 @@ export class AiService implements OnModuleInit {
     const toolFailed = (name: string) => trace.steps.find((s) => s.tool === name && !s.success);
     const toolSucceeded = (name: string) => trace.steps.find((s) => s.tool === name && s.success);
     const anySucceeded = trace.steps.some((s) => s.success);
-    const clarification = trace.steps.find((s) => (s as any)?.result?.requires_clarification && (s as any)?.result?.message);
+    const clarification = trace.steps.find((s) => 
+      ((s as any)?.result?.requires_clarification || (s as any)?.result?.requires_confirmation) && 
+      (s as any)?.result?.message
+    );
+    this.logger.debug(`[AiService] generateSafePartialResponse: clarificationFound=${!!clarification}, steps=${trace.steps.length}`);
+    if (clarification) this.logger.debug(`[AiService] Found clarification/confirmation: ${(clarification as any).result.message}`);
 
     // Emergency: always lead with safety instructions, never claim logging unless tool succeeded.
     if (plan.intent === AiIntent.EMERGENCY) {

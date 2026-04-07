@@ -1250,21 +1250,40 @@ export class AiReadToolService implements OnModuleInit {
         case 'get_unit_details': {
           let unitId = args?.unitId;
           const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(unitId || '');
+          
           if (!isUuid && (args?.unitNumber || unitId)) {
-            const resolved = await this.resolutionService.resolveId('unit', args?.unitNumber || unitId, context.companyId);
-            if (resolved?.id) {
-              unitId = resolved.id;
-            } else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) {
-              return {
-                error: 'AMBIGUOUS_MATCH',
-                entity_type: 'unit',
-                search_term: args?.unitNumber || unitId,
-                required_action: 'SELECT_FROM_LIST',
-                matches: resolved.candidates,
-                message: `I found multiple units matching '${args?.unitNumber || unitId}'. Which one did you mean?`,
-              };
-            } else {
-              return this.formatNotFoundError('unit', args?.unitNumber || unitId);
+            // Pre-resolve property if provided to prevent ambiguous match on properties with identical units
+            let propertyScopeId: string | undefined;
+            if (args?.propertyName) {
+              const pRes = await this.resolutionService.resolveId('property', args.propertyName, context.companyId);
+              if (pRes?.id) propertyScopeId = pRes.id;
+            }
+            
+            // If we have a bound property scope, try exact match first
+            if (propertyScopeId && args?.unitNumber) {
+              const exactUnit = await this.prisma.unit.findFirst({
+                where: { unitNumber: { equals: args.unitNumber, mode: 'insensitive' }, propertyId: propertyScopeId }
+              });
+              if (exactUnit) unitId = exactUnit.id;
+            }
+
+            // Fallback to robust resolution if exact match fails
+            if (!unitId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(unitId)) {
+                const resolved = await this.resolutionService.resolveId('unit', args?.unitNumber || unitId, context.companyId);
+                if (resolved?.id) {
+                  unitId = resolved.id;
+                } else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) {
+                  return {
+                    error: 'AMBIGUOUS_MATCH',
+                    entity_type: 'unit',
+                    search_term: args?.unitNumber || unitId,
+                    required_action: 'SELECT_FROM_LIST',
+                    matches: resolved.candidates,
+                    message: `I found multiple units matching '${args?.unitNumber || unitId}'. Which one did you mean?`,
+                  };
+                } else {
+                  return this.formatNotFoundError('unit', args?.unitNumber || unitId);
+                }
             }
           }
 

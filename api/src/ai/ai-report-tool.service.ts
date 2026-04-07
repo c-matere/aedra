@@ -357,9 +357,10 @@ export class AiReportToolService {
           return await this.authService.registerCompany({
             companyName: args.companyName,
             email: args.email,
-            password: args.password || 'Temporary123!', // Auto-generate or use placeholder if missing
+            password: args.password || 'Temporary123!', 
             firstName: args.firstName || 'User',
             lastName: args.lastName || 'Owner',
+            phone: context.phone,
           });
         }
 

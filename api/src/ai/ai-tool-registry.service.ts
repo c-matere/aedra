@@ -30,9 +30,10 @@ export class AiToolRegistryService {
     [UserRole.COMPANY_STAFF]: [
       // Staff can do almost everything
       'list_properties', 'get_property_details', 'get_units', 'get_unit_details',
-      'list_units',
+      'list_units', 'create_property', 'update_property', 'create_unit',
+      'update_unit', 'update_unit_status', 'create_lease', 'update_lease',
       'get_portfolio_arrears', 'list_vacant_units',
-      'search_tenants', 'get_tenant_details', 'get_tenant_arrears',
+      'search_tenants', 'list_tenants', 'get_tenant_details', 'get_tenant_arrears',
       'get_tenant_statement',
       'list_payments', 'get_payment_details', 'get_lease_details',
       'get_collection_rate', 'get_occupancy_stats', 'get_maintenance_status',
@@ -42,11 +43,11 @@ export class AiToolRegistryService {
       'get_financial_summary',
       'get_revenue_summary', 'get_monthly_summary', 'generate_monthly_summary',
       'check_payment_status', 'get_payment_status',
-      'register_tenant', 'update_tenant_contact', 'log_maintenance_issue',
-      'update_ticket_status', 'process_payment', 'record_expense',
-      'log_maintenance', 'log_tenant_incident', 'log_payment_promise',
+      'register_tenant', 'create_tenant', 'bulk_create_tenants', 'import_tenants', 'update_tenant_contact', 'log_maintenance_issue',
+      'update_ticket_status', 'process_payment', 'record_payment', 'create_invoice', 'update_invoice',
+      'record_expense', 'log_maintenance', 'log_tenant_incident', 'log_payment_promise',
       'send_notification', 'notify_tenant', 'update_maintenance_request',
-      'send_rent_reminders', 'initiate_payment'
+      'send_rent_reminders', 'send_bulk_reminder', 'bulk_generate_invoices', 'initiate_payment'
     ],
     [UserRole.LANDLORD]: [
       'get_revenue_summary', 'get_collection_rate', 'list_properties',
@@ -227,16 +228,18 @@ export class AiToolRegistryService {
       if (allowedAdminActions.includes(name)) return true;
       
       // Fallback: Super Admin can also do anything Staff can do, but it's audited.
-      // (This fulfills the user's "minimize damage" by still auditing these actions via AiService)
       return this.ROLE_TOOL_ALLOWLIST[UserRole.COMPANY_STAFF].includes(name);
     }
 
     const effectiveRole = r === UserRole.COMPANY_ADMIN ? UserRole.COMPANY_STAFF : r;
+
     const allowed = this.ROLE_TOOL_ALLOWLIST[effectiveRole] || [];
-    
+
     // Explicitly allow agent tools for internal workflow if they are part of the system
     const agentTools = ['analyze_agent_goal', 'evaluate_agent_progress', 'process_agent_feedback', 'notify_agent_plan', 'send_agent_heartbeat', 'execute_agent_chunk'];
-    if (agentTools.includes(name)) return true;
+    if (agentTools.includes(name)) {
+      return true;
+    }
 
     return allowed.includes(name);
   }

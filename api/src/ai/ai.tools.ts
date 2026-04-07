@@ -121,8 +121,15 @@ export const coreReadTools = [
           type: SchemaType.STRING,
           description: 'The UUID of the unit',
         },
+        unitNumber: {
+          type: SchemaType.STRING,
+          description: 'The unit number or name (if UUID is unknown)',
+        },
+        propertyName: {
+          type: SchemaType.STRING,
+          description: 'The property name this unit belongs to. Required if relying on unitNumber.',
+        },
       },
-      required: ['unitId'],
     },
   },
   {

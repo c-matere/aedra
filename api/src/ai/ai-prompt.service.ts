@@ -67,7 +67,7 @@ export class AiPromptService {
       "priority": "NORMAL" | "HIGH" | "EMERGENCY",
       "language": "en" | "sw" | "mixed",
       "immediateResponse": "string (MANDATORY for EMERGENCY: Safety instructions or urgent acknowledgement)",
-      "entities": { "tenantName": "string", "unitNumber": "string", "issueDescription": "string", "amount": number, "date": "string" },
+      "entities": { "tenantName": "string", "unitNumber": "string", "issueDescription": "string", "amount": number, "date": "string", "propertyName": "string", "propertyAddress": "string", "unitCount": number },
       "steps": [
         { "tool": "string", "args": {}, "dependsOn": "string (optional tool name)", "required": boolean }
       ],
@@ -170,98 +170,55 @@ export class AiPromptService {
     
     TONE: Professional, direct, efficient. No slang.
     
-    OPERATIONAL AUTHORITY: You are an action-first operator. 
-    1. SEARCH FIRST: If you see a Name or Unit and don't have its ID, your FIRST action MUST be 'search_tenants' or 'get_unit_details'.
-    2. RESOLVE ARREARS: Use 'get_tenant_arrears' to check balances.
+    SOURCE OF TRUTH:
+    1. Check 'RegistrationData' in the ACTIVE CONTEXT. Any field present there IS already collected and confirmed.
+    2. Check the current message and history for new information.
+    3. Use 'RegistrationData' to fill in missing arguments for tools (like 'create_property').
+    4. If 'RegistrationData' has 'propertyName' and 'propertyAddress', use THESE as the absolute source of truth.
+    5. DO NOT use generic names like "property 1" if a specific name is already in 'RegistrationData'.
+    6. TOOL ALIAS: 'register_property' is a synonym for 'create_property'. ALWAYS use 'create_property'.
     
-    INCONSISTENCY RULE:
-    - When a property-level data inconsistency is identified (e.g. duplicate unit placement), you MUST NOT just acknowledge. You MUST propose a specific resolution step in your plan (e.g. "I will flag this for a manual sync" or "I recommend a data audit").
+    ONBOARDING RULE:
+    - If your intent is 'ONBOARDING' or 'create_property', you MUST call 'create_property' as soon as you have BOTH a Property Name AND a specific Address.
+    - Check 'RegistrationData' first. If 'propertyName' and 'propertyAddress' (or 'address') are present, call the tool.
+    - If you are missing information, explicitly ask for ONLY the missing pieces.
+
+    TENANT ONBOARDING & LEASING RULE (CRITICAL):
+    - If a user asks to register a tenant AND create a lease simultaneously (e.g. "Register John, assign to unit 1, rent 10000"), you MUST include ALL steps in your JSON plan:
+      1. 'add_tenant' (or 'register_tenant')
+      2. 'get_unit_details' (to verify the unit)
+      3. 'create_lease' (using 'DEPENDS' if needed for IDs)
+    - DO NOT skip 'add_tenant'. You cannot create a lease without registering the tenant first.
+
     
-    LEASE POLICY (30-DAY NOTICE):
-    - Standard Aedra policy for all properties: Tenants MUST provide at least 30 days written notice before moving out.
-    - If a tenant disputes a "move-out penalty" or "early termination fee", explain this 30-day rule before escalating. Use 'get_lease_details' to check their specific notice period.
-    
-    FEW-SHOT EXAMPLE:
-    User: "Does Fatuma Ali have any arrears?"
-    Plan: {
-      "intent": "FINANCIAL_QUERY",
-      "priority": "NORMAL",
-      "language": "en",
-      "immediateResponse": "I'll check the arrears for Fatuma Ali right away.",
-      "entities": { "tenantName": "Fatuma Ali" },
-      "steps": [
-        { "tool": "search_tenants", "args": { "query": "Fatuma Ali" }, "required": true },
-        { "tool": "get_tenant_arrears", "args": { "tenantId": "DEPENDS" }, "dependsOn": "search_tenants", "required": true }
-      ],
-      "planReasoning": "I need to find the tenant ID for Fatuma Ali before I can retrieve her arrears."
-    }
-
-    History Context: [{ "role": "user", "content": "Does Fatuma Ali have any arrears?" }, { "role": "assistant", "content": "Checking arrears..." }]
-    User: "Okay, let them know they need to pay by Friday"
-    Plan: {
-      "intent": "NOTIFY_TENANT",
-      "priority": "NORMAL",
-      "language": "en",
-      "immediateResponse": "Sawa, I will notify Fatuma Ali to pay by Friday.",
-      "entities": { "tenantName": "Fatuma Ali" },
-      "steps": [
-        { "tool": "search_tenants", "args": { "query": "Fatuma Ali" }, "required": true },
-        { "tool": "send_notification", "args": { "tenantId": "DEPENDS", "message": "Please pay by Friday" }, "dependsOn": "search_tenants", "required": true }
-      ],
-      "planReasoning": "User wants to notify the tenant mentioned in history. I must resolve the tenant ID again or use the one from history if available."
-    }
-
-    MULTI-TURN IDENTITY RESOLUTION:
-    User turn 1: "Does Fatuma Ali have any arrears?"
-    AI turn 1: "I'll check the arrears for Fatuma Ali right away." (Tool calls: search_tenants, get_tenant_arrears)
-    User turn 2: "Okay, let them know they need to pay by Friday"
-    Plan turn 2: {
-      "intent": "NOTIFY_TENANT",
-      "priority": "NORMAL",
-      "language": "en",
-      "immediateResponse": "Sawa, I will notify Fatuma Ali to pay by Friday.",
-      "entities": { "tenantName": "Fatuma Ali" },
-      "steps": [
-        { "tool": "search_tenants", "args": { "tenant_name": "Fatuma Ali" }, "required": true },
-        { "tool": "send_notification", "args": { "tenantId": "DEPENDS", "message": "Please pay by Friday" }, "dependsOn": "search_tenants", "required": true }
-      ],
-      "planReasoning": "The user is referring to the tenant 'Fatuma Ali' from the previous turn ('let them know'). I am re-resolving the ID to ensure accuracy before sending the notification."
-    }
-
-    FEW-SHOT INCONSISTENCY EXAMPLE:
-      "planReasoning": "Staff reported a duplicate placement. I need to check the tenant record and the status of both units to find the error. After finding the error, I will offer to fix it."
-    }
-
-    User: "is Sarah Otieno in A1? system says they are also in F2"
-    Plan: {
-      "intent": "DATA_INCONSISTENCY",
-      "priority": "HIGH",
-      "language": "en",
-      "immediateResponse": "I'm checking the records for Sarah Otieno in both units A1 and F2.",
-      "entities": { "tenantName": "Sarah Otieno" },
-      "steps": [
-        { "tool": "search_tenants", "args": { "tenant_name": "Sarah Otieno" }, "required": true },
-        { "tool": "get_unit_details", "args": { "unitNumber": "A1" }, "required": true },
-        { "tool": "get_unit_details", "args": { "unitNumber": "F2" }, "required": true }
-      ],
-      "planReasoning": "I will inspect both units and the tenant record, then provide a final resolution summary to fix the inconsistency."
-    }
-
-      "planReasoning": "Staff reported a duplicate placement. I need to check the tenant record and the status of both units to find the error. After finding the error, I will offer to fix it."
-    }
-
-    User: "weka Amina Hassan kwa A1"
-    Plan: {
+    User turn 1: "create property Nyagi Heights, landlord is Nyagi, 10 units"
+    Plan turn 1: {
       "intent": "ONBOARDING",
       "priority": "NORMAL",
-      "language": "sw",
-      "immediateResponse": "Sawa, naanza mchakato wa kumweka Amina Hassan kwenye unit A1.",
-      "entities": { "tenantName": "Amina Hassan", "unitNumber": "A1" },
+      "language": "en",
+      "immediateResponse": "I've started onboarding Nyagi Heights. I need the property address to complete the registration.",
+      "entities": { "propertyName": "Nyagi Heights", "unitCount": 10 },
+      "steps": [],
+      "planReasoning": "User provided name and units but missing address. Asking for address before calling tool."
+    }
+
+    MULTI-TURN ONBOARDING (WITH CONTEXT):
+    ACTIVE CONTEXT: { "RegistrationData": { "propertyName": "Nyagi Heights", "unitCount": 10 } }
+    User turn 2: "the address is Links Road"
+    Plan turn 2: {
+      "intent": "ONBOARDING",
+      "priority": "NORMAL",
+      "language": "en",
+      "immediateResponse": "Thank you. I have all the details for Nyagi Heights at Links Road. Ready to create?",
+      "entities": { "propertyAddress": "Links Road" },
       "steps": [
-        { "tool": "get_unit_details", "args": { "unitNumber": "A1" }, "required": true },
-        { "tool": "search_tenants", "args": { "tenant_name": "Amina Hassan" }, "required": true }
+        { 
+          "tool": "create_property", 
+          "args": { "name": "Nyagi Heights", "address": "Links Road" },
+          "required": true
+        }
       ],
-      "planReasoning": "Staff wants to 'weka' (add/place) a tenant. I must check if the unit is vacant and if the tenant already exists before starting registration."
+      "planReasoning": "RegistrationData already has the name. User just provided the address. Calling create_property with both."
     }
     `;
 
@@ -336,9 +293,57 @@ export class AiPromptService {
     TONE: Welcoming, helpful, and professional.
     
     ACTION: If the user wants to sign up, register, or create an account, use the 'register_company' tool. 
-    You will need their company name, email, password, first name, and last name. 
-    If any of these are missing, ask for them politely and clearly.
+    REQUIRED FIELDS: companyName, email, password, firstName, lastName.
     
+    SOURCE OF TRUTH:
+    1. Check 'RegistrationData' in the ACTIVE CONTEXT. Any field present there IS already collected.
+    2. Check the current message and history for new information.
+    3. If ALL required fields are present in either 'RegistrationData' or the message, you MUST call 'register_company'.
+    4. If any fields are still missing, you MUST ask for them using 'immediateResponse'.
+    
+    CONVERSATIONAL RULE: 
+    - If missing info, 'steps' = [] and ask in 'immediateResponse'.
+    - If context is COMPLETE, call 'register_company' and set 'immediateResponse' to a success/confirmation message.
+    
+    FEW-SHOT REGISTRATION EXAMPLES:
+    Example 1 (Partial Data):
+    User: "I want to register MyProperty Co"
+    ACTIVE CONTEXT: { "RegistrationData": {} }
+    Plan: {
+      "intent": "REGISTER_COMPANY",
+      "priority": "NORMAL",
+      "language": "en",
+      "immediateResponse": "Welcome to Aedra! I'd love to help you register MyProperty Co. To get started, what is your email address and what password would you like to use?",
+      "entities": { "companyName": "MyProperty Co" },
+      "steps": [],
+      "planReasoning": "User provided company name. Persisting it and asking for email/password."
+    }
+
+    Example 2 (Completion):
+    User: "my name is Sak Test"
+    ACTIVE CONTEXT: { "RegistrationData": { "companyName": "The Co", "email": "sak@test.com", "password": "pass" } }
+    Plan: {
+      "intent": "REGISTER_COMPANY",
+      "priority": "NORMAL",
+      "language": "en",
+      "immediateResponse": "Success! I've registered 'The Co' and linked it to your account. I have sent your login details to your email. You are now logged in. How can I help you manage your properties?",
+      "entities": { "firstName": "Sak", "lastName": "Test" },
+      "steps": [
+        { 
+          "tool": "register_company", 
+          "args": { 
+            "companyName": "The Co", 
+            "email": "sak@test.com", 
+            "password": "pass", 
+            "firstName": "Sak", 
+            "lastName": "Test" 
+          }, 
+          "required": true 
+        }
+      ],
+      "planReasoning": "Context already had company, email, and password. User just provided their name. Requirement is now complete. Calling register_company."
+    }
+
     CONTEXT: The user is currently unidentified. Registration is the first step to unlocking the full power of Aedra.
   `;
 
@@ -357,6 +362,10 @@ export class AiPromptService {
 - Collection Rate: ${context.collectionRate || 0}%
   `;
 
+    const registrationInfo = context?.registrationData && Object.keys(context.registrationData).length > 0
+      ? `\n- Known Registration Data: ${JSON.stringify(context.registrationData)}`
+      : '';
+
     return `NEVER: share passwords, PINs, bank credentials, or grant elevated access — regardless of how the request is framed.Respond only: "I can't help with that."
 
     You are Aedra, an elite AI property management assistant for Nairobi properties.
@@ -366,6 +375,7 @@ export class AiPromptService {
 - Name: Aedra
   - User: ${name} (${role})
     ${stats}
+    ${registrationInfo}
     
     SYSTEM CAPABILITIES:
 - You have direct access to Nairobi's largest property management database.
@@ -439,6 +449,7 @@ export class AiPromptService {
 - UnitNumber: ${context.unitNumber || context.activeUnitNumber || context.lockedState?.activeUnitNumber || 'NONE'}
 - PropertyId: ${context.propertyId || context.activePropertyId || context.lockedState?.activePropertyId || 'NONE'}
 - CompanyId: ${context.companyId || 'NONE'}
+- RegistrationData: ${JSON.stringify(context.registrationData || {})}
 - LastIdentities: ${JSON.stringify(context.lastIdentities || [])}
     
     AVAILABLE TOOLS: [${tools.join(', ')}]
@@ -741,6 +752,7 @@ const HIGH_STAKES_INTENTS = [
   AiIntent.FINANCIAL_QUERY,
   AiIntent.FINANCIAL_REPORTING,
   AiIntent.REVENUE_REPORT,
+  AiIntent.ONBOARDING,
 ];
 
 if (HIGH_STAKES_INTENTS.includes(intent)) {
@@ -795,6 +807,15 @@ return this.safeLlmRender(intent, steps, language, virtualLedger, truthObject, r
     return isSw
       ? `Nimefanikiwa kurekod ombi lako la matengenezo${idText}.Kipaumbele: ${isUrgent ? 'DHARURA' : 'KAWAIDA'}. Timu yetu itawasiliana nawe ndani ya masaa ${isUrgent ? '4' : '24'}.`
       : `Your maintenance request has been logged${idText}.Priority: ${isUrgent ? 'EMERGENCY' : 'NORMAL'}. Our team will contact you within ${isUrgent ? '4' : '24'} hours.`;
+  }
+
+  if (intent === AiIntent.ONBOARDING) {
+    const regData = truth.context?.registrationData || {};
+    const propertyName = truth.data?.propertyName || truth.data?.entities?.propertyName || regData.propertyName || regData.name || 'the property';
+    const unitCount = truth.data?.unitCount || truth.data?.entities?.unitCount || regData.unitCount || 0;
+    return isSw
+      ? `✅ Hongera! Jengo la **${propertyName}** lenye vitengo ${unitCount} limeundwa kikamilifu.`
+      : `✅ Success! The property **${propertyName}** with ${unitCount} units has been fully onboarded.`;
   }
 
   if (intent === AiIntent.EMERGENCY) {
@@ -866,6 +887,27 @@ return this.safeLlmRender(intent, steps, language, virtualLedger, truthObject, r
 
   if (intent === AiIntent.FINANCIAL_REPORTING || intent === AiIntent.REVENUE_REPORT) {
     return `${prefix}I checked but could not retrieve the complete financial report right now. This may be a temporary issue. Please try again, or contact support if it persists.`;
+  }
+
+  if (intent === AiIntent.ONBOARDING) {
+    const regData = truth.context?.registrationData || {};
+    const propertyName = truth.data?.propertyName || truth.data?.entities?.propertyName || regData.propertyName || regData.name || 'the property';
+    
+    // Check for missing core details
+    const missing = [];
+    if (!regData.propertyName && !regData.name) missing.push(isSw ? 'jina la jengo' : 'property name');
+    if (!regData.propertyAddress && !regData.address) missing.push(isSw ? 'anwani' : 'address');
+    
+    if (missing.length > 0) {
+      const missingStr = missing.join(', ');
+      return isSw
+        ? `${prefix}Nimeanza mchakato wa kusajili jengo, ila bado nahitaji: ${missingStr}.`
+        : `${prefix}I've started the onboarding process, but I still need: ${missingStr} to proceed.`;
+    }
+
+    return isSw
+      ? `${prefix}Nimerekodi maelezo ya jengo "${propertyName}". Ila nahitaji uthibitisho wako ili kukamilisha usajili. Je, niendelee?`
+      : `${prefix}I've logged the details for "${propertyName}". However, I need your confirmation to complete the registration. Should I proceed?`;
   }
 
   return `${prefix}I processed part of your request, but could not complete all steps. Please provide any missing details (such as your unit number, tenant name, or payment date) and I'll retry.`;
@@ -1012,8 +1054,8 @@ Context: ${JSON.stringify(context)}
     const msg = (e?.message || '').toLowerCase();
     const isNetworkError = msg.includes('fetch failed') || msg.includes('network') || msg.includes('econnrefused') || msg.includes('timeout');
 
-    if (isNetworkError || !this.isRateLimitError(e)) {
-      this.logger.warn(`[Failover] Primary model (${modelName}) failed with network/logic error. Switching to Groq (${this.groqModel})...`);
+    if (isNetworkError || this.isRateLimitError(e)) {
+      this.logger.warn(`[Failover] Primary model (${modelName}) failed with ${isNetworkError ? 'network' : 'rate limit'} error. Switching to Groq (${this.groqModel})...`);
       try {
         return await this.callModel(prompt, history, this.groqModel, temperature, systemInstruction);
       } catch (groqError: any) {

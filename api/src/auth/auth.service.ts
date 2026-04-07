@@ -57,6 +57,7 @@ export class AuthService {
     password: string;
     firstName: string;
     lastName: string;
+    phone?: string;
   }) {
     if (!data.email || typeof data.email !== 'string') {
       throw new BadRequestException('Email is required for registration.');
@@ -94,6 +95,7 @@ export class AuthService {
           password: hashedPassword,
           firstName: data.firstName,
           lastName: data.lastName,
+          phone: data.phone,
           role: UserRole.COMPANY_ADMIN,
           companyId: company.id,
           isActive: true,

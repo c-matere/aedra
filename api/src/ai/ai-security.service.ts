@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { UserRole } from '../auth/roles.enum';
 
 @Injectable()
 export class AiSecurityService {
@@ -8,7 +9,7 @@ export class AiSecurityService {
    * Checks if a message contains adversarial or unauthorized administrative requests.
    * Returns true if a violation is detected.
    */
-  isSecurityViolation(message: string): boolean {
+  isSecurityViolation(message: string, role?: UserRole): boolean {
     const m = message.toLowerCase();
     const flags = [
       'grant',
@@ -34,7 +35,13 @@ export class AiSecurityService {
 
     if (flags.some((f) => m.includes(f))) {
       // P0: Direct blocks for credentials regardless of context
-      if (m.includes('password') || m.includes('pin') || m.includes('credential')) return true;
+      // EXCEPTION: Allow passwords during registration for unidentified users
+      if (
+        (m.includes('password') || m.includes('pin') || m.includes('credential')) &&
+        role !== UserRole.UNIDENTIFIED
+      ) {
+        return true;
+      }
 
       // Intentional block for specific dangerous combinations
       if (

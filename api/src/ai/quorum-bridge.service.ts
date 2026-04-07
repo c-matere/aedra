@@ -85,10 +85,14 @@ export class QuorumBridgeService {
 
     if (!request.approverIds.includes(userId)) {
       const updatedIds = [...request.approverIds, userId];
+      const config = SENSITIVE_ACTIONS_REGISTRY[request.actionType];
+      const quorumMet = config && updatedIds.length >= config.quorumRequired;
+
       return this.prisma.authorizationRequest.update({
         where: { id: actionId },
         data: {
           approverIds: updatedIds,
+          status: quorumMet ? AuthorizationStatus.QUORUM_MET : AuthorizationStatus.PENDING,
           updatedAt: new Date(),
         },
       });

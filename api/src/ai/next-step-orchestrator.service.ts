@@ -13,7 +13,15 @@ export interface ActionResult<T = any> {
   action: string;
   message?: string;
   requires_authorization?: boolean;
+  requires_clarification?: boolean;
+  requires_confirmation?: boolean;
+  options?: any[];
   actionId?: string;
+  // Compatibility fields for legacy check
+  companyId?: string;
+  tenantId?: string;
+  unitId?: string;
+  propertyId?: string;
 }
 
 @Injectable()

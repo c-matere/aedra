@@ -49,7 +49,9 @@ export class AiFormatterService {
       };
     }
 
-    if (!result?.success) {
+    const isRawSuccess = Array.isArray(result) || (result && typeof result === 'object' && !result.error);
+    
+    if (!result?.success && !isRawSuccess) {
       // result.error can be a code string (e.g. 'MISSING_SESSION') or undefined
       const errorDetail =
         result?.message ||

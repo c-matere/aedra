@@ -63,6 +63,7 @@ export interface SessionContext {
   lastEntities?: Array<{ type: string; id: string; name: string }>;
   lastPriority?: string;
   lockedState?: LockedState;
+  registrationData?: Record<string, string>;
   updatedAt: number;
 }
 

@@ -21,6 +21,9 @@ export class AiController {
       companyName?: string;
       attachments?: any[];
       temperature?: number;
+      confirmed?: boolean;
+      classification?: any;
+      phone?: string;
     },
   ) {
     try {
@@ -32,9 +35,10 @@ export class AiController {
         body.companyName,
         body.attachments,
         undefined, // language
-        undefined, // classification
-        undefined, // phone
+        body.classification,
+        body.phone,
         body.temperature,
+        body.confirmed,
       );
     } catch (e) {
       console.error(`[AiController] Critical Error: ${e.message}`, e.stack);

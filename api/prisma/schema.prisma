@@ -547,6 +547,7 @@ model ChatHistory {
   title     String?
   userId    String?
   companyId String?
+  waPhone   String?
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
   deletedAt DateTime?
@@ -556,6 +557,7 @@ model ChatHistory {
 
   @@index([userId])
   @@index([companyId])
+  @@index([waPhone])
   @@index([deletedAt])
 }
 
