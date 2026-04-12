@@ -1722,13 +1722,9 @@ export async function getRecurringExpenses(
   propertyId?: string,
 ): Promise<BackendRequestResult<RecurringExpenseRecord[]>> {
   const path = propertyId
-    ? `${TARGET_ENDPOINTS.expenses}/recurring?propertyId=${propertyId}`
-    : `${TARGET_ENDPOINTS.expenses}/recurring`;
-  // Using TARGET_ENDPOINTS.expenses assuming recurring-expenses is under same prefix or I should define new one
-  // Actually the controller was /recurring-expenses
-  return backendGet<RecurringExpenseRecord[]>("/recurring-expenses", token, {
-    ...(propertyId ? { propertyId } : {}),
-  });
+    ? `/recurring-expenses?propertyId=${propertyId}`
+    : `/recurring-expenses`;
+  return backendGet<RecurringExpenseRecord[]>(path, token);
 }
 
 export async function createRecurringExpense(
