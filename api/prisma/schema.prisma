@@ -59,6 +59,7 @@ model Company {
   email                      String?
   phone                      String?
   address                    String?
+  pinNumber                  String?
   logo                       String?
   isActive                   Boolean                @default(true)
   createdAt                  DateTime               @default(now())
@@ -88,6 +89,9 @@ model Company {
   sessionDurationHours       Int                    @default(8)
   smsProvider                String                 @default("Africa's Talking")
   twoFactorAuthEnabled       Boolean                @default(false)
+  zuriDomain                 String?
+  zuriUsername               String?
+  zuriPassword               String?
   authorizationRequests      AuthorizationRequest[]
   chatHistories              ChatHistory[]
   documents                  Document[]
@@ -103,6 +107,8 @@ model Company {
   users                      User[]
   whatsappLogs               WhatsAppLog[]
   workflows                  WorkflowInstance[]
+  recurringExpenses          RecurringExpense[]
+  invoices                   Invoice[]
 }
 
 /// A custom role within a company, defining a set of permissions.
@@ -175,6 +181,7 @@ model Property {
   updatedAt            DateTime               @updatedAt
   deletedAt            DateTime?
   commissionPercentage Float                  @default(0)
+  location             String?
   semanticTags         String?
   embedding            Unsupported("vector")?
   documents            Document[]
@@ -187,6 +194,7 @@ model Property {
   assignments          PropertyAssignment[]
   tenants              Tenant[]
   units                Unit[]
+  recurringExpenses    RecurringExpense[]
 
   @@index([companyId])
   @@index([landlordId])
@@ -229,6 +237,7 @@ model Tenant {
   email        String?
   phone        String?
   idNumber     String?
+  tenantCode   String?
   companyId    String
   propertyId   String
   createdAt    DateTime               @default(now())
@@ -269,6 +278,9 @@ model Lease {
   unit         Unit?       @relation(fields: [unitId], references: [id])
   payments     Payment[]
   penalties    Penalty[]
+  notes        String?
+  agreementFee Float?
+  reminders    LeaseReminder[]
 
   @@index([propertyId])
   @@index([unitId])
@@ -353,6 +365,8 @@ model Invoice {
   updatedAt   DateTime    @updatedAt
   type        InvoiceType @default(RENT)
   deletedAt   DateTime?
+  companyId   String?
+  company     Company?    @relation(fields: [companyId], references: [id])
   lease       Lease       @relation(fields: [leaseId], references: [id])
 
   @@index([leaseId])
@@ -547,10 +561,10 @@ model ChatHistory {
   title     String?
   userId    String?
   companyId String?
-  waPhone   String?
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
   deletedAt DateTime?
+  waPhone   String?
   company   Company?      @relation(fields: [companyId], references: [id])
   user      User?         @relation(fields: [userId], references: [id])
   messages  ChatMessage[]
@@ -747,6 +761,7 @@ enum PaymentType {
   PENALTY
   UTILITY
   OTHER
+  AGREEMENT_FEE
 }
 
 /// Type of invoice
@@ -756,6 +771,7 @@ enum InvoiceType {
   PENALTY
   UTILITY
   OTHER
+  AGREEMENT_FEE
 }
 
 /// Status of a maintenance request
@@ -833,4 +849,35 @@ enum AuthorizationStatus {
 enum TodoStatus {
   PENDING
   DONE
+}
+
+model LeaseReminder {
+  id        String   @id @default(uuid())
+  text      String
+  remindAt  DateTime
+  leaseId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lease     Lease    @relation(fields: [leaseId], references: [id])
+
+  @@index([leaseId])
+}
+
+model RecurringExpense {
+  id          String          @id @default(uuid())
+  description String
+  amount      Float
+  dayOfMonth      Int
+  category        ExpenseCategory @default(OTHER)
+  isActive        Boolean         @default(true)
+  lastGeneratedAt DateTime?
+  companyId       String
+  propertyId  String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  company     Company         @relation(fields: [companyId], references: [id])
+  property    Property        @relation(fields: [propertyId], references: [id])
+
+  @@index([companyId])
+  @@index([propertyId])
 }

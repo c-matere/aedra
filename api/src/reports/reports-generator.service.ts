@@ -364,21 +364,21 @@ export class ReportsGeneratorService {
           
           .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
           .logo { max-height: 40px; filter: grayscale(100%); }
-          .receipt-label { font-size: 32px; font-weight: 800; text-transform: uppercase; letter-spacing: -1px; margin: 0; line-height: 1; }
-          .metadata { text-align: right; font-size: 13px; }
+          .receipt-label { font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: -1px; margin: 0; line-height: 1; }
+          .metadata { text-align: right; font-size: 11px; }
           .metadata p { margin: 2px 0; }
-          .metadata span { font-weight: 600; color: #666; text-transform: uppercase; font-size: 10px; margin-right: 5px; }
+          .metadata span { font-weight: 600; color: #666; text-transform: uppercase; font-size: 9px; margin-right: 5px; }
 
-          .section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #999; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 4px; margin-top: 30px; }
+          .section-label { font-size: 9px; font-weight: 700; text-transform: uppercase; color: #999; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 4px; margin-top: 30px; }
           
           .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
           .info-item { margin-bottom: 15px; }
-          .info-item .label { font-size: 10px; font-weight: 600; text-transform: uppercase; color: #999; margin-bottom: 2px; display: block; }
-          .info-item .value { font-size: 14px; font-weight: 600; }
+          .info-item .label { font-size: 9px; font-weight: 600; text-transform: uppercase; color: #999; margin-bottom: 2px; display: block; }
+          .info-item .value { font-size: 13px; font-weight: 600; }
 
-          .amount-box { border: 2px solid #111; padding: 25px; margin: 40px 0; text-align: center; }
-          .amount-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 5px; }
-          .amount-value { font-size: 36px; font-weight: 800; }
+          .amount-box { border: 1.5px solid #111; padding: 25px; margin: 40px 0; text-align: center; }
+          .amount-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 5px; }
+          .amount-value { font-size: 30px; font-weight: 800; }
 
           .stamp { position: absolute; bottom: 100px; right: 40px; border: 3px solid #111; padding: 8px 15px; border-radius: 4px; font-weight: 800; text-transform: uppercase; transform: rotate(-12deg); opacity: 0.15; font-size: 20px; letter-spacing: 2px; }
 
@@ -494,31 +494,31 @@ export class ReportsGeneratorService {
             
             .wrap { padding: 1.5rem; max-width: 900px; font-family: 'Outfit', sans-serif; margin: 0 auto; }
             
-            .cover { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; margin-bottom: 1.25rem; }
-            .cover-top { background: #0f1923; padding: 2rem; color: #fff; }
-            .cover-eyebrow { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #637285; margin-bottom: 0.6rem; font-family: 'DM Mono', monospace; }
-            .cover-title { font-family: 'DM Serif Display', serif; font-size: 30px; font-weight: 400; line-height: 1.15; margin-bottom: 0.4rem; }
-            .cover-sub { font-size: 12px; color: #8a9ab0; font-family: 'DM Mono', monospace; letter-spacing: 0.04em; }
+            .cover { border: 1.5px solid var(--color-text-primary); border-radius: var(--border-radius-lg); overflow: hidden; margin-bottom: 1.25rem; }
+            .cover-top { background: #fff; padding: 2rem; color: var(--color-text-primary); border-bottom: 1.5px solid var(--color-text-primary); }
+            .cover-eyebrow { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-text-secondary); margin-bottom: 0.6rem; font-family: 'DM Mono', monospace; }
+            .cover-title { font-family: 'DM Serif Display', serif; font-size: 26px; font-weight: 400; line-height: 1.15; margin-bottom: 0.4rem; }
+            .cover-sub { font-size: 11px; color: var(--color-text-secondary); font-family: 'DM Mono', monospace; letter-spacing: 0.04em; }
             
-            .cover-metrics { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--color-background-secondary); border-top: 0.5px solid var(--color-border-tertiary); }
-            .m-box { padding: 1rem 1.25rem; border-right: 0.5px solid var(--color-border-tertiary); }
+            .cover-metrics { display: grid; grid-template-columns: repeat(4, 1fr); background: #fff; border-top: none; }
+            .m-box { padding: 1rem 1.25rem; border-right: 1px solid var(--color-border-tertiary); }
             .m-box:last-child { border-right: none; }
-            .m-lbl { font-size: 10px; color: var(--color-text-secondary); font-weight: 400; margin-bottom: 5px; letter-spacing: 0.05em; text-transform: uppercase; font-family: 'DM Mono', monospace; }
-            .m-val { font-size: 24px; font-weight: 500; color: var(--color-text-primary); line-height: 1; }
-            .m-delta { font-size: 11px; margin-top: 4px; font-family: 'DM Mono', monospace; }
+            .m-lbl { font-size: 9px; color: var(--color-text-secondary); font-weight: 400; margin-bottom: 5px; letter-spacing: 0.05em; text-transform: uppercase; font-family: 'DM Mono', monospace; }
+            .m-val { font-size: 20px; font-weight: 500; color: var(--color-text-primary); line-height: 1; }
+            .m-delta { font-size: 10px; margin-top: 4px; font-family: 'DM Mono', monospace; }
             .up { color: #1d9e75; } .dn { color: #d85a30; } .neutral { color: var(--color-text-secondary); }
             
-            .section { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
-            .s-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 0.5px solid var(--color-border-tertiary); }
-            .s-title { font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-text-secondary); font-family: 'DM Mono', monospace; }
+            .section { background: #fff; border: 1px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
+            .s-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--color-border-tertiary); }
+            .s-title { font-size: 9px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-text-secondary); font-family: 'DM Mono', monospace; }
             
-            .badge { font-size: 10px; padding: 3px 8px; border-radius: 4px; font-family: 'DM Mono', monospace; letter-spacing: 0.04em; }
-            .b-green { background: #eaf3de; color: #3b6d11; }
-            .b-amber { background: #faeeda; color: #854f0b; }
-            .b-red { background: #fcebeb; color: #a32d2d; }
-            .b-blue { background: #e6f1fb; color: #185fa5; }
+            .badge { font-size: 9px; padding: 3px 8px; border-radius: 4px; font-family: 'DM Mono', monospace; letter-spacing: 0.04em; }
+            .b-green { background: #f1f8e9; color: #3b6d11; border: 1px solid #dcedc8; }
+            .b-amber { background: #fff8e1; color: #854f0b; border: 1px solid #ffecb3; }
+            .b-red { background: #fff1f0; color: #a32d2d; border: 1px solid #ffa39e; }
+            .b-blue { background: #e6f7ff; color: #185fa5; border: 1px solid #91d5ff; }
             
-            .exec-box { background: var(--color-background-secondary); border-left: 3px solid #0f1923; padding: 1rem 1.25rem; border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0; font-size: 14px; line-height: 1.85; color: var(--color-text-primary); }
+            .exec-box { background: #fafafa; border-left: 3px solid #0f1923; padding: 1rem 1.25rem; border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0; font-size: 12px; line-height: 1.7; color: var(--color-text-primary); }
             
             .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
             .chart-label { font-size: 10px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.07em; color: var(--color-text-secondary); margin-bottom: 8px; }
@@ -915,6 +915,213 @@ export class ReportsGeneratorService {
             .join('')}
 
           <div class="footer">Confidential · Internal Version Control Report · Aedra AI</div>
+      </body>
+      </html>
+    `;
+  }
+
+  async generateTenantStatementPdf(
+    data: any,
+    fileName: string,
+  ): Promise<string> {
+    const html = this.renderTenantStatementHtml(data);
+    return this.generatePdfFromHtml(html, fileName);
+  }
+
+  private renderTenantStatementHtml(data: any): string {
+    const { company, tenant, property, unit, lease, ledger, summaries, openingBalance, closingBalance, range } = data;
+    
+    // Group ledger by month
+    const groupedLedger: Record<string, any[]> = {};
+    ledger.forEach((item: any) => {
+      const d = new Date(item.date);
+      const month = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+      if (!groupedLedger[month]) groupedLedger[month] = [];
+      groupedLedger[month].push(item);
+    });
+
+    const fmt = (n: number) => new Intl.NumberFormat('en-KE', { minimumFractionDigits: 2 }).format(n);
+    const dt = (dStr: string) => new Date(dStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    const logoHtml = company.logo 
+      ? `<img src="${this.resolveLogoUrl(company.logo)}" style="max-height: 80px; max-width: 200px; filter: grayscale(100%);" />`
+      : `<div style="width: 80px; height: 80px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 32px; color: #d1d5db;">${company.name.charAt(0)}</div>`;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+          body { font-family: 'Inter', sans-serif; padding: 40px; color: #111; line-height: 1.4; margin: 0; background: #fff; font-size: 11px; }
+          .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #000; padding-bottom: 30px; margin-bottom: 40px; }
+          .company-info h1 { font-size: 22px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: -1px; }
+          .company-info p { margin: 5px 0 0; color: #666; font-size: 11px; max-width: 300px; }
+          .meta-info { text-align: right; font-size: 11px; color: #666; }
+          .meta-info p { margin: 2px 0; }
+          
+          .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+          .section-title { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #999; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 12px; }
+          .data-box p { margin: 3px 0; font-size: 11px; }
+          .data-box .bold { font-weight: 700; }
+          
+          .ledger-summary { border: 1.5px solid #000; padding: 0; border-radius: 6px; overflow: hidden; }
+          .ls-row { display: flex; justify-content: space-between; padding: 6px 12px; font-size: 11px; border-bottom: 1px solid #eee; }
+          .ls-row:last-child { border-bottom: none; }
+          .ls-row.dark { background: transparent; color: #000; font-weight: 900; border-top: 1.5px solid #000; padding-top: 8px; padding-bottom: 8px; }
+          .ls-row span { font-family: 'Courier New', Courier, monospace; font-weight: bold; }
+          
+          table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+          th { padding: 8px; text-align: left; font-size: 9px; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #000; }
+          td { padding: 8px; font-size: 10px; border-bottom: 1px solid #f9f9f9; }
+          .month-row { background: #fafafa; font-weight: 800; font-size: 9px; text-transform: uppercase; color: #999; }
+          .amount { text-align: right; font-family: 'Courier New', Courier, monospace; }
+          .balance { font-weight: bold; background: #fafafa; }
+          
+          .summaries { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; border-top: 1px solid #eee; padding-top: 40px; }
+          .summary-item { display: flex; justify-content: space-between; font-size: 10px; padding: 4px 0; border-bottom: 1px solid #f9f9f9; }
+          .total-box { border: 1.5px solid #000; background: transparent; color: #000; padding: 8px; border-radius: 4px; display: flex; justify-content: space-between; font-weight: bold; margin-top: 10px; font-size: 11px; }
+          
+          .deposit-card { background: #f9fafb; border-radius: 8px; padding: 15px; }
+          .footer { margin-top: 80px; padding-top: 20px; border-top: 1px solid #eee; display: flex; justify-content: space-between; font-size: 9px; color: #999; text-transform: uppercase; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div style="display: flex; gap: 20px; align-items: center;">
+            ${logoHtml}
+            <div class="company-info">
+              <h1>${company.name}</h1>
+              <p>${company.address || ''}</p>
+            </div>
+          </div>
+          <div class="meta-info">
+            <p>TEL: ${company.phone || 'N/A'}</p>
+            <p>${company.email || ''}</p>
+            ${company.pinNumber ? `<p style="margin-top: 8px; font-weight: bold;">PIN: ${company.pinNumber}</p>` : ''}
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="data-box">
+            <div class="section-title">Client Information</div>
+            <p class="bold">${tenant.firstName} ${tenant.lastName}</p>
+            <p style="color: #666;">Code: ${tenant.tenantCode || 'TC-' + tenant.id.slice(0, 6).toUpperCase()}</p>
+            <p style="color: #666;">${tenant.phone || ''}</p>
+          </div>
+          
+          <div class="data-box">
+            <div class="section-title">Lease Details</div>
+            <p class="bold">${property.name} · Unit ${unit.unitNumber}</p>
+            <p style="color: #666; font-size: 11px;">${property.address || ''}</p>
+            <p style="margin-top: 10px; font-size: 11px;">Started: <span class="bold">${dt(lease.startDate)}</span></p>
+            <p style="font-size: 11px;">Rent: <span class="bold">KES ${fmt(lease.rentAmount)}</span></p>
+          </div>
+
+          <div class="data-box">
+            <div class="section-title">Ledger Summary</div>
+            <div class="ledger-summary">
+              <div class="ls-row">
+                <span>Opening Balance</span>
+                <span>KES ${fmt(openingBalance)}</span>
+              </div>
+              <div class="ls-row dark">
+                <span>Current Closing</span>
+                <span>KES ${fmt(closingBalance)}</span>
+              </div>
+            </div>
+            <p style="font-size: 9px; color: #999; text-align: right; margin-top: 5px; font-style: italic;">
+              Period: ${dt(range.start)} to ${dt(range.end)}
+            </p>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th width="15%">Date</th>
+              <th width="15%">Reference</th>
+              <th>Description</th>
+              <th width="12%" style="text-align: right;">Debit</th>
+              <th width="12%" style="text-align: right;">Credit</th>
+              <th width="15%" style="text-align: right;">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${Object.entries(groupedLedger).map(([month, items]) => `
+              <tr>
+                <td colspan="6" class="month-row">${month}</td>
+              </tr>
+              ${items.map(item => `
+                <tr>
+                  <td style="color: #666;">${dt(item.date)}</td>
+                  <td style="font-size: 10px; color: #999;">${item.code}</td>
+                  <td style="font-weight: 500;">${item.description}</td>
+                  <td class="amount">${item.debit > 0 ? fmt(item.debit) : '-'}</td>
+                  <td class="amount">${item.credit > 0 ? fmt(item.credit) : '-'}</td>
+                  <td class="amount balance" style="color: ${item.balance > 0 ? '#000' : '#d00'}">${fmt(item.balance)}</td>
+                </tr>
+              `).join('')}
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="summaries">
+          <div>
+            <div class="section-title">Invoice Summary</div>
+            ${summaries.invoices.map((s: any) => `
+              <div class="summary-item">
+                <span style="color: #666;">${s.type.replace(/_/g, ' ')}</span>
+                <span class="bold">${fmt(s.amount)}</span>
+              </div>
+            `).join('')}
+            <div class="total-box">
+              <span>Total Debits</span>
+              <span>${fmt(summaries.invoices.reduce((a: any, b: any) => a + b.amount, 0))}</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-title">Payment Summary</div>
+            ${summaries.payments.map((s: any) => `
+              <div class="summary-item">
+                <span style="color: #666;">${s.type.replace(/_/g, ' ')}</span>
+                <span class="bold">${fmt(s.amount)}</span>
+              </div>
+            `).join('')}
+            <div class="total-box">
+              <span>Total Credits</span>
+              <span>${fmt(summaries.payments.reduce((a: any, b: any) => a + b.amount, 0))}</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-title">Deposit Summary</div>
+            <div class="deposit-card">
+              <div class="summary-item" style="border-bottom-color: #eee;">
+                <span style="color: #999; text-transform: uppercase; font-size: 9px;">Status</span>
+                <span style="color: #16a34a; font-weight: 900; font-size: 10px;">SECURED</span>
+              </div>
+              <div class="summary-item" style="border-bottom-color: #eee; margin-top: 10px;">
+                <span style="color: #666;">L/L Held</span>
+                <span class="bold">KES ${fmt(lease.deposit || 0)}</span>
+              </div>
+              <div class="summary-item" style="border-bottom-color: #eee;">
+                <span style="color: #666;">Agent Held</span>
+                <span class="bold">KES 0.00</span>
+              </div>
+              <div class="summary-item" style="border-bottom: none; margin-top: 5px; font-size: 13px;">
+                <span class="bold">Refundable</span>
+                <span class="bold" style="color: #000;">KES ${fmt(lease.deposit || 0)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <div>© ${new Date().getFullYear()} ${company.name} · Statement Generated via Aedra Platform</div>
+          <div>Computer Generated Document · Page 1 of 1</div>
+        </div>
       </body>
       </html>
     `;
