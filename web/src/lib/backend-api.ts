@@ -711,6 +711,29 @@ async function backendGet<T>(
   return backendRequest<T>(path, token, "GET");
 }
 
+async function backendPost<T>(
+  path: string,
+  payload: unknown,
+  token: string,
+): Promise<BackendRequestResult<T>> {
+  return backendRequest<T>(path, token, "POST", payload);
+}
+
+async function backendPut<T>(
+  path: string,
+  payload: unknown,
+  token: string,
+): Promise<BackendRequestResult<T>> {
+  return backendRequest<T>(path, token, "PUT", payload);
+}
+
+async function backendDelete<T>(
+  path: string,
+  token: string,
+): Promise<BackendRequestResult<T>> {
+  return backendRequest<T>(path, token, "DELETE");
+}
+
 async function backendRequest<T>(
   path: string,
   sessionToken: string,
