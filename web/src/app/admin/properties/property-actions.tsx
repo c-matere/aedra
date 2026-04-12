@@ -28,6 +28,7 @@ import { FieldSchema, parseForm, parseText, parseFloatValue } from "@/lib/form-h
 type CreatePropertyFormValues = {
     name: string
     address?: string
+    location?: string
     propertyType?: string
     description?: string
     commissionPercentage?: number
@@ -55,6 +56,10 @@ const propertyCreateFieldSchema: FieldSchema[] = [
     },
     {
         name: "address",
+        parser: parseText,
+    },
+    {
+        name: "location",
         parser: parseText,
     },
     {
@@ -96,6 +101,10 @@ const propertyUpdateFieldSchema: FieldSchema[] = [
     },
     {
         name: "address",
+        parser: parseText,
+    },
+    {
+        name: "location",
         parser: parseText,
     },
     {

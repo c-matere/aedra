@@ -237,7 +237,7 @@ export function LeaseDetailsPanel({ lease, token, children }: LeaseDetailsPanelP
                                                     <p className="text-xs font-black text-white uppercase tracking-tighter">
                                                         {log.action} {log.entity || 'LEASE'}
                                                     </p>
-                                                    <Badge variant="ghost" className={`text-[8px] font-black uppercase px-1 h-3.5 ${log.outcome === 'SUCCESS' ? 'text-emerald-400' : 'text-red-400'}`}>{log.outcome}</Badge>
+                                                    <Badge variant="outline" className={`text-[8px] font-black uppercase px-1 h-3.5 ${log.outcome === 'SUCCESS' ? 'text-emerald-400' : 'text-red-400'}`}>{log.outcome}</Badge>
                                                 </div>
                                                 <p className="text-[10px] text-neutral-500 font-medium">{new Date(log.timestamp).toLocaleString()}</p>
                                             </div>

@@ -99,6 +99,9 @@ export interface TenantRecord {
   unitNumber?: string;
   propertyName?: string;
   propertyId?: string;
+  tenantCode?: string;
+  idNumber?: string;
+  companyId: string;
   rentAmount?: number;
   leaseEnd?: string;
 }
@@ -252,6 +255,7 @@ export interface CompanyRecord {
   email?: string;
   phone?: string;
   address?: string;
+  pinNumber?: string;
   logo?: string;
   isActive: boolean;
   // Security settings
@@ -511,7 +515,7 @@ export interface CreateLeasePayload {
     phone?: string;
     idNumber?: string;
     tenantCode?: string;
-    companyId: string;
+    companyId?: string;
   };
   notes?: string;
   reminders?: { text: string; remindAt: string }[];
