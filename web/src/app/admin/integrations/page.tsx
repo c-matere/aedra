@@ -13,7 +13,8 @@ import {
   Smartphone,
   Map as MapIcon,
   CreditCard,
-  History
+  History,
+  AlertCircle
 } from "lucide-react";
 import { ZuriSyncCard } from "./zuri-sync-card";
 import { MpesaSyncCard } from "./mpesa-sync-card";
