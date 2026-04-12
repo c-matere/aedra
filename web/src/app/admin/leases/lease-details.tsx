@@ -188,8 +188,8 @@ export function LeaseDetailsPanel({ lease, token, children }: LeaseDetailsPanelP
                                         <span className="text-[9px] font-black bg-white/5 px-2 py-0.5 rounded text-neutral-500">LAST 12 MONTHS</span>
                                     </div>
                                     <div className="space-y-2">
-                                        {[...invoices.map(i => ({ ...i, entryType: 'INVOICE' })), ...payments.map(p => ({ ...p, entryType: 'PAYMENT' }))]
-                                            .sort((a, b) => new Date(b.dueDate || (b as any).paidAt).getTime() - new Date(a.dueDate || (a as any).paidAt).getTime())
+                                        {[...invoices.map(i => ({ ...i, entryType: 'INVOICE' as const, date: i.dueDate })), ...payments.map(p => ({ ...p, entryType: 'PAYMENT' as const, date: p.paidAt }))]
+                                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                                             .map((entry: any, idx) => (
                                                 <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all group">
                                                     <div className="flex items-center gap-3">
@@ -198,7 +198,7 @@ export function LeaseDetailsPanel({ lease, token, children }: LeaseDetailsPanelP
                                                         </div>
                                                         <div>
                                                             <p className="text-xs font-bold text-white uppercase tracking-tighter">{entry.description || entry.type || entry.method || entry.entryType}</p>
-                                                            <p className="text-[10px] text-neutral-600 font-medium">{new Date(entry.dueDate || entry.paidAt).toLocaleDateString()}</p>
+                                                            <p className="text-[10px] text-neutral-600 font-medium">{new Date(entry.date).toLocaleDateString()}</p>
                                                         </div>
                                                     </div>
                                                     <div className="text-right">

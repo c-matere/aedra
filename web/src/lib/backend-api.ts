@@ -184,6 +184,7 @@ export interface PaymentRecord {
   type: string;
   reference?: string;
   notes?: string;
+  paidAt: string;
   lease?: {
     id: string;
     tenant?: {
