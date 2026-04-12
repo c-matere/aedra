@@ -31,22 +31,28 @@ export default async function IntegrationsPage() {
   const token = await getSessionTokenFromCookie();
   const sessionToken = token || "";
   
-  const [paymentsResult, maintenanceResult, meResult] = await Promise.all([
-    listPayments(sessionToken),
-    listMaintenanceRequests(sessionToken),
-    fetchMe(sessionToken)
-  ]);
+  let paymentsResult, maintenanceResult, meResult;
+  try {
+    [paymentsResult, maintenanceResult, meResult] = await Promise.all([
+      listPayments(sessionToken),
+      listMaintenanceRequests(sessionToken),
+      fetchMe(sessionToken)
+    ]);
+  } catch (error) {
+    console.error("[IntegrationsPage] Data fetch error:", error);
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <AlertCircle className="h-12 w-12 text-red-500" />
+        <h2 className="text-xl font-bold text-white">Interface Sync Failure</h2>
+        <p className="text-neutral-400">We couldn't connect to the integration heartbeat. Please check your network or try again.</p>
+        <Button onClick={() => window.location.reload()} variant="outline" className="border-white/10 text-white">Retry Connection</Button>
+      </div>
+    );
+  }
 
   const companyId = meResult.data?.user?.companyId;
-  const logMsg = `[IntegrationsPage] User: ${meResult.data?.user?.email} Role: ${role} CompanyId: ${companyId}\n`;
   const companyResult = companyId ? await getCompany(sessionToken, companyId) : { data: null, error: null };
   const company = companyResult.data;
-  const logMsg2 = `[IntegrationsPage] Company: ${company?.name} Error: ${companyResult.error}\n`;
-  
-  if (typeof window === 'undefined') {
-    const fs = require('fs');
-    fs.appendFileSync('integrations-debug.log', logMsg + logMsg2);
-  }
 
   const payments = paymentsResult.data?.data ?? [];
   const maintenance = maintenanceResult.data?.data ?? [];

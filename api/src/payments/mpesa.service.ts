@@ -30,7 +30,7 @@ export class MpesaService {
     private readonly financesService: FinancesService,
   ) {}
 
-  async handleC2BWebhook(data: MpesaWebhookDto) {
+  async handleC2BWebhook(data: MpesaWebhookDto, manualCompanyId?: string) {
     const startTime = Date.now();
     this.logger.log(
       `[M-Pesa] Webhook received: ${data.TransID} | ${data.MSISDN} | KES ${data.TransAmount} | ShortCode: ${data.BusinessShortCode}`,
@@ -45,12 +45,15 @@ export class MpesaService {
     const shortCode = data.BusinessShortCode;
 
     // STEP 0 — Multi-tenant Company resolution
-    const company = await this.prisma.company.findUnique({
-        where: { mpesaShortcode: shortCode }
-    });
+    let company;
+    if (manualCompanyId) {
+        company = await this.prisma.company.findUnique({ where: { id: manualCompanyId } });
+    } else if (shortCode) {
+        company = await this.prisma.company.findUnique({ where: { mpesaShortcode: shortCode } });
+    }
 
     if (!company) {
-        this.logger.error(`[M-Pesa] FATAL: Received payment for unregistered ShortCode: ${shortCode}`);
+        this.logger.error(`[M-Pesa] FATAL: Received payment for unregistered or missing company. ShortCode: ${shortCode}, ManualId: ${manualCompanyId}`);
         // We still accept it to stop Safaricom retries, but we can't process it automatically
         return { ResultCode: 0, ResultDesc: 'Accepted but company not found' };
     }
@@ -370,7 +373,9 @@ Thank you!
     const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
     const password = Buffer.from(`${creds.shortCode}${creds.passkey}${timestamp}`).toString('base64');
     
-    const callbackUrl = `${process.env.API_URL}/payments/c-p/callback`;
+    const callbackUrl = companyId 
+        ? `${process.env.API_URL}/payments/c-p/callback/${companyId}`
+        : `${process.env.API_URL}/payments/c-p/callback`;
     const formattedPhone = phone.startsWith('254') ? phone : `254${phone.slice(-9)}`;
 
     const body = {
