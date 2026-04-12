@@ -35,14 +35,21 @@ export class MpesaController {
 
   /**
    * STK Push Callback URL (Daraja/LNM)
+   * Supports both legacy and company-scoped URLs.
    */
-  @Post('callback/:companyId?')
-  async handleCallback(@Body() body: any, @Param('companyId') paramCompanyId?: string) {
-    this.logger.log(`M-Pesa STK Callback: ${JSON.stringify(body)}`);
-    
-    // Check if companyId was provided in URL (preferred for multi-tenancy)
-    const companyId = paramCompanyId;
+  @Post('callback')
+  async handleCallbackGeneral(@Body() body: any) {
+    return this.processCallback(body);
+  }
 
+  @Post('callback/:companyId')
+  async handleCallbackScoped(@Body() body: any, @Param('companyId') companyId: string) {
+    return this.processCallback(body, companyId);
+  }
+
+  private async processCallback(body: any, companyId?: string) {
+    this.logger.log(`M-Pesa STK Callback [Company: ${companyId || 'Global'}]: ${JSON.stringify(body)}`);
+    
     // STK push has a different structure (Body.stkCallback)
     const callbackData = body?.Body?.stkCallback;
     if (!callbackData) return { ResultCode: 1, ResultDesc: 'Invalid Payload' };
