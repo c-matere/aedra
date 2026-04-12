@@ -51,6 +51,36 @@ export class AiReportToolService {
     const isSuperAdmin =
       role === UserRole.SUPER_ADMIN || context.role === UserRole.SUPER_ADMIN;
 
+    const looksLikeAccidentalPropertyName = (name: any): boolean => {
+      const n = (name || '').toString().toLowerCase().trim();
+      if (!n) return true;
+      // Very short / generic phrases that commonly come from mis-parsing a sentence
+      if (n.length < 3) return true;
+      // Property names rarely include sentence punctuation; this is usually a transcription/LLM extraction artifact.
+      if (/[?!.,"']/.test(n)) return true;
+      if (/^(is|are|was|were)\b/.test(n)) return true;
+      if (/\b(is|are|was|were)\s+doing\b/.test(n)) return true;
+      if (/\b(doing|performing)\b/.test(n) && n.split(/\s+/).length <= 3)
+        return true;
+      if (/\b(our|the)\s+properties\b/.test(n)) return true;
+      // "status/report" phrases commonly get mis-extracted as a "propertyName"
+      if (/\b(status|report|summary|breakdown|download|pdf|csv)\b/.test(n)) {
+        const words = n.split(/\s+/).filter(Boolean);
+        if (words.length >= 3) return true;
+      }
+      // Stopword-heavy phrases are usually not actual property names.
+      const words = n.split(/\s+/).filter(Boolean);
+      if (words.length >= 4) {
+        const stop = new Set([
+          'the','a','an','and','or','to','for','with','of','in','on','at','from','by','please','kindly',
+          'show','send','generate','give','get','make','do','report','status',
+        ]);
+        const stopCount = words.filter((w: string) => stop.has(w)).length;
+        if (stopCount / words.length >= 0.5) return true;
+      }
+      return false;
+    };
+
     if (scope === 'platform') {
       if (!isSuperAdmin) {
         return {
@@ -74,6 +104,11 @@ export class AiReportToolService {
     if (scope === 'property') {
       let propertyId = args?.propertyId;
       if (!propertyId && args?.propertyName) {
+        if (looksLikeAccidentalPropertyName(args.propertyName)) {
+          // Downgrade to company scope rather than failing on a non-property phrase.
+          // The user can still ask "report property <name>" explicitly.
+          return { ok: true, args: { ...args, scope: 'company', propertyName: undefined }, scope: 'company' };
+        }
         const resolved = await this.resolutionService.resolveId(
           'property',
           args.propertyName,
@@ -122,6 +157,71 @@ export class AiReportToolService {
   ): Promise<any> {
     try {
       switch (name) {
+        case 'get_report_status': {
+          const jobId = String(
+            (args?.jobId ||
+              context?.lastReportJobId ||
+              context?.lastReportJob?.id ||
+              '') ?? '',
+          ).trim();
+          if (!jobId) {
+            return {
+              requires_clarification: true,
+              message:
+                language === 'sw'
+                  ? 'Sina Job ID ya ripoti ya hivi karibuni. Tuma "report" kutengeneza ripoti, au tuma Job ID.'
+                  : 'I can’t find a recent report job ID. Reply “report” to generate a report, or paste the Job ID.',
+            };
+          }
+
+          const job = await this.backgroundQueue.getJob(jobId).catch(() => null);
+          if (!job) {
+            return {
+              requires_clarification: true,
+              message:
+                language === 'sw'
+                  ? `Sijaweza kupata kazi ya ripoti (Job ID: ${jobId}). Tafadhali tengeneza ripoti mpya kwa "report".`
+                  : `I couldn’t find that report job (Job ID: ${jobId}). Please generate a new report by replying “report”.`,
+            };
+          }
+
+          const state = await job.getState().catch(() => 'unknown');
+          const started = (job as any).processedOn
+            ? new Date((job as any).processedOn)
+            : null;
+          const finished = (job as any).finishedOn
+            ? new Date((job as any).finishedOn)
+            : null;
+          const created = (job as any).timestamp
+            ? new Date((job as any).timestamp)
+            : null;
+          const toStr = (d: Date | null) =>
+            d ? d.toISOString().replace('T', ' ').replace('Z', ' UTC') : '—';
+
+          let message =
+            language === 'sw'
+              ? `📄 Hali ya ripoti\n\n- Job ID: ${jobId}\n- Hali: ${state}\n- Imeombwa: ${toStr(created)}\n- Imeanza: ${toStr(started)}\n- Imemaliza: ${toStr(finished)}`
+              : `📄 Report status\n\n- Job ID: ${jobId}\n- State: ${state}\n- Requested: ${toStr(created)}\n- Started: ${toStr(started)}\n- Finished: ${toStr(finished)}`;
+
+          const failedReason = (job as any).failedReason;
+          if (state === 'failed' && failedReason) {
+            message +=
+              language === 'sw'
+                ? `\n- Sababu: ${String(failedReason).slice(0, 180)}`
+                : `\n- Reason: ${String(failedReason).slice(0, 180)}`;
+          }
+
+          const rv: any = (job as any).returnvalue;
+          if (state === 'completed' && rv?.url) {
+            message +=
+              language === 'sw'
+                ? `\n\nLink ya ripoti: ${rv.url}`
+                : `\n\nReport link: ${rv.url}`;
+          }
+
+          return { message, jobId, state };
+        }
+
         case 'get_financial_report': {
           const canDisableScrub =
             role === UserRole.SUPER_ADMIN || role === UserRole.COMPANY_ADMIN;
@@ -265,7 +365,20 @@ export class AiReportToolService {
               fileName,
               fields,
             );
-            return { message: `CSV report generated successfully.`, url };
+            return {
+              message: `CSV report generated successfully.`,
+              url,
+              artifacts: [
+                {
+                  kind: 'report',
+                  format: 'csv',
+                  url,
+                  fileName,
+                  reportType,
+                  scope: resolved.scope,
+                },
+              ],
+            };
           } else {
             const targetPhone = context.phone || args.targetPhone;
             if (!targetPhone) {
@@ -287,10 +400,23 @@ export class AiReportToolService {
                 fileName,
                 company?.logo || undefined,
               );
-              return { message: `PDF report generated successfully.`, url };
+              return {
+                message: `PDF report generated successfully.`,
+                url,
+                artifacts: [
+                  {
+                    kind: 'report',
+                    format: 'pdf',
+                    url,
+                    fileName,
+                    reportType,
+                    scope: resolved.scope,
+                  },
+                ],
+              };
             }
 
-            await this.backgroundQueue.add('generate_report_pdf', {
+            const job = await this.backgroundQueue.add('generate_report_pdf', {
               reportType,
               companyId:
                 resolved.scope === 'platform' ? undefined : context.companyId,
@@ -312,6 +438,15 @@ export class AiReportToolService {
             return {
               message: `Report generation started in the background. It will be sent to your WhatsApp shortly.`,
               note: 'Generating Premium PDF with AI Insights. Delivery via WhatsApp in ~30 seconds.',
+              jobId: String((job as any)?.id ?? ''),
+              artifacts: [
+                {
+                  kind: 'report_job',
+                  jobId: String((job as any)?.id ?? ''),
+                  reportType,
+                  scope: resolved.scope,
+                },
+              ],
             };
           }
         }
@@ -650,6 +785,7 @@ export class AiReportToolService {
                     ? { property: { landlordId: context.userId } }
                     : {}),
                 },
+                type: { notIn: ['PENALTY', 'AGREEMENT_FEE'] },
               },
               select: {
                 amount: true,
@@ -695,6 +831,7 @@ export class AiReportToolService {
                     ? { property: { landlordId: context.userId } }
                     : {}),
                 },
+                type: { notIn: ['PENALTY', 'AGREEMENT_FEE'] },
               },
               select: {
                 amount: true,

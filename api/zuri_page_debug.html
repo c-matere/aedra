@@ -1,0 +1,1047 @@
+
+        
+        
+        
+        
+        
+        
+        <div class="wrapper">
+
+            <div class="modal fade" id="modalConfirm" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" style="max-width:600px">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Request for Approval</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+
+                        <div class="modal-body">
+                            <div class="d-flex align-items-start mb-3">
+                                <span class="text-warning fs-2 me-3">⚠</span>
+                                <h5 id="instruction"></h5>
+                            </div>
+                            <table class="table table-striped table-bordered">
+                                <tbody>
+                                    <tr>
+                                        <th scope="row">Item Code</th>
+                                        <td id="pending_item_code"></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Status</th>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Reason</th>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Creator</th>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Instructed By</th>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Created On</th>
+                                        <td></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-success" id="approveBtn">Approve</button>
+                            <button type="button" class="btn btn-danger" id="declineBtn">Decline</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+
+                        <script>
+                            $(function () {
+                                var property_id = $("#property_id").val();
+
+                                $("#approveBtn").on("click", function () {
+                                    $("#modalConfirm").modal("hide");
+                                    $("#saveModal").modal("show");
+
+                                    var instruction = $("#instruction").text().trim();
+                                    if (instruction === 'Deactivate Property Account') {
+                                        window.location = "DeactivateProperty?property_id=" + property_id;
+                                    } else if (instruction === 'Close Property Account') {
+                                        window.location = "CloseProperty?property_id=" + property_id;
+                                    } else if (instruction === 'Add New Property') {
+                                        window.location = "ApprovePropertyCreation?property_id=" + property_id;
+                                    }
+                                });
+
+                                $("#declineBtn").on("click", function () {
+                                    $("#modalConfirm").modal("hide");
+                                    $("#saveModal").modal("show");
+                                    window.location = "DeclineApproval?item_code=" + $("#pending_item_code").text();
+                                });
+
+                                var instructionText = $("#instruction").text().trim();
+                                if (instructionText === 'Deactivate Property Account' ||
+                                        instructionText === 'Close Property Account' ||
+                                        instructionText === 'Add New Property') {
+                                    $("#modalConfirm").modal("show");
+                                }
+                            });
+                        </script>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="modalExpenses" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" style="max-width:400px">
+                    <div class="modal-content" style="min-height:400px">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Property Expenses</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="validateTips text-danger small mb-3"></p>
+
+                            <form id="expense" action="DisplayReport" method="post">
+                                <input type="hidden" name="property_id" id="property_id" value="24">
+                                <input type="hidden" name="username" id="username" value="Matere Chris">
+
+                                <!-- Dates -->
+                                <div class="mb-3">
+                                    <label class="form-label small text-muted">Start Date</label>
+                                    <input type="text" name="start_date" id="starts_date" class="form-control datepicker flatpickr-input">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label small text-muted">End Date</label>
+                                    <input type="text" name="end_date" id="ends_date" class="form-control datepicker flatpickr-input">
+                                </div>
+
+                                <!-- Ledger Accounts -->
+                                <div class="mb-3">
+                                    <label class="form-label small text-muted">Ledger Accounts</label>
+                                    <select name="list_of_account_names" id="list_of_account_names" multiple="" size="5" class="form-select select2 select2-hidden-accessible" data-select2-id="list_of_account_names" tabindex="-1" aria-hidden="true">
+                                        <optgroup label="Company Accounts">
+                                            
+                                        </optgroup>
+                                        <optgroup label="Landlord Accounts">
+                                            
+                                        </optgroup>
+                                        <optgroup label="Supplier Accounts">
+                                            
+                                        </optgroup>
+                                        <optgroup label="Partner Accounts">
+                                            
+                                        </optgroup>
+                                    </select><span class="select2 select2-container select2-container--default" dir="ltr" data-select2-id="1" style="width: 100%;"><span class="selection"><span class="select2-selection select2-selection--multiple" role="combobox" aria-haspopup="true" aria-expanded="false" tabindex="-1"><ul class="select2-selection__rendered"><li class="select2-search select2-search--inline"><input class="select2-search__field" type="search" tabindex="0" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" role="textbox" aria-autocomplete="list" placeholder="" style="width: 0.75em;"></li></ul></span></span><span class="dropdown-wrapper" aria-hidden="true"></span></span>
+                                </div>
+
+                                <!-- Report Type -->
+                                <div class="mb-4">
+                                    <label class="form-label small text-muted d-block">Report Type</label>
+
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="report" value="PropertyExpensesTransactional" checked="">
+                                        <label class="form-check-label">Transactional</label>
+                                    </div>
+
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="report" value="PropertyExpensesReconciliation">
+                                        <label class="form-check-label">Reconciliation</label>
+                                    </div>
+                                </div>
+
+                                <!-- Output Format -->
+                                <div class="mb-2 text-center">
+                                    <div class="fw-semibold small text-muted mb-2">
+                                        Choose Output Format
+                                    </div>
+
+                                    <div class="d-flex justify-content-center gap-4">
+                                        <label class="text-center">
+                                            <input type="radio" name="format" value="PDF" checked="" class="d-block mx-auto mb-1">
+                                            <img src="images/pdf-icon.png" height="45" title="PDF">
+                                        </label>
+
+                                        <label class="text-center">
+                                            <input type="radio" name="format" value="DOCX" class="d-block mx-auto mb-1">
+                                            <img src="images/docx-3.png" height="45" title="Word">
+                                        </label>
+
+                                        <label class="text-center">
+                                            <input type="radio" name="format" value="XLS" class="d-block mx-auto mb-1">
+                                            <img src="images/xlsx-3.png" height="45" title="Excel">
+                                        </label>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" id="expensesOk">OK</button>
+                            <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+
+                        <!-- JS inside modal -->
+                        <script>
+                            $(function () {
+                                flatpickr(".datepicker", {
+                                    dateFormat: "Y-m-d",
+                                    allowInput: true
+                                });
+
+
+                                $("#expensesOk").on("click", function (e) {
+                                    e.preventDefault();
+                                    var start = $("#starts_date").val(),
+                                            end = $("#ends_date").val();
+
+                                    $(".validateTips").removeClass("ui-state-error ui-state-highlight").text("");
+                                    $("#starts_date, #ends_date").removeClass("ui-state-error ui-state-highlight");
+
+                                    if (!start) {
+                                        $("#starts_date,.validateTips").addClass("ui-state-error ui-state-highlight");
+                                        $(".validateTips").text("Kindly input a valid start date");
+                                        return;
+                                    }
+                                    if (!end) {
+                                        $("#ends_date,.validateTips").addClass("ui-state-error ui-state-highlight");
+                                        $(".validateTips").text("Kindly input a valid end date");
+                                        return;
+                                    }
+
+                                    var report = $("#expense").attr("action") + "?" + $("#expense").serialize();
+                                    window.open(report, "Display Report", "width=800,height=600,status=0,scrollbars=yes");
+                                    $('#modalExpenses').modal('hide');
+                                });
+                            });
+                        </script>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="modalDeactivate" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" style="max-width:500px">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Request for Approval</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form method="post" action="AddItemToApprovalQueue">
+                            <div class="modal-body">
+                                <table class="table table-borderless mb-0">
+                                    <tbody><tr>
+                                        <th>Instruction</th>
+                                        <td>
+                                            <input type="text" name="instruction" id="instruction" class="form-control" value="Deactivate Property Account" readonly="">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Item Code</th>
+                                        <td><input type="text" name="item_code" id="item_code" class="form-control" value="0024" readonly=""></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Description</th>
+                                        <td>
+                                            
+                                                
+                                                
+                                                    <input type="text" name="item_description" id="item_description" class="form-control" readonly="" value="Ms Noor Said Faraj′s Property Account">
+                                                
+                                            
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Reason</th>
+                                        <td><textarea rows="6" name="reason" id="reason" class="form-control" autofocus=""></textarea></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Instructed By</th>
+                                        <td><input type="text" name="instructed_by" id="instructed_by" class="form-control" placeholder="(Optional)"></td>
+                                    </tr>
+                                </tbody></table>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-primary" id="submitDeactivate">Submit</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            </div>
+                        </form>
+
+                        <script>
+                            $(function () {
+                                $("#submitDeactivate").on("click", function () {
+                                    $("#modalDeactivate").modal("hide");
+                                    $("#saveModal .modal-body").html("Adding item to approval queue");
+                                    $("#saveModal").modal("show");
+                                    $("#modalDeactivate form[action='AddItemToApprovalQueue']").submit();
+                                });
+                            });
+                        </script>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="modalStatement" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" style="max-width:300px">
+                    <div class="modal-content" style="min-height:280px">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Statement of Account</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="statementForm" action="DisplayReport" method="post">
+                                <input type="hidden" name="property_id" value="24">
+
+                                <div class="mb-3">
+                                    <label class="form-label">Start Date</label>
+                                    <input type="text" name="start_date" id="start_date_1" class="form-control datepicker flatpickr-input" autocomplete="off">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">End Date</label>
+                                    <input type="text" name="end_date" id="end_date_1" class="form-control datepicker flatpickr-input" autocomplete="off">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Report</label>
+                                    <select name="report" class="form-select">
+                                        <option value="PropertyAccountingStatement">SOA - Simple</option>
+                                        <option value="PropertyCombinedStatement">SOA - Detailed</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Format</label>
+                                    <select name="format" class="form-select">
+                                        <option>PDF</option>
+                                        <option>XLS</option>
+                                    </select>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" id="statementOk">OK</button>
+                            <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+
+                        <script>
+                            $(function () {
+                                flatpickr(".datepicker", {
+                                    dateFormat: "Y-m-d",
+                                    allowInput: true
+                                });
+
+
+                                $("#statementOk").on("click", function (e) {
+                                    e.preventDefault();
+                                    var formData = $("#statementForm").serialize();
+                                    window.open("DisplayReport?" + formData, "Statement of Account", "width=1000,height=650,status=0,scrollbars=yes");
+                                    $('#modalStatement').modal('hide');
+                                });
+                            });
+                        </script>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="modalInvoiceCommission" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" style="max-width:400px">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Adjust Invoice Commission</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form id="invoice-commission-form" method="post" action="AdjustInvoiceCommissions">
+                            <div class="modal-body">
+                                <input type="hidden" name="property_id" value="24">
+                                <table class="table table-borderless mb-0">
+                                    <tbody><tr>
+                                        <th>Start Date</th>
+                                        <td><input type="text" name="start_date" id="commission_start_date" class="form-control datepicker flatpickr-input"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>End Date</th>
+                                        <td><input type="text" name="end_date" id="commission_end_date" class="form-control datepicker flatpickr-input"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Commission</th>
+                                        <td><input type="text" name="commission" id="commission" placeholder="%" class="form-control"> %</td>
+                                    </tr>
+                                </tbody></table>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-primary" id="submitCommission">OK</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            </div>
+                        </form>
+
+                        <script>
+                            $(function () {
+
+                                const today = new Date();
+                                const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
+
+                                const startPicker = flatpickr("#commission_start_date", {});
+                                const endPicker = flatpickr("#commission_end_date", {});
+
+                                $('#modalInvoiceCommission').on('shown.bs.modal', function () {
+                                    startPicker.setDate(firstDayOfYear, true);
+                                    endPicker.setDate(today, true);
+                                });
+
+                                $("#submitCommission").on("click", function () {
+                                    $("#modalInvoiceCommission").modal("hide");
+                                    $("#saveModal .modal-body").html("Submitting invoice commission adjustment...");
+                                    $("#saveModal").modal("show");
+                                    $("#invoice-commission-form").submit();
+                                });
+
+                                $('#modalInvoiceCommission').on('hidden.bs.modal', function () {
+                                    $("#invoice-commission-form")[0].reset();
+                                    startPicker.setDate(firstDayOfYear, true);
+                                    endPicker.setDate(today, true);
+                                });
+
+                            });
+
+
+                        </script>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="loadingModal" tabindex="-1" aria-labelledby="loadingModalLabel" aria-hidden="true" data-bs-keyboard="false">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="loadingModalLabel">Loading...</h5>
+                        </div>
+                        <div class="modal-body">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <img src="images/ajax-loader.gif" height="50" width="50" alt="Loading...">
+                                </div>
+                                <div id="message">Please wait while some page elements are loaded
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="saveModal" tabindex="-1" aria-labelledby="saveModalLabel" aria-hidden="true" data-bs-keyboard="false">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="saveModalLabel">Please Wait...</h5>
+                        </div>
+                        <div class="modal-body">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <img src="images/ajax-loader.gif" height="50" width="50" alt="Loading">
+                                </div>
+                                <div>
+                                    <p class="mb-0">Be patient while your changes are saved</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <script type="text/javascript">
+                $(document).ready(function () {
+                    if ($("#modalAlert tbody tr").length > 0) {
+                        $("#modalAlert").modal("show");
+                    }
+                });
+            </script>
+
+            <div class="modal fade" id="modalAlert" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" style="max-width:600px">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning">
+                            <h5 class="modal-title">Landlord Alerts</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body overflow-auto" id="alert-message">
+                            <table class="table table-striped table-bordered">
+                                <thead class="table-warning">
+                                    <tr>
+                                        <th scope="col">Alert</th>
+                                        <th scope="col">Message</th>
+                                        <th scope="col">Created By</th>
+                                        <th scope="col">Active Dates</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <script type="text/javascript">
+                $(function () {
+
+                    function fetchTemplateContent(templateName) {
+                        $.ajax({
+                            type: 'post',
+                            url: 'AjaxGetTemplateContent',
+                            data: {templateName: templateName, recipient: 'Tenant'},
+                            dataType: 'json',
+                            beforeSend: function () {
+                            },
+                            success: function (data) {
+                                if (data.startsWith('Error!')) {
+                                    $('#modalNotSent #message p').text(data);
+                                    $('#modalNotSent').modal('show');
+                                } else {
+                                    $('#smsMessage').val(data);
+                                    $('#modalSms').modal('show');
+                                }
+                            },
+                            complete: function () {
+                                $('#loadingModal').modal('hide');
+                            }
+                        });
+                    }
+
+                    $('#template_name').change(function () {
+                        var v = $(this).val();
+                        if (v !== '')
+                            fetchTemplateContent(v);
+                    });
+
+                    $('#sendSms').on('click', function () {
+                        var msg = $('#smsMessage').val();
+                        if (msg === '') {
+                            $('#message').addClass('error');
+                            return;
+                        }
+                        $('#message').removeClass('error');
+
+                        $('#modalSms').modal('hide');
+
+                        $.ajax({
+                            type: 'post',
+                            url: 'SendPropertyBulkSMS',
+                            data: $('#smsForm').serialize(),
+                            dataType: 'text',
+                            success: function (msg) {
+                                if (msg.startsWith('Error!')) {
+                                    $('#modalNotSent #message p').text(msg);
+                                    $('#modalNotSent').modal('show');
+                                } else {
+                                    $('#modalSent #message p').text(msg);
+                                    $('#modalSent').modal('show');
+                                }
+                            },
+                            error: function () {
+                                $('#modalNotSent #message p')
+                                        .text('Error! Something went wrong while sending the SMS.');
+                                $('#modalNotSent').modal('show');
+                            }
+                        });
+                    });
+
+                });
+
+            </script>
+
+            <div class="modal fade" id="modalSms" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" style="max-width:350px">
+                    <div class="modal-content" style="min-height:450px">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Compose Sms</h5>
+                        </div>
+                        <div class="modal-body overflow-auto">
+                            <form id="smsForm" method="post" action="SendPropertyBulkSMS">
+                                <input type="hidden" name="action" value="SEND">
+                                <input type="hidden" name="recipient_type" value="Tenant">
+                                <input type="hidden" name="start_date" value="1999-01-01">
+                                <input type="hidden" name="end_date" value="2999-01-01">
+
+                                <select name="template_name" id="template_name" class="form-select mb-2">
+                                    <option value="">Choose a Template</option>
+                                    
+                                        
+                                            <option>Bad Debt Demand</option>
+                                        
+                                    
+                                        
+                                            <option>Change of Management</option>
+                                        
+                                    
+                                        
+                                            <option>Deposit Payment</option>
+                                        
+                                    
+                                        
+                                            <option>Detailed Reminder</option>
+                                        
+                                    
+                                        
+                                            <option>Extreme Debt Demand</option>
+                                        
+                                    
+                                        
+                                            <option>Invoice Posted</option>
+                                        
+                                    
+                                        
+                                            <option>Invoice Reversed</option>
+                                        
+                                    
+                                        
+                                            <option>January Payment On December</option>
+                                        
+                                    
+                                        
+                                            <option>Large Debt Demand</option>
+                                        
+                                    
+                                        
+                                            <option>Medium Debt Demand</option>
+                                        
+                                    
+                                        
+                                            <option>Minimal Debt Demand</option>
+                                        
+                                    
+                                        
+                                            <option>New Tenancy</option>
+                                        
+                                    
+                                        
+                                            <option>Payment Options</option>
+                                        
+                                    
+                                        
+                                            <option>Payments</option>
+                                        
+                                    
+                                        
+                                            <option>Receipt Posted</option>
+                                        
+                                    
+                                        
+                                            <option>Receipt Reversed</option>
+                                        
+                                    
+                                        
+                                            <option>Rent Penalty</option>
+                                        
+                                    
+                                        
+                                            <option>Short Reminder</option>
+                                        
+                                    
+                                        
+                                            <option>Surcharge</option>
+                                        
+                                    
+                                        
+                                            <option>Technical Hitch</option>
+                                        
+                                    
+                                        
+                                            <option>Voucher Authorized</option>
+                                        
+                                    
+                                        
+                                            <option>Voucher Cancelled</option>
+                                        
+                                    
+                                        
+                                            <option>Voucher Disbursed</option>
+                                        
+                                    
+                                </select>
+
+                                <textarea name="message" id="smsMessage" rows="5" class="form-control mb-3" placeholder="Max. 480 Characters" maxlength="480"></textarea>
+
+                                <strong>Select Recipient(s)</strong>
+
+                                
+                                    
+                                        
+                                            <div class="row">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" name="list_of_contacts" value="+254705946941" checked="">
+                                                    <input type="hidden" name="entity_id" value="240">
+                                                    <label class="form-check-label">
+                                                        Magdalene Mutuku : +254705946941
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        
+                                    
+                                
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" id="sendSms">SEND</button>
+                            <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <script>
+                $(function () {
+
+                    const composeSmsModalEl = document.getElementById('composeSmsModal');
+                    const loadingModalEl = document.getElementById('loadingModal');
+
+                    const loadingModal = new bootstrap.Modal(loadingModalEl, {
+                        backdrop: 'static',
+                        keyboard: false
+                    });
+
+                    composeSmsModalEl.addEventListener('shown.bs.modal', function () {
+
+                        const landlordCode = $("#landlord_code").val();
+
+                        if ($("#textMessage").val().trim() !== "")
+                            return;
+
+                        $.ajax({
+                            type: "POST",
+                            url: "AjaxComposeLandlordMessage",
+                            data: {
+                                landlord_code: landlordCode,
+                                message_type: "Other"
+                            },
+                            dataType: "json",
+
+                            beforeSend: function () {
+                                loadingModal.show();
+                            },
+
+                            success: function (data) {
+                                $("#textMessage").val(data);
+                            },
+
+                            complete: function () {
+                                loadingModal.hide();
+                            }
+                        });
+                    });
+
+                    $("#sendSmsBtn").on("click", function () {
+                        const $textarea = $("#textMessage");
+
+                        if ($.trim($textarea.val()) === "") {
+                            $textarea.addClass("is-invalid").focus();
+                        } else {
+                            $textarea.removeClass("is-invalid");
+                            $("#composeSmsForm").submit();
+                        }
+                    });
+
+                });
+            </script>
+            <div class="modal fade" id="composeSmsModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Compose SMS</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="composeSmsForm" method="post" action="GenericSmsSender">
+                                <input type="hidden" name="landlord_code" value="">
+                                <input type="hidden" name="entity_id" value="">
+                                <input type="hidden" name="entity_type" value="Landlord">
+                                <input type="hidden" name="recipient" value="">
+                                <input type="hidden" name="ACTION" value="LANDLORD">
+
+                                <div class="mb-3">
+                                    <textarea name="message" id="textMessage" rows="15" class="form-control" placeholder="Max. 480 Characters" maxlength="480" required=""></textarea>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="sendSmsBtn">SEND</button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="modalSent" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" style="max-width:400px">
+                    <div class="modal-content" style="min-height:250px">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Success</h5>
+                        </div>
+                        <div class="modal-body d-flex align-items-start">
+                            <img src="images/check2.png" width="50" height="50" class="me-2">
+                            <div id="message"><p></p></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" data-bs-dismiss="modal">Ok</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="modalNotSent" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" style="max-width:400px">
+                    <div class="modal-content" style="min-height:250px">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">Error</h5>
+                        </div>
+                        <div class="modal-body d-flex align-items-start">
+                            <img src="images/check2.png" width="50" height="50" class="me-2">
+                            <div id="message"><p></p></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-danger" data-bs-dismiss="modal">Ok</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <script type="text/javascript">
+                $(function () {
+                    flatpickr(".datepicker", {
+                        dateFormat: "Y-m-d",
+                        allowInput: true,
+                        defaultDate: new Date()
+                    });
+
+
+                    $("#complain_type").on("change", function () {
+                        var val = $(this).val();
+                        if (val === "Task") {
+                            $("#complaint_date").closest("tr").hide();
+                            $("#complain_act_start_date, #complain_act_end_date").closest("tr").show();
+                        } else {
+                            $("#complaint_date").closest("tr").show();
+                            $("#complain_act_start_date, #complain_act_end_date").closest("tr").hide();
+                        }
+                    }).trigger("change");
+
+                    // OK button
+                    $("#issuesOk").on("click", function () {
+                        var exp = /^([0-9]{4})-(1[0-2]|0[1-9]|[1-9])-(3[01]|[12][0-9]|0[1-9]|[1-9])$/;
+                        var type = $("#complain_type").val(),
+                                priority = $("#complain_priority").val(),
+                                status = $("#complain_status").val(),
+                                start = $("#complain_act_start_date").val(),
+                                end = $("#complain_act_end_date").val();
+
+                        $("select, input").removeClass("error");
+
+                        if (type === "") {
+                            $("#complain_type").addClass("error");
+                            alert("Please select a complaint type.");
+                            return;
+                        }
+                        if (priority === "") {
+                            $("#complain_priority").addClass("error");
+                            alert("Please select a priority.");
+                            return;
+                        }
+                        if (status === "") {
+                            $("#complain_status").addClass("error");
+                            alert("Please select a status.");
+                            return;
+                        }
+                        if (start && !start.match(exp)) {
+                            $("#complain_act_start_date").addClass("error");
+                            alert("Please enter a valid start date in the format yyyy-MM-dd.");
+                            return;
+                        }
+                        if (end && !end.match(exp)) {
+                            $("#complain_act_end_date").addClass("error");
+                            alert("Please enter a valid end date in the format yyyy-MM-dd.");
+                            return;
+                        }
+
+                        // Submit
+                        $("form[action='InitiateLandlordsIssues']").submit();
+                        $('#modalIssues').modal('hide');
+                    });
+
+                });
+
+            </script>
+
+            <div class="modal fade" id="modalIssues" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" style="max-width:420px">
+                    <div class="modal-content" style="min-height:450px">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Raise Landlord's Issues</h5>
+                        </div>
+                        <div class="modal-body overflow-auto">
+                            <form id="issuesForm" method="post" action="InitiateLandlordsIssues" enctype="multipart/form-data">
+                                <input type="hidden" name="landlord_code" value="20">
+                                <input type="hidden" name="property_id" value="24">
+
+                                <table style="width:100%;" cellspacing="0" cellpadding="5" border="0">
+                                    <tbody><tr>
+                                        <th>Type</th>
+                                        <td>
+                                            <select name="type" id="complain_type" class="form-select" required="" autofocus="">
+                                                <option value="Maintenance Request">Maintenance Request</option>
+                                                <option value="Feedback/Suggestion">Feedback/Suggestion</option>
+                                                <option value="General Inquiry">General Inquiry</option>
+                                                <option value="Complaint">Complaint</option>
+                                                <option value="Task">Task</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Status</th>
+                                        <td>
+                                            <select name="status" id="complain_status" class="form-select" required="">
+                                                <option value="New">New</option>
+                                                <option value="In Progress">In Progress</option>
+                                                <option value="Completed">Completed</option>
+                                                <option value="Cancelled">Cancelled</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Priority</th>
+                                        <td>
+                                            <select name="priority" id="complain_priority" class="form-select" required="">
+                                                <option value="Low">Low</option>
+                                                <option value="Medium">Medium</option>
+                                                <option value="High">High</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Date Raised</th>
+                                        <td>
+                                            <input type="text" name="date" id="complaint_date" class="form-control datepicker flatpickr-input">
+                                        </td>
+                                    </tr>
+                                    <tr style="display: none;">
+                                        <th>Start Date</th>
+                                        <td>
+                                            <input type="text" name="start_date" id="complain_act_start_date" class="form-control datepicker flatpickr-input">
+                                        </td>
+                                    </tr>
+                                    <tr style="display: none;">
+                                        <th>End Date</th>
+                                        <td>
+                                            <input type="text" name="end_date" id="complain_act_end_date" class="form-control datepicker flatpickr-input">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Assign To</th>
+                                        <td>
+                                            <select name="assign_to" id="issue_assign_to" class="form-select" required="">
+                                                <option value="">---Assign Later---</option>
+                                                <optgroup label="Self">
+                                                    <option>Matere Chris</option>
+                                                </optgroup>
+                                                <optgroup label="Others">
+                                                    
+                                                        <option>SYSTEM</option>
+                                                    
+                                                        <option>Zurion</option>
+                                                    
+                                                        <option>Rashida</option>
+                                                    
+                                                        <option>Isaac</option>
+                                                    
+                                                        <option>Joan</option>
+                                                    
+                                                        <option>Shelmith Wanjiru</option>
+                                                    
+                                                        <option>Brenda Khalibwa</option>
+                                                    
+                                                        <option>Philis Muthoni</option>
+                                                    
+                                                        <option>Chris</option>
+                                                    
+                                                        <option>Chris Matere</option>
+                                                    
+                                                        <option>Matere Chris</option>
+                                                    
+                                                </optgroup>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Description</th>
+                                        <td>
+                                            <textarea name="description" id="issue_description" rows="4" class="form-control"></textarea>
+                                        </td>
+                                    </tr>
+                                </tbody></table>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" id="issuesOk">OK</button>
+                            <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <script type="text/javascript">
+                $(function () {
+                    if ($('#modalLock tbody tr').length > 0) {
+                        $('#modalLock').modal('show');
+                    }
+                });
+            </script>
+
+            <div class="modal fade" id="modalLock" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" style="max-width:600px">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning">
+                            <h5 class="modal-title">Account Locked</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body overflow-auto" id="lock-message">
+                            <table class="table table-striped table-bordered">
+                                <thead class="table-warning">
+                                    <tr>
+                                        <th scope="col">Lock Type</th>
+                                        <th scope="col">Message</th>
+                                        <th scope="col">Created By</th>
+                                        <th scope="col">Active Dates</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="modalForm" tabindex="-1" aria-hidden="true" style="display: none;">
+                <div class="modal-dialog modal-dialog-centered" style="max-width:300px">
+                    <div class="modal-content" style="min-height:300px">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Update Contacts</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="validateTips"></p>
+                            <form id="updateContactForm" action="UpdateLandlordPhoneNumber" method="post">
+                                <input type="hidden" name="landlord_code" id="landlord_code" value="20">
+                                <fieldset>
+                                    <label for="primary_telephone_number">Primary Phone *</label>
+                                    <div class="intl-tel-input allow-dropdown"><div class="flag-container"><div class="selected-flag" tabindex="0" title="Kenya: +254"><div class="iti-flag ke"></div><div class="iti-arrow"></div></div><ul class="country-list hide"><li class="country preferred" data-dial-code="1" data-country-code="us"><div class="flag-box"><div class="iti-flag us"></div></div><span class="country-name">United States</span><span class="dial-code">+1</span></li><li class="country preferred" data-dial-code="44" data-country-code="gb"><div class="flag-box"><div class="iti-flag gb"></div></div><span class="country-name">United Kingdom</span><span class="dial-code">+44</span></li><li class="divider"></li><li class="country" data-dial-code="93" data-country-code="af"><div class="flag-box"><div class="iti-flag af"></div></div><span class="country-name">Afghanistan (‫افغانستان‬‎)</span><span class="dial-code">+93</span></li><li class="country" data-dial-code="355" data-country-code="al"><div class="flag-box"><div class="iti-flag al"></div></div><span class="country-name">Albania (Shqipëri)</span><span class="dial-code">+355</span></li><li class="country" data-dial-code="213" data-country-code="dz"><div class="flag-box"><div class="iti-flag dz"></div></div><span class="country-name">Algeria (‫الجزائر‬‎)</span><span class="dial-code">+213</span></li><li class="country" data-dial-code="1684" data-country-code="as"><div class="flag-box"><div class="iti-flag as"></div></div><span class="country-name">American Samoa</span><span class="dial-code">+1684</span></li><li class="country" data-dial-code="376" data-country-code="ad"><div class="flag-box"><div class="iti-flag ad"></div></div><span class="country-name">Andorra</span><span class="dial-code">+376</span></li><li class="country" data-dial-code="244" data-country-code="ao"><div class="flag-box"><div class="iti-flag ao"></div></div><span class="country-name">Angola</span><span class="dial-code">+244</span></li><li class="country" data-dial-code="1264" data-country-code="ai"><div class="flag-box"><div class="iti-flag ai"></div></div><span class="country-name">Anguilla</span><span class="dial-code">+1264</span></li><li class="country" data-dial-code="1268" data-country-code="ag"><div class="flag-box"><div class="iti-flag ag"></div></div><span class="country-name">Antigua and Barbuda</span><span class="dial-code">+1268</span></li><li class="country" data-dial-code="54" data-country-code="ar"><div class="flag-box"><div class="iti-flag ar"></div></div><span class="country-name">Argentina</span><span class="dial-code">+54</span></li><li class="country" data-dial-code="374" data-country-code="am"><div class="flag-box"><div class="iti-flag am"></div></div><span class="country-name">Armenia (Հայաստան)</span><span class="dial-code">+374</span></li><li class="country" data-dial-code="297" data-country-code="aw"><div class="flag-box"><div class="iti-flag aw"></div></div><span class="country-name">Aruba</span><span class="dial-code">+297</span></li><li class="country" data-dial-code="61" data-country-code="au"><div class="flag-box"><div class="iti-flag au"></div></div><span class="country-name">Australia</span><span class="dial-code">+61</span></li><li class="country" data-dial-code="43" data-country-code="at"><div class="flag-box"><div class="iti-flag at"></div></div><span class="country-name">Austria (Österreich)</span><span class="dial-code">+43</span></li><li class="country" data-dial-code="994" data-country-code="az"><div class="flag-box"><div class="iti-flag az"></div></div><span class="country-name">Azerbaijan (Azərbaycan)</span><span class="dial-code">+994</span></li><li class="country" data-dial-code="1242" data-country-code="bs"><div class="flag-box"><div class="iti-flag bs"></div></div><span class="country-name">Bahamas</span><span class="dial-code">+1242</span></li><li class="country" data-dial-code="973" data-country-code="bh"><div class="flag-box"><div class="iti-flag bh"></div></div><span class="country-name">Bahrain (‫البحرين‬‎)</span><span class="dial-code">+973</span></li><li class="country" data-dial-code="880" data-country-code="bd"><div class="flag-box"><div class="iti-flag bd"></div></div><span class="country-name">Bangladesh (বাংলাদেশ)</span><span class="dial-code">+880</span></li><li class="country" data-dial-code="1246" data-country-code="bb"><div class="flag-box"><div class="iti-flag bb"></div></div><span class="country-name">Barbados</span><span class="dial-code">+1246</span></li><li class="country" data-dial-code="375" data-country-code="by"><div class="flag-box"><div class="iti-flag by"></div></div><span class="country-name">Belarus (Беларусь)</span><span class="dial-code">+375</span></li><li class="country" data-dial-code="32" data-country-code="be"><div class="flag-box"><div class="iti-flag be"></div></div><span class="country-name">Belgium (België)</span><span class="dial-code">+32</span></li><li class="country" data-dial-code="501" data-country-code="bz"><div class="flag-box"><div class="iti-flag bz"></div></div><span class="country-name">Belize</span><span class="dial-code">+501</span></li><li class="country" data-dial-code="229" data-country-code="bj"><div class="flag-box"><div class="iti-flag bj"></div></div><span class="country-name">Benin (Bénin)</span><span class="dial-code">+229</span></li><li class="country" data-dial-code="1441" data-country-code="bm"><div class="flag-box"><div class="iti-flag bm"></div></div><span class="country-name">Bermuda</span><span class="dial-code">+1441</span></li><li class="country" data-dial-code="975" data-country-code="bt"><div class="flag-box"><div class="iti-flag bt"></div></div><span class="country-name">Bhutan (འབྲུག)</span><span class="dial-code">+975</span></li><li class="country" data-dial-code="591" data-country-code="bo"><div class="flag-box"><div class="iti-flag bo"></div></div><span class="country-name">Bolivia</span><span class="dial-code">+591</span></li><li class="country" data-dial-code="387" data-country-code="ba"><div class="flag-box"><div class="iti-flag ba"></div></div><span class="country-name">Bosnia and Herzegovina (Босна и Херцеговина)</span><span class="dial-code">+387</span></li><li class="country" data-dial-code="267" data-country-code="bw"><div class="flag-box"><div class="iti-flag bw"></div></div><span class="country-name">Botswana</span><span class="dial-code">+267</span></li><li class="country" data-dial-code="55" data-country-code="br"><div class="flag-box"><div class="iti-flag br"></div></div><span class="country-name">Brazil (Brasil)</span><span class="dial-code">+55</span></li><li class="country" data-dial-code="246" data-country-code="io"><div class="flag-box"><div class="iti-flag io"></div></div><span class="country-name">British Indian Ocean Territory</span><span class="dial-code">+246</span></li><li class="country" data-dial-code="1284" data-country-code="vg"><div class="flag-box"><div class="iti-flag vg"></div></div><span class="country-name">British Virgin Islands</span><span class="dial-code">+1284</span></li><li class="country" data-dial-code="673" data-country-code="bn"><div class="flag-box"><div class="iti-flag bn"></div></div><span class="country-name">Brunei</span><span class="dial-code">+673</span></li><li class="country" data-dial-code="359" data-country-code="bg"><div class="flag-box"><div class="iti-flag bg"></div></div><span class="country-name">Bulgaria (България)</span><span class="dial-code">+359</span></li><li class="country" data-dial-code="226" data-country-code="bf"><div class="flag-box"><div class="iti-flag bf"></div></div><span class="country-name">Burkina Faso</span><span class="dial-code">+226</span></li><li class="country" data-dial-code="257" data-country-code="bi"><div class="flag-box"><div class="iti-flag bi"></div></div><span class="country-name">Burundi (Uburundi)</span><span class="dial-code">+257</span></li><li class="country" data-dial-code="855" data-country-code="kh"><div class="flag-box"><div class="iti-flag kh"></div></div><span class="country-name">Cambodia (កម្ពុជា)</span><span class="dial-code">+855</span></li><li class="country" data-dial-code="237" data-country-code="cm"><div class="flag-box"><div class="iti-flag cm"></div></div><span class="country-name">Cameroon (Cameroun)</span><span class="dial-code">+237</span></li><li class="country" data-dial-code="1" data-country-code="ca"><div class="flag-box"><div class="iti-flag ca"></div></div><span class="country-name">Canada</span><span class="dial-code">+1</span></li><li class="country" data-dial-code="238" data-country-code="cv"><div class="flag-box"><div class="iti-flag cv"></div></div><span class="country-name">Cape Verde (Kabu Verdi)</span><span class="dial-code">+238</span></li><li class="country" data-dial-code="599" data-country-code="bq"><div class="flag-box"><div class="iti-flag bq"></div></div><span class="country-name">Caribbean Netherlands</span><span class="dial-code">+599</span></li><li class="country" data-dial-code="1345" data-country-code="ky"><div class="flag-box"><div class="iti-flag ky"></div></div><span class="country-name">Cayman Islands</span><span class="dial-code">+1345</span></li><li class="country" data-dial-code="236" data-country-code="cf"><div class="flag-box"><div class="iti-flag cf"></div></div><span class="country-name">Central African Republic (République centrafricaine)</span><span class="dial-code">+236</span></li><li class="country" data-dial-code="235" data-country-code="td"><div class="flag-box"><div class="iti-flag td"></div></div><span class="country-name">Chad (Tchad)</span><span class="dial-code">+235</span></li><li class="country" data-dial-code="56" data-country-code="cl"><div class="flag-box"><div class="iti-flag cl"></div></div><span class="country-name">Chile</span><span class="dial-code">+56</span></li><li class="country" data-dial-code="86" data-country-code="cn"><div class="flag-box"><div class="iti-flag cn"></div></div><span class="country-name">China (中国)</span><span class="dial-code">+86</span></li><li class="country" data-dial-code="61" data-country-code="cx"><div class="flag-box"><div class="iti-flag cx"></div></div><span class="country-name">Christmas Island</span><span class="dial-code">+61</span></li><li class="country" data-dial-code="61" data-country-code="cc"><div class="flag-box"><div class="iti-flag cc"></div></div><span class="country-name">Cocos (Keeling) Islands</span><span class="dial-code">+61</span></li><li class="country" data-dial-code="57" data-country-code="co"><div class="flag-box"><div class="iti-flag co"></div></div><span class="country-name">Colombia</span><span class="dial-code">+57</span></li><li class="country" data-dial-code="269" data-country-code="km"><div class="flag-box"><div class="iti-flag km"></div></div><span class="country-name">Comoros (‫جزر القمر‬‎)</span><span class="dial-code">+269</span></li><li class="country" data-dial-code="243" data-country-code="cd"><div class="flag-box"><div class="iti-flag cd"></div></div><span class="country-name">Congo (DRC) (Jamhuri ya Kidemokrasia ya Kongo)</span><span class="dial-code">+243</span></li><li class="country" data-dial-code="242" data-country-code="cg"><div class="flag-box"><div class="iti-flag cg"></div></div><span class="country-name">Congo (Republic) (Congo-Brazzaville)</span><span class="dial-code">+242</span></li><li class="country" data-dial-code="682" data-country-code="ck"><div class="flag-box"><div class="iti-flag ck"></div></div><span class="country-name">Cook Islands</span><span class="dial-code">+682</span></li><li class="country" data-dial-code="506" data-country-code="cr"><div class="flag-box"><div class="iti-flag cr"></div></div><span class="country-name">Costa Rica</span><span class="dial-code">+506</span></li><li class="country" data-dial-code="225" data-country-code="ci"><div class="flag-box"><div class="iti-flag ci"></div></div><span class="country-name">Côte d’Ivoire</span><span class="dial-code">+225</span></li><li class="country" data-dial-code="385" data-country-code="hr"><div class="flag-box"><div class="iti-flag hr"></div></div><span class="country-name">Croatia (Hrvatska)</span><span class="dial-code">+385</span></li><li class="country" data-dial-code="53" data-country-code="cu"><div class="flag-box"><div class="iti-flag cu"></div></div><span class="country-name">Cuba</span><span class="dial-code">+53</span></li><li class="country" data-dial-code="599" data-country-code="cw"><div class="flag-box"><div class="iti-flag cw"></div></div><span class="country-name">Curaçao</span><span class="dial-code">+599</span></li><li class="country" data-dial-code="357" data-country-code="cy"><div class="flag-box"><div class="iti-flag cy"></div></div><span class="country-name">Cyprus (Κύπρος)</span><span class="dial-code">+357</span></li><li class="country" data-dial-code="420" data-country-code="cz"><div class="flag-box"><div class="iti-flag cz"></div></div><span class="country-name">Czech Republic (Česká republika)</span><span class="dial-code">+420</span></li><li class="country" data-dial-code="45" data-country-code="dk"><div class="flag-box"><div class="iti-flag dk"></div></div><span class="country-name">Denmark (Danmark)</span><span class="dial-code">+45</span></li><li class="country" data-dial-code="253" data-country-code="dj"><div class="flag-box"><div class="iti-flag dj"></div></div><span class="country-name">Djibouti</span><span class="dial-code">+253</span></li><li class="country" data-dial-code="1767" data-country-code="dm"><div class="flag-box"><div class="iti-flag dm"></div></div><span class="country-name">Dominica</span><span class="dial-code">+1767</span></li><li class="country" data-dial-code="1" data-country-code="do"><div class="flag-box"><div class="iti-flag do"></div></div><span class="country-name">Dominican Republic (República Dominicana)</span><span class="dial-code">+1</span></li><li class="country" data-dial-code="593" data-country-code="ec"><div class="flag-box"><div class="iti-flag ec"></div></div><span class="country-name">Ecuador</span><span class="dial-code">+593</span></li><li class="country" data-dial-code="20" data-country-code="eg"><div class="flag-box"><div class="iti-flag eg"></div></div><span class="country-name">Egypt (‫مصر‬‎)</span><span class="dial-code">+20</span></li><li class="country" data-dial-code="503" data-country-code="sv"><div class="flag-box"><div class="iti-flag sv"></div></div><span class="country-name">El Salvador</span><span class="dial-code">+503</span></li><li class="country" data-dial-code="240" data-country-code="gq"><div class="flag-box"><div class="iti-flag gq"></div></div><span class="country-name">Equatorial Guinea (Guinea Ecuatorial)</span><span class="dial-code">+240</span></li><li class="country" data-dial-code="291" data-country-code="er"><div class="flag-box"><div class="iti-flag er"></div></div><span class="country-name">Eritrea</span><span class="dial-code">+291</span></li><li class="country" data-dial-code="372" data-country-code="ee"><div class="flag-box"><div class="iti-flag ee"></div></div><span class="country-name">Estonia (Eesti)</span><span class="dial-code">+372</span></li><li class="country" data-dial-code="251" data-country-code="et"><div class="flag-box"><div class="iti-flag et"></div></div><span class="country-name">Ethiopia</span><span class="dial-code">+251</span></li><li class="country" data-dial-code="500" data-country-code="fk"><div class="flag-box"><div class="iti-flag fk"></div></div><span class="country-name">Falkland Islands (Islas Malvinas)</span><span class="dial-code">+500</span></li><li class="country" data-dial-code="298" data-country-code="fo"><div class="flag-box"><div class="iti-flag fo"></div></div><span class="country-name">Faroe Islands (Føroyar)</span><span class="dial-code">+298</span></li><li class="country" data-dial-code="679" data-country-code="fj"><div class="flag-box"><div class="iti-flag fj"></div></div><span class="country-name">Fiji</span><span class="dial-code">+679</span></li><li class="country" data-dial-code="358" data-country-code="fi"><div class="flag-box"><div class="iti-flag fi"></div></div><span class="country-name">Finland (Suomi)</span><span class="dial-code">+358</span></li><li class="country" data-dial-code="33" data-country-code="fr"><div class="flag-box"><div class="iti-flag fr"></div></div><span class="country-name">France</span><span class="dial-code">+33</span></li><li class="country" data-dial-code="594" data-country-code="gf"><div class="flag-box"><div class="iti-flag gf"></div></div><span class="country-name">French Guiana (Guyane française)</span><span class="dial-code">+594</span></li><li class="country" data-dial-code="689" data-country-code="pf"><div class="flag-box"><div class="iti-flag pf"></div></div><span class="country-name">French Polynesia (Polynésie française)</span><span class="dial-code">+689</span></li><li class="country" data-dial-code="241" data-country-code="ga"><div class="flag-box"><div class="iti-flag ga"></div></div><span class="country-name">Gabon</span><span class="dial-code">+241</span></li><li class="country" data-dial-code="220" data-country-code="gm"><div class="flag-box"><div class="iti-flag gm"></div></div><span class="country-name">Gambia</span><span class="dial-code">+220</span></li><li class="country" data-dial-code="995" data-country-code="ge"><div class="flag-box"><div class="iti-flag ge"></div></div><span class="country-name">Georgia (საქართველო)</span><span class="dial-code">+995</span></li><li class="country" data-dial-code="49" data-country-code="de"><div class="flag-box"><div class="iti-flag de"></div></div><span class="country-name">Germany (Deutschland)</span><span class="dial-code">+49</span></li><li class="country" data-dial-code="233" data-country-code="gh"><div class="flag-box"><div class="iti-flag gh"></div></div><span class="country-name">Ghana (Gaana)</span><span class="dial-code">+233</span></li><li class="country" data-dial-code="350" data-country-code="gi"><div class="flag-box"><div class="iti-flag gi"></div></div><span class="country-name">Gibraltar</span><span class="dial-code">+350</span></li><li class="country" data-dial-code="30" data-country-code="gr"><div class="flag-box"><div class="iti-flag gr"></div></div><span class="country-name">Greece (Ελλάδα)</span><span class="dial-code">+30</span></li><li class="country" data-dial-code="299" data-country-code="gl"><div class="flag-box"><div class="iti-flag gl"></div></div><span class="country-name">Greenland (Kalaallit Nunaat)</span><span class="dial-code">+299</span></li><li class="country" data-dial-code="1473" data-country-code="gd"><div class="flag-box"><div class="iti-flag gd"></div></div><span class="country-name">Grenada</span><span class="dial-code">+1473</span></li><li class="country" data-dial-code="590" data-country-code="gp"><div class="flag-box"><div class="iti-flag gp"></div></div><span class="country-name">Guadeloupe</span><span class="dial-code">+590</span></li><li class="country" data-dial-code="1671" data-country-code="gu"><div class="flag-box"><div class="iti-flag gu"></div></div><span class="country-name">Guam</span><span class="dial-code">+1671</span></li><li class="country" data-dial-code="502" data-country-code="gt"><div class="flag-box"><div class="iti-flag gt"></div></div><span class="country-name">Guatemala</span><span class="dial-code">+502</span></li><li class="country" data-dial-code="44" data-country-code="gg"><div class="flag-box"><div class="iti-flag gg"></div></div><span class="country-name">Guernsey</span><span class="dial-code">+44</span></li><li class="country" data-dial-code="224" data-country-code="gn"><div class="flag-box"><div class="iti-flag gn"></div></div><span class="country-name">Guinea (Guinée)</span><span class="dial-code">+224</span></li><li class="country" data-dial-code="245" data-country-code="gw"><div class="flag-box"><div class="iti-flag gw"></div></div><span class="country-name">Guinea-Bissau (Guiné Bissau)</span><span class="dial-code">+245</span></li><li class="country" data-dial-code="592" data-country-code="gy"><div class="flag-box"><div class="iti-flag gy"></div></div><span class="country-name">Guyana</span><span class="dial-code">+592</span></li><li class="country" data-dial-code="509" data-country-code="ht"><div class="flag-box"><div class="iti-flag ht"></div></div><span class="country-name">Haiti</span><span class="dial-code">+509</span></li><li class="country" data-dial-code="504" data-country-code="hn"><div class="flag-box"><div class="iti-flag hn"></div></div><span class="country-name">Honduras</span><span class="dial-code">+504</span></li><li class="country" data-dial-code="852" data-country-code="hk"><div class="flag-box"><div class="iti-flag hk"></div></div><span class="country-name">Hong Kong (香港)</span><span class="dial-code">+852</span></li><li class="country" data-dial-code="36" data-country-code="hu"><div class="flag-box"><div class="iti-flag hu"></div></div><span class="country-name">Hungary (Magyarország)</span><span class="dial-code">+36</span></li><li class="country" data-dial-code="354" data-country-code="is"><div class="flag-box"><div class="iti-flag is"></div></div><span class="country-name">Iceland (Ísland)</span><span class="dial-code">+354</span></li><li class="country" data-dial-code="91" data-country-code="in"><div class="flag-box"><div class="iti-flag in"></div></div><span class="country-name">India (भारत)</span><span class="dial-code">+91</span></li><li class="country" data-dial-code="62" data-country-code="id"><div class="flag-box"><div class="iti-flag id"></div></div><span class="country-name">Indonesia</span><span class="dial-code">+62</span></li><li class="country" data-dial-code="98" data-country-code="ir"><div class="flag-box"><div class="iti-flag ir"></div></div><span class="country-name">Iran (‫ایران‬‎)</span><span class="dial-code">+98</span></li><li class="country" data-dial-code="964" data-country-code="iq"><div class="flag-box"><div class="iti-flag iq"></div></div><span class="country-name">Iraq (‫العراق‬‎)</span><span class="dial-code">+964</span></li><li class="country" data-dial-code="353" data-country-code="ie"><div class="flag-box"><div class="iti-flag ie"></div></div><span class="country-name">Ireland</span><span class="dial-code">+353</span></li><li class="country" data-dial-code="44" data-country-code="im"><div class="flag-box"><div class="iti-flag im"></div></div><span class="country-name">Isle of Man</span><span class="dial-code">+44</span></li><li class="country" data-dial-code="972" data-country-code="il"><div class="flag-box"><div class="iti-flag il"></div></div><span class="country-name">Israel (‫ישראל‬‎)</span><span class="dial-code">+972</span></li><li class="country" data-dial-code="39" data-country-code="it"><div class="flag-box"><div class="iti-flag it"></div></div><span class="country-name">Italy (Italia)</span><span class="dial-code">+39</span></li><li class="country" data-dial-code="1" data-country-code="jm"><div class="flag-box"><div class="iti-flag jm"></div></div><span class="country-name">Jamaica</span><span class="dial-code">+1</span></li><li class="country" data-dial-code="81" data-country-code="jp"><div class="flag-box"><div class="iti-flag jp"></div></div><span class="country-name">Japan (日本)</span><span class="dial-code">+81</span></li><li class="country" data-dial-code="44" data-country-code="je"><div class="flag-box"><div class="iti-flag je"></div></div><span class="country-name">Jersey</span><span class="dial-code">+44</span></li><li class="country" data-dial-code="962" data-country-code="jo"><div class="flag-box"><div class="iti-flag jo"></div></div><span class="country-name">Jordan (‫الأردن‬‎)</span><span class="dial-code">+962</span></li><li class="country" data-dial-code="7" data-country-code="kz"><div class="flag-box"><div class="iti-flag kz"></div></div><span class="country-name">Kazakhstan (Казахстан)</span><span class="dial-code">+7</span></li><li class="country active" data-dial-code="254" data-country-code="ke"><div class="flag-box"><div class="iti-flag ke"></div></div><span class="country-name">Kenya</span><span class="dial-code">+254</span></li><li class="country" data-dial-code="686" data-country-code="ki"><div class="flag-box"><div class="iti-flag ki"></div></div><span class="country-name">Kiribati</span><span class="dial-code">+686</span></li><li class="country" data-dial-code="383" data-country-code="xk"><div class="flag-box"><div class="iti-flag xk"></div></div><span class="country-name">Kosovo</span><span class="dial-code">+383</span></li><li class="country" data-dial-code="965" data-country-code="kw"><div class="flag-box"><div class="iti-flag kw"></div></div><span class="country-name">Kuwait (‫الكويت‬‎)</span><span class="dial-code">+965</span></li><li class="country" data-dial-code="996" data-country-code="kg"><div class="flag-box"><div class="iti-flag kg"></div></div><span class="country-name">Kyrgyzstan (Кыргызстан)</span><span class="dial-code">+996</span></li><li class="country" data-dial-code="856" data-country-code="la"><div class="flag-box"><div class="iti-flag la"></div></div><span class="country-name">Laos (ລາວ)</span><span class="dial-code">+856</span></li><li class="country" data-dial-code="371" data-country-code="lv"><div class="flag-box"><div class="iti-flag lv"></div></div><span class="country-name">Latvia (Latvija)</span><span class="dial-code">+371</span></li><li class="country" data-dial-code="961" data-country-code="lb"><div class="flag-box"><div class="iti-flag lb"></div></div><span class="country-name">Lebanon (‫لبنان‬‎)</span><span class="dial-code">+961</span></li><li class="country" data-dial-code="266" data-country-code="ls"><div class="flag-box"><div class="iti-flag ls"></div></div><span class="country-name">Lesotho</span><span class="dial-code">+266</span></li><li class="country" data-dial-code="231" data-country-code="lr"><div class="flag-box"><div class="iti-flag lr"></div></div><span class="country-name">Liberia</span><span class="dial-code">+231</span></li><li class="country" data-dial-code="218" data-country-code="ly"><div class="flag-box"><div class="iti-flag ly"></div></div><span class="country-name">Libya (‫ليبيا‬‎)</span><span class="dial-code">+218</span></li><li class="country" data-dial-code="423" data-country-code="li"><div class="flag-box"><div class="iti-flag li"></div></div><span class="country-name">Liechtenstein</span><span class="dial-code">+423</span></li><li class="country" data-dial-code="370" data-country-code="lt"><div class="flag-box"><div class="iti-flag lt"></div></div><span class="country-name">Lithuania (Lietuva)</span><span class="dial-code">+370</span></li><li class="country" data-dial-code="352" data-country-code="lu"><div class="flag-box"><div class="iti-flag lu"></div></div><span class="country-name">Luxembourg</span><span class="dial-code">+352</span></li><li class="country" data-dial-code="853" data-country-code="mo"><div class="flag-box"><div class="iti-flag mo"></div></div><span class="country-name">Macau (澳門)</span><span class="dial-code">+853</span></li><li class="country" data-dial-code="389" data-country-code="mk"><div class="flag-box"><div class="iti-flag mk"></div></div><span class="country-name">Macedonia (FYROM) (Македонија)</span><span class="dial-code">+389</span></li><li class="country" data-dial-code="261" data-country-code="mg"><div class="flag-box"><div class="iti-flag mg"></div></div><span class="country-name">Madagascar (Madagasikara)</span><span class="dial-code">+261</span></li><li class="country" data-dial-code="265" data-country-code="mw"><div class="flag-box"><div class="iti-flag mw"></div></div><span class="country-name">Malawi</span><span class="dial-code">+265</span></li><li class="country" data-dial-code="60" data-country-code="my"><div class="flag-box"><div class="iti-flag my"></div></div><span class="country-name">Malaysia</span><span class="dial-code">+60</span></li><li class="country" data-dial-code="960" data-country-code="mv"><div class="flag-box"><div class="iti-flag mv"></div></div><span class="country-name">Maldives</span><span class="dial-code">+960</span></li><li class="country" data-dial-code="223" data-country-code="ml"><div class="flag-box"><div class="iti-flag ml"></div></div><span class="country-name">Mali</span><span class="dial-code">+223</span></li><li class="country" data-dial-code="356" data-country-code="mt"><div class="flag-box"><div class="iti-flag mt"></div></div><span class="country-name">Malta</span><span class="dial-code">+356</span></li><li class="country" data-dial-code="692" data-country-code="mh"><div class="flag-box"><div class="iti-flag mh"></div></div><span class="country-name">Marshall Islands</span><span class="dial-code">+692</span></li><li class="country" data-dial-code="596" data-country-code="mq"><div class="flag-box"><div class="iti-flag mq"></div></div><span class="country-name">Martinique</span><span class="dial-code">+596</span></li><li class="country" data-dial-code="222" data-country-code="mr"><div class="flag-box"><div class="iti-flag mr"></div></div><span class="country-name">Mauritania (‫موريتانيا‬‎)</span><span class="dial-code">+222</span></li><li class="country" data-dial-code="230" data-country-code="mu"><div class="flag-box"><div class="iti-flag mu"></div></div><span class="country-name">Mauritius (Moris)</span><span class="dial-code">+230</span></li><li class="country" data-dial-code="262" data-country-code="yt"><div class="flag-box"><div class="iti-flag yt"></div></div><span class="country-name">Mayotte</span><span class="dial-code">+262</span></li><li class="country" data-dial-code="52" data-country-code="mx"><div class="flag-box"><div class="iti-flag mx"></div></div><span class="country-name">Mexico (México)</span><span class="dial-code">+52</span></li><li class="country" data-dial-code="691" data-country-code="fm"><div class="flag-box"><div class="iti-flag fm"></div></div><span class="country-name">Micronesia</span><span class="dial-code">+691</span></li><li class="country" data-dial-code="373" data-country-code="md"><div class="flag-box"><div class="iti-flag md"></div></div><span class="country-name">Moldova (Republica Moldova)</span><span class="dial-code">+373</span></li><li class="country" data-dial-code="377" data-country-code="mc"><div class="flag-box"><div class="iti-flag mc"></div></div><span class="country-name">Monaco</span><span class="dial-code">+377</span></li><li class="country" data-dial-code="976" data-country-code="mn"><div class="flag-box"><div class="iti-flag mn"></div></div><span class="country-name">Mongolia (Монгол)</span><span class="dial-code">+976</span></li><li class="country" data-dial-code="382" data-country-code="me"><div class="flag-box"><div class="iti-flag me"></div></div><span class="country-name">Montenegro (Crna Gora)</span><span class="dial-code">+382</span></li><li class="country" data-dial-code="1664" data-country-code="ms"><div class="flag-box"><div class="iti-flag ms"></div></div><span class="country-name">Montserrat</span><span class="dial-code">+1664</span></li><li class="country" data-dial-code="212" data-country-code="ma"><div class="flag-box"><div class="iti-flag ma"></div></div><span class="country-name">Morocco (‫المغرب‬‎)</span><span class="dial-code">+212</span></li><li class="country" data-dial-code="258" data-country-code="mz"><div class="flag-box"><div class="iti-flag mz"></div></div><span class="country-name">Mozambique (Moçambique)</span><span class="dial-code">+258</span></li><li class="country" data-dial-code="95" data-country-code="mm"><div class="flag-box"><div class="iti-flag mm"></div></div><span class="country-name">Myanmar (Burma) (မြန်မာ)</span><span class="dial-code">+95</span></li><li class="country" data-dial-code="264" data-country-code="na"><div class="flag-box"><div class="iti-flag na"></div></div><span class="country-name">Namibia (Namibië)</span><span class="dial-code">+264</span></li><li class="country" data-dial-code="674" data-country-code="nr"><div class="flag-box"><div class="iti-flag nr"></div></div><span class="country-name">Nauru</span><span class="dial-code">+674</span></li><li class="country" data-dial-code="977" data-country-code="np"><div class="flag-box"><div class="iti-flag np"></div></div><span class="country-name">Nepal (नेपाल)</span><span class="dial-code">+977</span></li><li class="country" data-dial-code="31" data-country-code="nl"><div class="flag-box"><div class="iti-flag nl"></div></div><span class="country-name">Netherlands (Nederland)</span><span class="dial-code">+31</span></li><li class="country" data-dial-code="687" data-country-code="nc"><div class="flag-box"><div class="iti-flag nc"></div></div><span class="country-name">New Caledonia (Nouvelle-Calédonie)</span><span class="dial-code">+687</span></li><li class="country" data-dial-code="64" data-country-code="nz"><div class="flag-box"><div class="iti-flag nz"></div></div><span class="country-name">New Zealand</span><span class="dial-code">+64</span></li><li class="country" data-dial-code="505" data-country-code="ni"><div class="flag-box"><div class="iti-flag ni"></div></div><span class="country-name">Nicaragua</span><span class="dial-code">+505</span></li><li class="country" data-dial-code="227" data-country-code="ne"><div class="flag-box"><div class="iti-flag ne"></div></div><span class="country-name">Niger (Nijar)</span><span class="dial-code">+227</span></li><li class="country" data-dial-code="234" data-country-code="ng"><div class="flag-box"><div class="iti-flag ng"></div></div><span class="country-name">Nigeria</span><span class="dial-code">+234</span></li><li class="country" data-dial-code="683" data-country-code="nu"><div class="flag-box"><div class="iti-flag nu"></div></div><span class="country-name">Niue</span><span class="dial-code">+683</span></li><li class="country" data-dial-code="672" data-country-code="nf"><div class="flag-box"><div class="iti-flag nf"></div></div><span class="country-name">Norfolk Island</span><span class="dial-code">+672</span></li><li class="country" data-dial-code="850" data-country-code="kp"><div class="flag-box"><div class="iti-flag kp"></div></div><span class="country-name">North Korea (조선 민주주의 인민 공화국)</span><span class="dial-code">+850</span></li><li class="country" data-dial-code="1670" data-country-code="mp"><div class="flag-box"><div class="iti-flag mp"></div></div><span class="country-name">Northern Mariana Islands</span><span class="dial-code">+1670</span></li><li class="country" data-dial-code="47" data-country-code="no"><div class="flag-box"><div class="iti-flag no"></div></div><span class="country-name">Norway (Norge)</span><span class="dial-code">+47</span></li><li class="country" data-dial-code="968" data-country-code="om"><div class="flag-box"><div class="iti-flag om"></div></div><span class="country-name">Oman (‫عُمان‬‎)</span><span class="dial-code">+968</span></li><li class="country" data-dial-code="92" data-country-code="pk"><div class="flag-box"><div class="iti-flag pk"></div></div><span class="country-name">Pakistan (‫پاکستان‬‎)</span><span class="dial-code">+92</span></li><li class="country" data-dial-code="680" data-country-code="pw"><div class="flag-box"><div class="iti-flag pw"></div></div><span class="country-name">Palau</span><span class="dial-code">+680</span></li><li class="country" data-dial-code="970" data-country-code="ps"><div class="flag-box"><div class="iti-flag ps"></div></div><span class="country-name">Palestine (‫فلسطين‬‎)</span><span class="dial-code">+970</span></li><li class="country" data-dial-code="507" data-country-code="pa"><div class="flag-box"><div class="iti-flag pa"></div></div><span class="country-name">Panama (Panamá)</span><span class="dial-code">+507</span></li><li class="country" data-dial-code="675" data-country-code="pg"><div class="flag-box"><div class="iti-flag pg"></div></div><span class="country-name">Papua New Guinea</span><span class="dial-code">+675</span></li><li class="country" data-dial-code="595" data-country-code="py"><div class="flag-box"><div class="iti-flag py"></div></div><span class="country-name">Paraguay</span><span class="dial-code">+595</span></li><li class="country" data-dial-code="51" data-country-code="pe"><div class="flag-box"><div class="iti-flag pe"></div></div><span class="country-name">Peru (Perú)</span><span class="dial-code">+51</span></li><li class="country" data-dial-code="63" data-country-code="ph"><div class="flag-box"><div class="iti-flag ph"></div></div><span class="country-name">Philippines</span><span class="dial-code">+63</span></li><li class="country" data-dial-code="48" data-country-code="pl"><div class="flag-box"><div class="iti-flag pl"></div></div><span class="country-name">Poland (Polska)</span><span class="dial-code">+48</span></li><li class="country" data-dial-code="351" data-country-code="pt"><div class="flag-box"><div class="iti-flag pt"></div></div><span class="country-name">Portugal</span><span class="dial-code">+351</span></li><li class="country" data-dial-code="1" data-country-code="pr"><div class="flag-box"><div class="iti-flag pr"></div></div><span class="country-name">Puerto Rico</span><span class="dial-code">+1</span></li><li class="country" data-dial-code="974" data-country-code="qa"><div class="flag-box"><div class="iti-flag qa"></div></div><span class="country-name">Qatar (‫قطر‬‎)</span><span class="dial-code">+974</span></li><li class="country" data-dial-code="262" data-country-code="re"><div class="flag-box"><div class="iti-flag re"></div></div><span class="country-name">Réunion (La Réunion)</span><span class="dial-code">+262</span></li><li class="country" data-dial-code="40" data-country-code="ro"><div class="flag-box"><div class="iti-flag ro"></div></div><span class="country-name">Romania (România)</span><span class="dial-code">+40</span></li><li class="country" data-dial-code="7" data-country-code="ru"><div class="flag-box"><div class="iti-flag ru"></div></div><span class="country-name">Russia (Россия)</span><span class="dial-code">+7</span></li><li class="country" data-dial-code="250" data-country-code="rw"><div class="flag-box"><div class="iti-flag rw"></div></div><span class="country-name">Rwanda</span><span class="dial-code">+250</span></li><li class="country" data-dial-code="590" data-country-code="bl"><div class="flag-box"><div class="iti-flag bl"></div></div><span class="country-name">Saint Barthélemy</span><span class="dial-code">+590</span></li><li class="country" data-dial-code="290" data-country-code="sh"><div class="flag-box"><div class="iti-flag sh"></div></div><span class="country-name">Saint Helena</span><span class="dial-code">+290</span></li><li class="country" data-dial-code="1869" data-country-code="kn"><div class="flag-box"><div class="iti-flag kn"></div></div><span class="country-name">Saint Kitts and Nevis</span><span class="dial-code">+1869</span></li><li class="country" data-dial-code="1758" data-country-code="lc"><div class="flag-box"><div class="iti-flag lc"></div></div><span class="country-name">Saint Lucia</span><span class="dial-code">+1758</span></li><li class="country" data-dial-code="590" data-country-code="mf"><div class="flag-box"><div class="iti-flag mf"></div></div><span class="country-name">Saint Martin (Saint-Martin (partie française))</span><span class="dial-code">+590</span></li><li class="country" data-dial-code="508" data-country-code="pm"><div class="flag-box"><div class="iti-flag pm"></div></div><span class="country-name">Saint Pierre and Miquelon (Saint-Pierre-et-Miquelon)</span><span class="dial-code">+508</span></li><li class="country" data-dial-code="1784" data-country-code="vc"><div class="flag-box"><div class="iti-flag vc"></div></div><span class="country-name">Saint Vincent and the Grenadines</span><span class="dial-code">+1784</span></li><li class="country" data-dial-code="685" data-country-code="ws"><div class="flag-box"><div class="iti-flag ws"></div></div><span class="country-name">Samoa</span><span class="dial-code">+685</span></li><li class="country" data-dial-code="378" data-country-code="sm"><div class="flag-box"><div class="iti-flag sm"></div></div><span class="country-name">San Marino</span><span class="dial-code">+378</span></li><li class="country" data-dial-code="239" data-country-code="st"><div class="flag-box"><div class="iti-flag st"></div></div><span class="country-name">São Tomé and Príncipe (São Tomé e Príncipe)</span><span class="dial-code">+239</span></li><li class="country" data-dial-code="966" data-country-code="sa"><div class="flag-box"><div class="iti-flag sa"></div></div><span class="country-name">Saudi Arabia (‫المملكة العربية السعودية‬‎)</span><span class="dial-code">+966</span></li><li class="country" data-dial-code="221" data-country-code="sn"><div class="flag-box"><div class="iti-flag sn"></div></div><span class="country-name">Senegal (Sénégal)</span><span class="dial-code">+221</span></li><li class="country" data-dial-code="381" data-country-code="rs"><div class="flag-box"><div class="iti-flag rs"></div></div><span class="country-name">Serbia (Србија)</span><span class="dial-code">+381</span></li><li class="country" data-dial-code="248" data-country-code="sc"><div class="flag-box"><div class="iti-flag sc"></div></div><span class="country-name">Seychelles</span><span class="dial-code">+248</span></li><li class="country" data-dial-code="232" data-country-code="sl"><div class="flag-box"><div class="iti-flag sl"></div></div><span class="country-name">Sierra Leone</span><span class="dial-code">+232</span></li><li class="country" data-dial-code="65" data-country-code="sg"><div class="flag-box"><div class="iti-flag sg"></div></div><span class="country-name">Singapore</span><span class="dial-code">+65</span></li><li class="country" data-dial-code="1721" data-country-code="sx"><div class="flag-box"><div class="iti-flag sx"></div></div><span class="country-name">Sint Maarten</span><span class="dial-code">+1721</span></li><li class="country" data-dial-code="421" data-country-code="sk"><div class="flag-box"><div class="iti-flag sk"></div></div><span class="country-name">Slovakia (Slovensko)</span><span class="dial-code">+421</span></l

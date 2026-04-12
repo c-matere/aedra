@@ -16,7 +16,8 @@ import {
     Map as MapIcon,
     FileDown,
     FileText,
-    ChevronDown
+    ChevronDown,
+    Clock
 } from "lucide-react"
 import {
     SlidePanel,
@@ -44,6 +45,8 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { RecurringExpenses } from "./recurring-expenses"
+import { ListTodo, Settings } from "lucide-react"
 
 interface PropertyDetailsPanelProps {
     propertyId: string | null
@@ -58,6 +61,7 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [isGenerating, setIsGenerating] = useState(false)
+    const [view, setView] = useState<'DETAILS' | 'RECURRING'>('DETAILS')
 
     const handleGenerateReport = async (format: 'PDF' | 'CSV') => {
         if (!property) return
@@ -237,7 +241,35 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                         </div>
                     ) : property ? (
                         <div className="flex-1 overflow-y-auto py-8 space-y-8 pr-2 custom-scrollbar">
-                            {/* Summary Cards */}
+                            {/* View Toggle */}
+                            <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 w-fit">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setView('DETAILS')}
+                                    className={`rounded-lg px-6 h-8 text-[11px] font-bold uppercase tracking-wider transition-all ${
+                                        view === 'DETAILS' ? "bg-emerald-500/10 text-emerald-400 shadow-inner" : "text-neutral-500 hover:text-neutral-300"
+                                    }`}
+                                >
+                                    Property Info
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setView('RECURRING')}
+                                    className={`rounded-lg px-6 h-8 text-[11px] font-bold uppercase tracking-wider transition-all ${
+                                        view === 'RECURRING' ? "bg-emerald-500/10 text-emerald-400 shadow-inner" : "text-neutral-500 hover:text-neutral-300"
+                                    }`}
+                                >
+                                    <Clock className="w-3 h-3 mr-1.5" /> Recurring
+                                </Button>
+                            </div>
+
+                            {view === 'RECURRING' ? (
+                                <RecurringExpenses propertyId={property.id} token={token} />
+                            ) : (
+                                <>
+                                    {/* Summary Cards */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-1 transition-all hover:bg-white/10">
                                     <span className="text-[10px] font-bold text-neutral-555 uppercase tracking-widest flex items-center gap-1.5">
@@ -430,6 +462,8 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </section>
+                                </>
+                            )}
                         </div>
                     ) : null}
                 </SlidePanelContent>

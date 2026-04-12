@@ -1,0 +1,29 @@
+V 2.3.2
+
+Home
+
+Leases
+
+Billing
+
+Collection
+
+Vouchers
+
+Debt Control
+
+Issues
+
+Tenant Billing
+By Tenant Code
+By Name
+By Phone Number
+Matere Chris
+ Reports
+Billing Reports
+Invoices Generated
+Unpaid Invoices (Current)
+Unpaid Invoices (By Date)
+Outstanding Balances
+Aging Balances
+Rent Roll

@@ -4,3 +4,8 @@ node_modules
 
 /generated/prisma
 uploads/
+scratch/
+*.png
+*.log
+debug_data.json
+backfill_tmp.js

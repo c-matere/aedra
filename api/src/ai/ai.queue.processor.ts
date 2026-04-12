@@ -47,8 +47,7 @@ export class AiQueueProcessor extends WorkerHost implements OnApplicationBootstr
     try {
       switch (job.name) {
         case 'generate_report_pdf':
-          await this.handleGenerateReportPdf(job.data);
-          break;
+          return await this.handleGenerateReportPdf(job.data);
         case 'bulk_generate_invoices':
           await this.handleBulkInvoices(job.data);
           break;
@@ -184,6 +183,8 @@ export class AiQueueProcessor extends WorkerHost implements OnApplicationBootstr
     this.logger.log(
       `[Queue] PDF generated and delivered to ${data.targetPhone}`,
     );
+
+    return { url, fileName };
   }
 
   private async handleBulkInvoices(data: {

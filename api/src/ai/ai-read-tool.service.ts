@@ -93,6 +93,25 @@ export class AiReadToolService implements OnModuleInit {
     return this.formatNotFoundError(entityType, searchTerm);
   }
 
+  private isPlaceholderValue(value: any): boolean {
+    if (value === undefined || value === null) return true;
+    const raw = String(value).trim().toLowerCase();
+    if (!raw) return true;
+    return [
+      'unspecified',
+      'unknown',
+      'n/a',
+      'na',
+      'none',
+      'null',
+      'not provided',
+      'not_specified',
+      'not-specified',
+      'pending',
+      'undefined'
+    ].includes(raw);
+  }
+
   private loadMockFixtures() {
     try {
       // Try multiple locations for the fixtures
@@ -390,31 +409,34 @@ export class AiReadToolService implements OnModuleInit {
     language: string,
   ): Promise<any> {
     const chatId = context.chatId;
-    // chatId is optional — tools like list_companies work without a session
-    const identityKey = chatId ? `ai_session:${chatId}:identity` : null;
-    const lockedIdentity: any =
-      role === UserRole.TENANT && identityKey ? await this.cacheManager.get(identityKey) : null;
+    const identityKey = chatId ? `ai_session:${chatId}:identity` : null; // still used in mock mode for lock transitions
+    const lockedTenantId = context?.security?.lockedTenantId;
+    const lockedTenantName = context?.security?.lockedTenantName;
+    // Avoid mutating caller-provided args by always working with a local copy.
+    const effectiveArgs: any = { ...(args || {}) };
+    args = effectiveArgs;
 
     // 1. GOVERNANCE: Pre-execution Identity Guard
-    if (role === UserRole.TENANT && lockedIdentity && lockedIdentity.id) {
+    if (role === UserRole.TENANT && lockedTenantId) {
       const rawProvidedId =
         args?.tenantId || (name === 'get_tenant_details' ? args?.id : undefined);
       const providedId =
         typeof rawProvidedId === 'string' &&
-        ['PENDING', 'NONE', 'NULL', 'UNSPECIFIED'].includes(rawProvidedId.trim().toUpperCase())
+        this.isPlaceholderValue(rawProvidedId)
           ? undefined
           : rawProvidedId;
       
       // Strict Conflict Check: If the AI provides an ID that doesn't match the lock
-      if (providedId && providedId !== 'PENDING' && providedId !== lockedIdentity.id) {
-        this.logger.error(`[Governance] CONTEXT_CONFLICT: Session ${chatId} locked to ${lockedIdentity.id}, but tool ${name} called for ${providedId}`);
+      if (providedId && providedId !== 'PENDING' && providedId !== lockedTenantId) {
+        this.logger.error(`[Governance] CONTEXT_CONFLICT: Session ${chatId} locked to ${lockedTenantId}, but tool ${name} called for ${providedId}`);
         return { 
           error: 'CONTEXT_CONFLICT', 
-          message: `Identity mismatch. This session is already locked to ${lockedIdentity.name}.` 
+          requires_clarification: true,
+          message: `Identity mismatch. This session is already locked to ${lockedTenantName || 'your account'}.` 
         };
       }
 
-      // Auto-Injection: If ID is missing, inject the locked one
+      // Auto-Default (tenant sessions only): if ID is missing, use the locked one (without mutating caller args)
       if (!providedId || providedId === 'PENDING') {
         const tenantScopedTools = [
           'get_tenant_details',
@@ -425,15 +447,19 @@ export class AiReadToolService implements OnModuleInit {
           'list_leases',
         ];
         if (tenantScopedTools.includes(name)) {
-          args.tenantId = lockedIdentity.id;
-          if (name === 'get_tenant_details') args.id = lockedIdentity.id;
-          this.logger.log(`[Governance] Injected locked identity ${lockedIdentity.name} into ${name}`);
+          args = { ...args, tenantId: lockedTenantId };
+          if (name === 'get_tenant_details') args.id = lockedTenantId;
+          this.logger.log(`[Governance] Defaulted to locked tenant ${lockedTenantName || lockedTenantId} for ${name}`);
         }
       }
     }
 
     if (this.mockFixtures && process.env.BENCH_MOCK_MODE === 'true') {
       const toolKey = name.toLowerCase();
+      const lockedIdentity: any =
+        role === UserRole.TENANT && identityKey
+          ? await this.cacheManager.get(identityKey)
+          : null;
       
       // Reporting Router Override
       if (this.REPORT_MAP[toolKey]) {
@@ -495,17 +521,6 @@ export class AiReadToolService implements OnModuleInit {
 
       this.logger.warn(`[MOCK] Tool ${name} returned null in mock mode. SILENCING fall-through.`);
       return null;
-    } else {
-      // Real (non-mock) identity injection logic
-      if (
-        role === UserRole.TENANT &&
-        (name === 'get_tenant_arrears' || name === 'get_tenant_details' || name === 'list_payments')
-      ) {
-        if (!args.tenantId && !args.tenantName && !args.query && lockedIdentity) {
-          args.tenantId = lockedIdentity.id;
-          this.logger.log(`[Identity] Injected locked tenant ${lockedIdentity.name} (${lockedIdentity.id}) into ${name}`);
-        }
-      }
     }
 
     try {
@@ -1287,7 +1302,7 @@ export class AiReadToolService implements OnModuleInit {
             }
           }
 
-          if (!unitId) return this.formatNotFoundError('unit', args?.unitNumber || unitId || 'unspecified');
+          if (!unitId) return this.formatNotFoundError('unit', args?.unitNumber || args?.unitId || 'the provided identifier');
 
           await this.resolveCompanyId(context, unitId, 'unit');
           const unit = await this.prisma.unit.findFirst({

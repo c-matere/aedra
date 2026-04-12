@@ -124,7 +124,7 @@ export class InvoicesService {
       description: data.description,
       type: (data.type as any) || 'RENT',
       dueDate: new Date(data.dueDate),
-      status: data.status || 'PENDING',
+      status: (data.status as any) || 'PENDING',
       leaseId: data.leaseId,
     };
 
@@ -174,7 +174,7 @@ export class InvoicesService {
       ...(data.dueDate !== undefined
         ? { dueDate: new Date(data.dueDate) }
         : {}),
-      ...(data.status !== undefined ? { status: data.status } : {}),
+      ...(data.status !== undefined ? { status: data.status as any } : {}),
       ...(data.type !== undefined ? { type: data.type as any } : {}),
       ...(data.leaseId !== undefined ? { leaseId: data.leaseId } : {}),
     };
@@ -238,5 +238,120 @@ export class InvoicesService {
     }
 
     return lease;
+  }
+
+  async generateMonthlyInvoices(actor: AuthenticatedUser, propertyId?: string) {
+    const companyId = actor.companyId;
+    if (!companyId && actor.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Company context required');
+    }
+
+    const leases = await this.prisma.lease.findMany({
+      where: {
+        status: 'ACTIVE',
+        ...(propertyId ? { propertyId } : {}),
+        ...(companyId ? { property: { companyId } } : {}),
+      },
+      include: {
+        unit: true,
+        tenant: true,
+      },
+    });
+
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
+
+    let createdCount = 0;
+
+    for (const lease of leases) {
+      // Check if invoice already exists for this lease this month
+      const existing = await this.prisma.invoice.findFirst({
+        where: {
+          leaseId: lease.id,
+          type: 'RENT',
+          dueDate: {
+            gte: monthStart,
+            lte: monthEnd,
+          },
+        },
+      });
+
+      if (!existing) {
+        await this.prisma.invoice.create({
+          data: {
+            amount: lease.rentAmount || 0,
+            description: `Rent for ${now.toLocaleString('default', { month: 'long' })} ${year}`,
+            dueDate: new Date(year, month, 5), // Default to 5th of month
+            type: 'RENT',
+            status: 'PENDING',
+            leaseId: lease.id,
+          },
+        });
+        createdCount++;
+      }
+    }
+
+    return { createdCount, totalLeases: leases.length };
+  }
+
+  async autoReconcileIncome(actor: AuthenticatedUser, propertyId: string) {
+    const companyId = actor.companyId;
+    if (!companyId && actor.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Company context required');
+    }
+
+    // 1. Get all pending invoices for this property
+    const invoices = await this.prisma.invoice.findMany({
+      where: {
+        status: { in: ['PENDING', 'PARTIALLY_PAID'] },
+        lease: { propertyId },
+      },
+      include: {
+        lease: { include: { tenant: true } },
+      },
+    });
+
+    // 2. Get all income records for this property
+    const incomes = await this.prisma.income.findMany({
+      where: { propertyId },
+      orderBy: { date: 'desc' },
+    });
+
+    let reconciledCount = 0;
+
+    for (const invoice of invoices) {
+      // Find an income record that matches the amount and tenant name (if possible)
+      const matchingIncome = incomes.find((inc) => {
+        const amountMatch = Math.abs(inc.amount - invoice.amount) < 0.01;
+        const nameMatch = invoice.lease.tenant.lastName && inc.description?.toLowerCase().includes(invoice.lease.tenant.lastName.toLowerCase());
+        return amountMatch && nameMatch;
+      });
+
+      if (matchingIncome) {
+        // Create a payment
+        await this.prisma.$transaction(async (tx) => {
+          await tx.payment.create({
+            data: {
+              amount: matchingIncome.amount,
+              paidAt: matchingIncome.date,
+              method: 'MPESA', // Assumption for Zuri
+              reference: matchingIncome.description,
+              leaseId: invoice.leaseId, // Payment links to lease
+            },
+          });
+
+          await tx.invoice.update({
+            where: { id: invoice.id },
+            data: { status: 'PAID' },
+          });
+        });
+        reconciledCount++;
+      }
+    }
+
+    return { reconciledCount, totalInvoices: invoices.length };
   }
 }

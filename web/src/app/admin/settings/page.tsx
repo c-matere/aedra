@@ -10,19 +10,21 @@ import {
     ChevronRight,
     Building2,
     CreditCard,
+    User,
+    History,
+    Search
 } from "lucide-react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { fetchAdminSettings, fetchMe, getCompany, backendBaseUrl, listCompanies, getLogoUrl } from "@/lib/backend-api"
+import { fetchAdminSettings, fetchMe, getCompany, listCompanies, getLogoUrl, fetchAuditLogs } from "@/lib/backend-api"
 import { getRoleFromCookie, getSessionTokenFromCookie } from "@/lib/cookie-utils"
 import { CompanyEditButton } from "./company-edit-button"
-import { SecurityEditButton } from "./security-edit-button"
 import { NotificationsEditButton } from "./notifications-edit-button"
-import { IntegrationsEditButton } from "./integrations-edit-button"
 import { BillingEditButton } from "./billing-edit-button"
 import { CompanySelector } from "./company-selector"
+import { ProfileEditButton } from "./profile-edit-button"
 
 export default async function SettingsPage({
     searchParams,
@@ -35,9 +37,10 @@ export default async function SettingsPage({
     const resolvedSearchParams = await searchParams
     const queryCompanyId = resolvedSearchParams.companyId as string | undefined
 
-    const [settingsResult, meResult] = await Promise.all([
+    const [settingsResult, meResult, auditResult] = await Promise.all([
         fetchAdminSettings(sessionToken),
         fetchMe(sessionToken),
+        fetchAuditLogs(sessionToken)
     ])
 
     const userCompanyId = meResult.data?.user?.companyId
@@ -50,85 +53,10 @@ export default async function SettingsPage({
 
     const company = companyResult.data
     const allCompanies = allCompaniesResult.data || []
+    const me = meResult.data?.user
+    const logs = Array.isArray(auditResult.data?.logs) ? auditResult.data.logs : []
 
     const backendOnline = settingsResult.error === null && meResult.error === null
-
-    const SETTING_SECTIONS = [
-        {
-            id: "company",
-            icon: Building2,
-            title: "Company Profile",
-            description: "Update your company name, logo, and contact details.",
-            items: [
-                { label: "Logo", value: company?.logo || "No logo uploaded" },
-                { label: "Company Name", value: company?.name ?? "Aedra Mombasa Ltd." },
-                { label: "Support Email", value: company?.email ?? "support@aedra.co.ke" },
-                { label: "Support Phone", value: company?.phone ?? "+254 700 000 000" },
-                { label: "Address", value: company?.address ?? "Mombasa, Kenya" },
-            ],
-            editor: company && (role === "SUPER_ADMIN" || role === "COMPANY_ADMIN") ? (
-                <CompanyEditButton company={company} token={sessionToken} />
-            ) : null
-        },
-        {
-            id: "security",
-            icon: Lock,
-            title: "Security & Access",
-            description: "Manage authentication policies and role permissions.",
-            items: [
-                { label: "Session Duration", value: `${company?.sessionDurationHours ?? 8} hours` },
-                { label: "Password Policy", value: company?.passwordPolicy ?? "Min 8 chars + special character" },
-                { label: "Two-Factor Auth", value: company?.twoFactorAuthEnabled ? "Enabled" : "Disabled" },
-                { label: "IP Allowlist", value: company?.ipAllowlist ?? "Not configured" },
-            ],
-            editor: company && (role === "SUPER_ADMIN" || role === "COMPANY_ADMIN") ? (
-                <SecurityEditButton company={company} token={sessionToken} />
-            ) : null
-        },
-        {
-            id: "notifications",
-            icon: Bell,
-            title: "Notifications",
-            description: "Configure email and SMS alert preferences.",
-            items: [
-                { label: "Rent Reminders", value: `${company?.rentReminderDaysBefore ?? 3} days before due` },
-                { label: "Lease Expiry Alert", value: `${company?.leaseExpiryAlertDaysBefore ?? 90} days before expiry` },
-                { label: "Payment Receipts", value: company?.paymentReceiptsEnabled ? "Enabled" : "Disabled" },
-                { label: "Maintenance Updates", value: company?.maintenanceUpdatesEnabled ? "Enabled" : "Disabled" },
-            ],
-            editor: company && (role === "SUPER_ADMIN" || role === "COMPANY_ADMIN") ? (
-                <NotificationsEditButton company={company} token={sessionToken} />
-            ) : null
-        },
-        {
-            id: "integrations",
-            icon: Globe,
-            title: "API & Integrations",
-            description: "Manage backend API connections and third-party integrations.",
-            items: [
-                { label: "API Base URL", value: backendBaseUrl() },
-                { label: "M-Pesa Integration", value: company?.mpesaShortcode ? `Shortcode: ${company.mpesaShortcode} (${company.mpesaEnvironment})` : "Not configured" },
-                { label: "SMS Provider", value: `${company?.smsProvider}${company?.africaTalkingApiKey ? " (Configured)" : " (Missing API Key)"}` },
-                { label: "Map Provider", value: `${company?.mapProvider}${company?.mapboxAccessToken ? " (Configured)" : " (Missing Token)"}` },
-            ],
-            editor: company && (role === "SUPER_ADMIN" || role === "COMPANY_ADMIN") ? (
-                <IntegrationsEditButton company={company} token={sessionToken} />
-            ) : null
-        },
-        {
-            id: "billing",
-            icon: CreditCard,
-            title: "Billing & Invoicing",
-            description: "Manage automatic invoicing and billing cycles.",
-            items: [
-                { label: "Automatic Invoicing", value: company?.autoInvoicingEnabled ? "Enabled" : "Disabled" },
-                { label: "Invoicing Day", value: `Day ${company?.invoicingDay ?? 1} of the month` },
-            ],
-            editor: company && (role === "SUPER_ADMIN" || role === "COMPANY_ADMIN") ? (
-                <BillingEditButton company={company} token={sessionToken} />
-            ) : null
-        },
-    ]
 
     return (
         <div className="flex flex-col gap-8 pb-10">
@@ -136,25 +64,12 @@ export default async function SettingsPage({
             {/* Page header */}
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
-                    <h1 className="text-3xl font-bold tracking-tight text-white drop-shadow-md">
+                    <h1 className="text-3xl font-black text-white tracking-tight drop-shadow-md">
                         Settings
                     </h1>
                     <p className="text-neutral-400 text-sm font-medium">
-                        Manage platform configuration and access controls.
+                        Personal profile and core company configuration.
                     </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    {/* API status badge */}
-                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border ${backendOnline
-                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                        : "bg-red-500/10 border-red-500/20 text-red-400"
-                        }`}>
-                        {backendOnline
-                            ? <CheckCircle className="h-3.5 w-3.5" />
-                            : <AlertCircle className="h-3.5 w-3.5" />
-                        }
-                        {backendOnline ? "Backend Online" : "Backend Offline"}
-                    </div>
                 </div>
             </div>
             
@@ -166,142 +81,158 @@ export default async function SettingsPage({
                 />
             )}
 
-            {/* Role info card */}
-            <div className={`flex items-start gap-4 rounded-xl border px-5 py-4 ${role === "SUPER_ADMIN"
-                ? "bg-white/5 border-white/10"
-                : "bg-red-500/8 border-red-500/20"
-                }`}>
-                <Shield className={`h-5 w-5 mt-0.5 flex-shrink-0 ${role === "SUPER_ADMIN" ? "text-neutral-400" : "text-red-400"}`} />
-                <div>
-                    <p className={`text-sm font-semibold ${role === "SUPER_ADMIN" ? "text-white" : "text-red-300"}`}>
-                        {role === "SUPER_ADMIN"
-                            ? "Full Access — Super Admin"
-                            : role === "COMPANY_ADMIN"
-                                ? "Limited Access — Company Admin"
-                                : "Read-Only — Company Staff"}
-                    </p>
-                    <p className={`text-xs mt-0.5 ${role === "SUPER_ADMIN" ? "text-neutral-400" : "text-red-400/70"}`}>
-                        {role === "SUPER_ADMIN"
-                            ? "You can view and modify all settings on this page."
-                            : "Some settings are restricted to Super Admin only. Contact your system administrator."}
-                    </p>
-                    {settingsResult.data?.requiredRoles && (
-                        <p className="text-xs text-neutral-500 mt-1">
-                            Required roles: {settingsResult.data.requiredRoles.join(", ")}
-                        </p>
-                    )}
-                </div>
-            </div>
-
-            {/* API Status detail */}
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <div>
-                        <CardTitle className="flex items-center gap-2 text-base">
-                            <Database className="h-4 w-4 text-neutral-400" />
-                            Backend API Status
-                        </CardTitle>
-                        <CardDescription className="text-neutral-400 mt-1">
-                            {settingsResult.data?.message ?? settingsResult.error ?? "No response from API"}
-                        </CardDescription>
-                    </div>
-                    <div className={`h-2.5 w-2.5 rounded-full ${backendOnline ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.8)]"}`} />
-                </CardHeader>
-            </Card>
-
-            {/* Settings sections */}
-            <div className="grid gap-6 md:grid-cols-2">
-                {SETTING_SECTIONS.map((section) => {
-                    const Icon = section.icon
-                    return (
-                        <Card key={section.id} className="group">
-                            <CardHeader className="pb-3">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-9 w-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                                            <Icon className="h-4 w-4 text-neutral-400" />
-                                        </div>
-                                        <div>
-                                            <CardTitle className="text-sm font-semibold text-white">{section.title}</CardTitle>
-                                            <CardDescription className="text-xs text-neutral-500 mt-0.5">{section.description}</CardDescription>
-                                        </div>
-                                    </div>
-                                    {section.editor}
+            <div className="grid gap-8 md:grid-cols-2">
+                {/* 1. Profile Settings */}
+                <Card className="bg-neutral-900 border-white/10 group overflow-hidden">
+                    <CardHeader className="pb-3 border-b border-white/5">
+                        <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+                                    <User className="h-5 w-5 text-purple-400" />
                                 </div>
-                            </CardHeader>
-                            <CardContent className="pt-0">
-                                <div className="space-y-2 border-t border-white/5 pt-3">
-                                    {section.items.map((item) => (
-                                        <div key={item.label} className="flex items-center justify-between py-1">
-                                            <span className="text-xs text-neutral-500">{item.label}</span>
-                                            <span className="text-xs font-medium text-neutral-200 text-right max-w-[55%] truncate">
-                                                {item.label === "Logo" && item.value && item.value !== "No logo uploaded" ? (
-                                                    <img src={getLogoUrl(item.value as string) || ""} alt="Logo" className="h-8 w-8 object-contain rounded border border-white/10 ml-auto" />
-                                                ) : (
-                                                    item.value
-                                                )}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )
-                })}
-            </div>
-
-            {/* Roles definition */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                        <Users className="h-4 w-4 text-neutral-400" />
-                        Role Permissions
-                    </CardTitle>
-                    <CardDescription className="text-neutral-400">
-                        Overview of access levels for each role in the platform.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid gap-3 md:grid-cols-3">
-                        {[
-                            {
-                                role: "Company Staff",
-                                color: "border-white/10",
-                                perms: ["View dashboard", "View properties", "View tenants", "Log maintenance"],
-                                restricted: ["Settings", "Audit logs", "Billing"],
-                            },
-                            {
-                                role: "Company Admin",
-                                color: "border-white/15",
-                                perms: ["All staff permissions", "Manage properties", "Manage tenants", "Company settings"],
-                                restricted: ["Audit logs", "System settings"],
-                            },
-                            {
-                                role: "Super Admin",
-                                color: "border-white/20",
-                                perms: ["Full platform access", "All audit logs", "System configuration", "User management"],
-                                restricted: [],
-                            },
-                        ].map((r) => (
-                            <div key={r.role} className={`rounded-xl border ${r.color} bg-white/[0.03] p-4 space-y-3`}>
-                                <p className="text-sm font-semibold text-white">{r.role}</p>
-                                <div className="space-y-1">
-                                    {r.perms.map(p => (
-                                        <p key={p} className="text-xs text-neutral-300 flex items-center gap-2">
-                                            <CheckCircle className="h-3 w-3 text-emerald-400 flex-shrink-0" />
-                                            {p}
-                                        </p>
-                                    ))}
-                                    {r.restricted.map(p => (
-                                        <p key={p} className="text-xs text-neutral-600 flex items-center gap-2">
-                                            <AlertCircle className="h-3 w-3 text-neutral-700 flex-shrink-0" />
-                                            {p}
-                                        </p>
-                                    ))}
+                                <div>
+                                    <CardTitle className="text-base font-bold text-white">My Profile</CardTitle>
+                                    <CardDescription className="text-xs text-neutral-500">Update your account identity.</CardDescription>
                                 </div>
                             </div>
-                        ))}
+                            {me && <ProfileEditButton user={me} token={sessionToken} />}
+                        </div>
+                    </CardHeader>
+                    <CardContent className="pt-6 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-bold text-neutral-555 uppercase">Full Name</p>
+                                <p className="text-sm font-medium text-white">{me?.firstName} {me?.lastName}</p>
+                            </div>
+                            <div className="space-y-1 text-right">
+                                <p className="text-[10px] font-bold text-neutral-555 uppercase">Platform Role</p>
+                                <p className="text-xs font-black text-emerald-400 uppercase tracking-tighter">{me?.role}</p>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-bold text-neutral-555 uppercase">Email Link</p>
+                            <p className="text-sm font-medium text-white underline underline-offset-4 decoration-white/10 italic">{me?.email}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-bold text-neutral-555 uppercase">Phone Number</p>
+                            <p className="text-sm font-medium text-white">{me?.phone || "Not provided"}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* 2. Company Settings */}
+                <Card className="bg-neutral-900 border-white/10 group overflow-hidden">
+                    <CardHeader className="pb-3 border-b border-white/5">
+                        <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                                    <Building2 className="h-5 w-5 text-emerald-400" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-base font-bold text-white">Company Identity</CardTitle>
+                                    <CardDescription className="text-xs text-neutral-500">Manege logo, billing, and alert cycles.</CardDescription>
+                                </div>
+                            </div>
+                            {company && (role === "SUPER_ADMIN" || role === "COMPANY_ADMIN") && (
+                                <CompanyEditButton company={company} token={sessionToken} />
+                            )}
+                        </div>
+                    </CardHeader>
+                    <CardContent className="pt-6 space-y-5">
+                        <div className="flex items-center gap-4">
+                            {company?.logo ? (
+                                <img src={getLogoUrl(company.logo) || ""} alt="Logo" className="h-12 w-12 object-contain rounded border border-white/10 bg-white/5 p-1" />
+                            ) : (
+                                <div className="h-12 w-12 rounded border border-dashed border-white/10 flex items-center justify-center text-neutral-600 text-[10px] font-bold">NO LOGO</div>
+                            )}
+                            <div>
+                                <p className="text-base font-black text-white">{company?.name ?? "Aedra Platform"}</p>
+                                <p className="text-[10px] text-neutral-500 uppercase tracking-widest">{company?.email ?? "support@aedra.co.ke"}</p>
+                            </div>
+                        </div>
+
+                        <div className="h-px bg-white/5" />
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-[10px] font-bold text-neutral-555 uppercase tracking-tighter">Billing Cycle</p>
+                                    {company && <BillingEditButton company={company} token={sessionToken} />}
+                                </div>
+                                <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-center">
+                                    <p className="text-xs text-neutral-500 mb-1 leading-none">Auto-Invoicing</p>
+                                    <p className="text-sm font-black text-white">{company?.autoInvoicingEnabled ? "Enabled" : "Manual"}</p>
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-[10px] font-bold text-neutral-555 uppercase tracking-tighter">System Alerts</p>
+                                    {company && <NotificationsEditButton company={company} token={sessionToken} />}
+                                </div>
+                                <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-center">
+                                    <p className="text-xs text-neutral-500 mb-1 leading-none">Rent Reminders</p>
+                                    <p className="text-sm font-black text-white">{company?.rentReminderDaysBefore ?? 3}d Prior</p>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* 3. Audit Logs (Moved from standalone as requested) */}
+            <Card className="bg-neutral-900 border-white/10">
+                <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 pb-4">
+                    <div>
+                        <CardTitle className="text-white text-lg font-bold flex items-center gap-2">
+                            <History className="h-5 w-5 text-blue-500" />
+                            Security Audit Trail
+                        </CardTitle>
+                        <CardDescription className="text-neutral-500 text-xs">Platform-wide activity and access tracking.</CardDescription>
                     </div>
+                    <div className="flex items-center gap-2">
+                        <div className={`h-2.5 w-2.5 rounded-full ${backendOnline ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.8)]"}`} />
+                        <span className="text-[10px] font-black uppercase text-neutral-500">{backendOnline ? "Operational" : "Degraded"}</span>
+                    </div>
+                </CardHeader>
+                <CardContent className="pt-6">
+                    {role === "SUPER_ADMIN" ? (
+                        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                            {logs.length > 0 ? (
+                                logs.map((log: any) => (
+                                    <div key={log.id} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-[10px] font-bold ${log.action === 'CREATE' ? 'bg-emerald-500/10 text-emerald-400' :
+                                                    log.action === 'DELETE' ? 'bg-red-500/10 text-red-400' :
+                                                        'bg-blue-500/10 text-blue-400'
+                                                }`}>
+                                                {log.action?.substring(0, 1)}
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-3">
+                                                    <p className="text-xs font-bold text-white uppercase tracking-tighter">{log.action} {log.entity}</p>
+                                                    <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${log.outcome === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                                                        {log.outcome}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[10px] text-neutral-500">{new Date(log.timestamp).toLocaleString()}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="h-32 flex flex-col items-center justify-center text-neutral-600">
+                                    <Search className="h-8 w-8 mb-2 opacity-20" />
+                                    <p className="text-xs uppercase font-black tracking-widest italic">No activities recorded</p>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="h-32 flex flex-col items-center justify-center text-center p-6 border border-dashed border-white/10 rounded-2xl bg-white/[0.02]">
+                            <History className="h-10 w-10 text-neutral-700 mb-4" />
+                            <h4 className="text-white font-bold mb-1">Access Restricted</h4>
+                            <p className="text-[11px] text-neutral-500">Only Super Admins can view the granular audit trail.</p>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 

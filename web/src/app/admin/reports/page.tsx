@@ -2,7 +2,8 @@ import {
   fetchAuditLogs,
   fetchReportSummary,
   fetchReportOccupancy,
-  fetchReportRevenue
+  fetchReportRevenue,
+  listProperties
 } from "@/lib/backend-api";
 import { getRoleFromCookie, getSessionTokenFromCookie } from "@/lib/cookie-utils";
 import { ReportsClient } from "./reports-client";
@@ -12,11 +13,12 @@ export default async function ReportsPage() {
   const token = await getSessionTokenFromCookie();
   const sessionToken = token || "";
 
-  const [auditResult, summaryResult, occupancyResult, revenueResult] = await Promise.all([
+  const [auditResult, summaryResult, occupancyResult, revenueResult, propertiesResult] = await Promise.all([
     role === "SUPER_ADMIN" ? fetchAuditLogs(sessionToken) : Promise.resolve({ data: null, error: null }),
     fetchReportSummary(sessionToken),
     fetchReportOccupancy(sessionToken),
     fetchReportRevenue(sessionToken),
+    listProperties(sessionToken, { limit: 100 }),
   ]);
 
   return (
@@ -27,6 +29,8 @@ export default async function ReportsPage() {
         revenue={revenueResult.data}
         auditLogs={auditResult.data}
         role={role}
+        token={sessionToken}
+        properties={propertiesResult.data?.data ?? []}
       />
     </div>
   );

@@ -16,7 +16,7 @@ describe('AiReportToolService - Scoping', () => {
     const resolutionService: any = {
       resolveId: jest.fn(),
     };
-    const backgroundQueue: any = { add: jest.fn() };
+    const backgroundQueue: any = { add: jest.fn(), getJob: jest.fn() };
 
     const service = new AiReportToolService(
       prisma,
@@ -66,6 +66,7 @@ describe('AiReportToolService - Scoping', () => {
   it('property scope resolves propertyName to propertyId', async () => {
     const { service, resolutionService, backgroundQueue } = makeService();
     resolutionService.resolveId.mockResolvedValue({ id: 'prop-123' });
+    backgroundQueue.add.mockResolvedValue({ id: 'job-001' });
 
     const res = await service.executeReportTool(
       'generate_report_file',
@@ -78,6 +79,7 @@ describe('AiReportToolService - Scoping', () => {
     expect(res).toEqual(
       expect.objectContaining({
         message: expect.stringContaining('Report generation started'),
+        jobId: 'job-001',
       }),
     );
     expect(backgroundQueue.add).toHaveBeenCalledWith(
@@ -88,5 +90,52 @@ describe('AiReportToolService - Scoping', () => {
       }),
     );
   });
-});
 
+  it('downgrades accidental propertyName phrases to company scope', async () => {
+    const { service, resolutionService } = makeService();
+
+    const res = await service.executeReportTool(
+      'get_financial_report',
+      { scope: 'property', propertyName: 'status with the report.' },
+      { role: UserRole.COMPANY_STAFF, companyId: 'c1' },
+      UserRole.COMPANY_STAFF,
+      'en',
+    );
+
+    expect(resolutionService.resolveId).not.toHaveBeenCalled();
+    expect(res).not.toEqual(
+      expect.objectContaining({
+        error: 'PROPERTY_NOT_FOUND',
+      }),
+    );
+  });
+
+  it('returns report job status for a known jobId', async () => {
+    const { service, backgroundQueue } = makeService();
+    const mockJob: any = {
+      getState: jest.fn().mockResolvedValue('completed'),
+      timestamp: Date.now() - 1000,
+      processedOn: Date.now() - 900,
+      finishedOn: Date.now() - 100,
+      returnvalue: { url: 'https://example.com/report.pdf' },
+    };
+    backgroundQueue.getJob.mockResolvedValue(mockJob);
+
+    const res = await service.executeReportTool(
+      'get_report_status',
+      { jobId: 'job-xyz' },
+      { role: UserRole.COMPANY_STAFF, companyId: 'c1' },
+      UserRole.COMPANY_STAFF,
+      'en',
+    );
+
+    expect(res).toEqual(
+      expect.objectContaining({
+        jobId: 'job-xyz',
+        state: 'completed',
+      }),
+    );
+    expect(String(res.message)).toContain('Report status');
+    expect(String(res.message)).toContain('job-xyz');
+  });
+});

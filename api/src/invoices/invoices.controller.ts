@@ -103,4 +103,22 @@ export class InvoicesController {
 
     return { url };
   }
+
+  @Post('bulk-generate')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
+  async bulkGenerate(
+    @Req() req: RequestWithUser,
+    @Body('propertyId') propertyId?: string,
+  ) {
+    return this.invoicesService.generateMonthlyInvoices(req.user!, propertyId);
+  }
+
+  @Post('reconcile/:propertyId')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
+  async autoReconcile(
+    @Param('propertyId') propertyId: string,
+    @Req() req: RequestWithUser,
+  ) {
+    return this.invoicesService.autoReconcileIncome(req.user!, propertyId);
+  }
 }

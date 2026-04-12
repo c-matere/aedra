@@ -29,6 +29,10 @@ import { AiNextStepController } from './ai-next-step-controller.service';
 import { AiFormatterService } from './ai-formatter.service';
 import { AiSecurityService } from './ai-security.service';
 import { AiIntentNormalizerService } from './ai-intent-normalizer.service';
+import {
+  normalizeToolErrorShape,
+  normalizeToolStringShape,
+} from './ai-tool-error-normalizer';
 import { AiHistoryService } from './ai-history.service';
 import { AiIntentFirewallService } from './ai-intent-firewall.service';
 import { AiStateEngineService } from './ai-state-engine.service';
@@ -38,13 +42,13 @@ import { AiResponseValidatorService } from './ai-response-validator.service';
 import { AiFactCheckerService } from './ai-fact-checker.service';
 import { AiValidatorService } from './ai-validator.service';
 import { AiDecisionSpineService } from './ai-decision-spine.service';
-import { AiWhatsappOrchestratorService } from './ai-whatsapp-orchestrator.service';
 import { ConsistencyValidatorService } from './consistency-validator.service';
 import { InterpretationLayer } from './layers/interpretation-layer.service';
 import { ActionResult } from './next-step-orchestrator.service';
 import { AiIntent, OperationalIntent, TruthObject, ExecutionTrace, AiServiceChatResponse, UnifiedPlan, UnifiedActionResult } from './ai-contracts.types';
 import { ACTION_CONTRACTS } from './contracts/action-contracts';
 import { inferTenantQueryFromMessage } from './tenant-query.util';
+import { MenuRouterService } from './menu-router.service';
 
 @Injectable()
 export class AiService implements OnModuleInit {
@@ -74,8 +78,7 @@ export class AiService implements OnModuleInit {
     private readonly promptService: AiPromptService,
     private readonly formatterService: AiFormatterService,
     private readonly whatsappFormatter: WhatsAppFormatterService,
-    @Inject(forwardRef(() => AiWhatsappOrchestratorService))
-    private readonly whatsappOrchestrator: AiWhatsappOrchestratorService,
+    private readonly menuRouter: MenuRouterService,
     private readonly stateEngine: AiStateEngineService,
     private readonly responseValidator: AiResponseValidatorService,
     private readonly factChecker: AiFactCheckerService,
@@ -125,10 +128,19 @@ export class AiService implements OnModuleInit {
     // 1. Verify Primary Model (Gemini)
     try {
       const model = this.genAI.getGenerativeModel({ model: this.primaryModel });
-      await withRetry(() => model.generateContent('health check'), { maxRetries: 1, initialDelay: 1000 });
+      // Increase retries to handle transient 429s at startup
+      await withRetry(() => model.generateContent('health check'), { 
+        maxRetries: 3, 
+        initialDelay: 2000,
+        factor: 2 
+      });
       this.logger.log(`[HealthCheck] Primary model (${this.primaryModel}) is ONLINE.`);
     } catch (e) {
-      this.logger.warn(`[HealthCheck] Primary model (${this.primaryModel}) is OFFLINE: ${e.message}. Failover to Groq will be used.`);
+      if (e.message?.includes('429')) {
+        this.logger.warn(`[HealthCheck] Primary model (${this.primaryModel}) is RATE LIMITED (429). Failover to Groq active.`);
+      } else {
+        this.logger.warn(`[HealthCheck] Primary model (${this.primaryModel}) is OFFLINE: ${e.message}. Failover to Groq active.`);
+      }
     }
 
     // 2. Verify Fallback Model (Groq)
@@ -137,7 +149,7 @@ export class AiService implements OnModuleInit {
         model: 'llama-3.3-70b-versatile',
         messages: [{ role: 'user', content: 'hi' }],
         max_tokens: 5
-      }), { maxRetries: 1, initialDelay: 500 });
+      }), { maxRetries: 2, initialDelay: 1000 });
       this.logger.log(`[HealthCheck] Fallback model (Groq) is ONLINE.`);
     } catch (e) {
       this.logger.error(`[HealthCheck] Fallback model (Groq) is OFFLINE: ${e.message}. Critical system failure likely.`);
@@ -233,7 +245,60 @@ export class AiService implements OnModuleInit {
     // Phase 0: Ensure Context Hydration (v5.8)
     const context: any = { userId, role: effectiveRole, chatId: finalChatId, companyId, companyName, attachments, language, phone };
     await this.ensureContext(context, { companyId, chatId: finalChatId });
+    await this.hydrateSecurityContext(context);
     const effectiveCompanyId: string = context.companyId;
+
+    // Phase 0.5: Deterministic routing (MenuRouter) for simple commands across ALL channels
+    // (WhatsApp already tries this earlier, but other channels like /ai/chat may not.)
+    try {
+      const uid = getSessionUid({ userId, phone });
+      const lang = (language || context.language || 'en') as any;
+      if (uid) {
+        const menuRoute = await this.menuRouter.routeMessage(uid, cleanMessage, lang);
+        if (menuRoute.handled) {
+          if (menuRoute.tool) {
+            const actionResult = await this.executeToolAction(
+              menuRoute.tool.name,
+              menuRoute.tool.args || {},
+              context,
+              effectiveRole as any,
+              lang,
+            );
+            const formatted = await this.formatToolResponse(
+              actionResult as any,
+              { id: userId, role: effectiveRole },
+              effectiveCompanyId || '',
+              lang,
+            );
+            const responseText = menuRoute.response
+              ? `${menuRoute.response}\n\n${formatted.text}`
+              : formatted.text;
+            return {
+              response: responseText,
+              chatId: finalChatId,
+              metadata: {
+                status: actionResult?.success ? 'COMPLETE' : 'FAILED',
+                tools: [menuRoute.tool.name],
+                deterministic: true,
+              },
+              interactive: (formatted as any).interactive,
+              vcSummary: (formatted as any).menuOptions,
+            } as any;
+          }
+          if (menuRoute.response) {
+            return {
+              response: menuRoute.response,
+              chatId: finalChatId,
+              metadata: { status: 'COMPLETE', deterministic: true },
+            };
+          }
+        }
+      }
+    } catch (e) {
+      this.logger.debug(
+        `[AiService] Deterministic routing skipped: ${e?.message || e}`,
+      );
+    }
 
     // 0. Initialize Execution Trace (SSOT)
     let trace: ExecutionTrace = {
@@ -294,6 +359,14 @@ export class AiService implements OnModuleInit {
       const scrubbedHistory = this.scrubHistory(finalHistory);
       const plan = await this.promptService.generateUnifiedPlan(cleanMessage, effectiveRole as UserRole, context, scrubbedHistory);
       trace.unifiedPlan = plan;
+      trace.interpretation = { 
+        intent: plan.intent, 
+        operationalIntent: plan.priority === 'EMERGENCY' ? OperationalIntent.REASSURE_AND_ESCALATE : OperationalIntent.STANDARD,
+        confidence: 1.0, 
+        entities: plan.entities || {},
+        language: plan.language || 'en',
+        priority: plan.priority || 'NORMAL'
+      };
       trace.status = 'EXECUTING';
 
       // Post-plan validation: never execute unauthorized tools suggested by the LLM.
@@ -382,6 +455,66 @@ export class AiService implements OnModuleInit {
         entities: { ...(plan.entities || {}) }
       };
 
+      const isPlaceholderValue = (value: any): boolean => {
+        if (value === undefined || value === null) return true;
+        const raw = String(value).trim().toLowerCase();
+        if (!raw) return true;
+        return [
+          'unspecified',
+          'unknown',
+          'n/a',
+          'na',
+          'none',
+          'null',
+          'not provided',
+          'not_specified',
+          'not-specified',
+        ].includes(raw);
+      };
+
+      const scrubPlaceholders = (obj: any, keys: string[]) => {
+        if (!obj || typeof obj !== 'object') return;
+        for (const k of keys) {
+          if (k in obj && isPlaceholderValue(obj[k])) delete obj[k];
+        }
+      };
+
+      const inferUnitAndPropertyFromText = (text: string): { unitName?: string; propertyName?: string; unitNumber?: string } => {
+        const t = (text || '').toString();
+        const wordsToIgnore = new Set(['to', 'at', 'in', 'for', 'the', 'a', 'an', 'is', 'of', 'assign', 'them', 'his', 'her', 'their', 'add', 'create', 'new', 'into', 'from']);
+        
+        // Split by "unit" keyword (handle various formats like "unit 1", "unit#1", "unit : 1")
+        const parts = t.split(/\bunit\b[:#\s]*/i);
+        if (parts.length >= 2) {
+          // The property name is before the first "unit" instance
+          const beforeUnit = parts[0].trim();
+          const wordsBefore = beforeUnit.split(/\s+/);
+          
+          // Take the last few words and filter out noise
+          const candidates = [];
+          for (let i = wordsBefore.length - 1; i >= 0; i--) {
+            const w = wordsBefore[i].toLowerCase().replace(/[^\w]/g, '');
+            if (wordsToIgnore.has(w)) break; // Stop at any noise word (to, at, assign, etc.)
+            if (candidates.length >= 3) break; // Limit to 3 words for property name
+            candidates.unshift(wordsBefore[i]);
+          }
+          
+          const propertyName = candidates.join(' ').trim();
+          const unitPart = parts[1].trim();
+          const unitNumber = unitPart.split(/\s+/)[0].replace(/[^\w-]/g, '');
+          
+          if (unitNumber) {
+            return {
+              unitName: propertyName ? `${propertyName} Unit ${unitNumber}` : `Unit ${unitNumber}`,
+              propertyName: propertyName || undefined,
+              unitNumber,
+            };
+          }
+        }
+
+        return {};
+      };
+
       // 5a. Bare Entity Resolution (v5.5)
       // Resolve IDs for names/units even if no tool is scheduled (crucial for sequential context)
       if (plan.entities) {
@@ -418,19 +551,77 @@ export class AiService implements OnModuleInit {
         }
 
         // Handle {{template}} syntax as fallback
+        // The LLM may use either {{stepName.fieldName}} or {{fieldName}} syntax.
+        // We also support field aliases (tenant_id -> id, unit_id -> id, property_id -> id).
+        const resolveTemplate = (value: string): any => {
+          const templateKey = value.substring(2, value.length - 2).trim();
+
+          // --- Dot-notation: {{stepName.fieldName}} ---
+          if (templateKey.includes('.')) {
+            const [stepName, ...restParts] = templateKey.split('.');
+            const fieldName = restParts.join('.');
+            const stepEntry = resultsMap[stepName];
+            if (stepEntry) {
+              const data = stepEntry.result || stepEntry;
+              // Resolve common field aliases
+              const aliasMap: Record<string, string[]> = {
+                id: ['id'],
+                tenant_id: ['id', 'tenantId'],
+                unit_id: ['id', 'unitId'],
+                property_id: ['id', 'propertyId'],
+                lease_id: ['id', 'leaseId'],
+                tenantId: ['id', 'tenantId'],
+                unitId: ['id', 'unitId'],
+                propertyId: ['id', 'propertyId'],
+              };
+              const candidateFields = aliasMap[fieldName] || [fieldName];
+              for (const f of candidateFields) {
+                if (data?.[f] !== undefined) return data[f];
+                // Also check directly on the data
+                if (data?.result?.[f] !== undefined) return data.result[f];
+              }
+            }
+          }
+
+          // --- Flat: {{fieldName}} ---
+          // Look in resultsMap directly or in any step result
+          const directValue = resultsMap[templateKey];
+          if (directValue !== undefined) return directValue;
+
+          // Check all step results for the key
+          for (const stepData of Object.values(resultsMap)) {
+            if (typeof stepData === 'object' && stepData !== null) {
+              const data = (stepData as any).result || stepData;
+              if (data?.[templateKey] !== undefined) return data[templateKey];
+            }
+          }
+
+          // Also check resultsMap.entities
+          const entitiesValue = (resultsMap.entities as any)?.[templateKey];
+          if (entitiesValue !== undefined) return entitiesValue;
+
+          return undefined;
+        };
+
         for (const [key, value] of Object.entries(resolvedArgs)) {
           if (typeof value === 'string' && value.startsWith('{{') && value.endsWith('}}')) {
-            const templateKey = value.substring(2, value.length - 2).trim();
-            // Look in resultsMap or specific step results
-            const resolvedValue = resultsMap[templateKey] || 
-                                  Object.values(resultsMap).find(r => r?.[templateKey] !== undefined)?.[templateKey];
-            
+            const resolvedValue = resolveTemplate(value);
             if (resolvedValue !== undefined) {
-              this.logger.log(`[ExecutionLoop] Resolved template ${value} -> ${resolvedValue}`);
+              this.logger.log(`[ExecutionLoop] Resolved template ${value} -> ${JSON.stringify(resolvedValue)}`);
               resolvedArgs[key] = resolvedValue;
+            } else {
+              this.logger.warn(`[ExecutionLoop] Could not resolve template ${value} for arg '${key}'`);
             }
           }
         }
+
+        // After template resolution, also inject from resultsMap.entities for any remaining nullish ID fields.
+        for (const [key, entityVal] of Object.entries(resultsMap.entities || {})) {
+          if (entityVal && !resolvedArgs[key]) {
+            resolvedArgs[key] = entityVal;
+          }
+        }
+
 
         const isHighStakes = step.isHighStakes || this.registry.isHighStakes(step.tool);
         const isRequired = step.required || isHighStakes;
@@ -491,13 +682,47 @@ export class AiService implements OnModuleInit {
         }
         
         // Injected pre-emptive resolution for common tools if IDs are still missing but names exist
-        if (!activeTenantId && (resultsMap.entities.tenantName || plan.entities.tenantName)) {
-           const res = await this.entityResolver.resolveId('tenant', resultsMap.entities.tenantName || plan.entities.tenantName, effectiveCompanyId);
+        if (!activeTenantId && (resultsMap.entities?.tenantName || plan.entities?.tenantName)) {
+           const tenantQuery = resultsMap.entities?.tenantName || plan.entities?.tenantName;
+           const res = await this.entityResolver.resolveId('tenant', tenantQuery, effectiveCompanyId);
            if (res.id) resolvedArgs.tenantId = res.id;
         }
 
         // 5c. Action Execution
         try {
+          // Guard: drop placeholder args like "unspecified" before tool calls.
+          scrubPlaceholders(resolvedArgs, [
+            'tenantId',
+            'tenantName',
+            'propertyId',
+            'propertyName',
+            'unitId',
+            'unitName',
+            'unitNumber',
+          ]);
+
+          // Heuristic: if user mentioned a unit/property in the message but the plan left it blank,
+          // inject unitName/propertyId hints so resolution can succeed.
+          if (
+            ['create_tenant', 'register_tenant', 'create_lease', 'get_unit_details', 'get_property_details'].includes(
+              (step.tool || '').toString(),
+            ) &&
+            !resolvedArgs?.unitId &&
+            !resolvedArgs?.unitName &&
+            !resolvedArgs?.unitNumber &&
+            !resolvedArgs?.propertyId &&
+            !resolvedArgs?.propertyName
+          ) {
+            const inferred = inferUnitAndPropertyFromText(cleanMessage);
+            if (inferred.unitName) resolvedArgs.unitName = inferred.unitName;
+            if (inferred.unitNumber) resolvedArgs.unitNumber = inferred.unitNumber;
+            if (inferred.propertyName) {
+              resolvedArgs.propertyName = inferred.propertyName;
+              if (!resolvedArgs.propertyId) resolvedArgs.propertyId = inferred.propertyName;
+            }
+          }
+
+
           const result = await this.executeTool(step.tool, resolvedArgs, context, effectiveRole as string, language);
           const isBlockedResult =
             !!result?.requires_clarification ||
@@ -511,30 +736,31 @@ export class AiService implements OnModuleInit {
           }
           
           // PROPAGATION: Merge result into entities for subsequent steps
-          if (success && result.data && typeof result.data === 'object') {
-            Object.assign(resultsMap.entities, result.data);
+          if (success && result && typeof result === 'object') {
+            const dataToMerge = (result.data && typeof result.data === 'object') ? result.data : result;
+            Object.assign(resultsMap.entities, dataToMerge);
           }
 
           // Phase 0: In-flight Hydration (v5.8)
           if (success && result) {
-            const data = result.data || {};
+            const data = (result.data && typeof result.data === 'object') ? result.data : result;
             if (data.companyId) context.companyId = data.companyId;
             if (data.tenantId) context.tenantId = data.tenantId;
             if (data.unitId) context.unitId = data.unitId;
             if (data.propertyId) context.propertyId = data.propertyId;
 
             // Harvest common entities for sequential context when tools return raw Prisma models.
-            if (step.tool === 'get_tenant_details' && data?.id) {
+            if (['get_tenant_details', 'create_tenant', 'register_tenant'].includes(step.tool) && data?.id) {
               resultsMap.entities.tenantId = data.id;
               if (data.firstName) {
                 resultsMap.entities.tenantName = `${data.firstName} ${data.lastName || ''}`.trim();
               }
             }
-            if (step.tool === 'get_unit_details' && data?.id) {
+            if (['get_unit_details', 'create_unit'].includes(step.tool) && data?.id) {
               resultsMap.entities.unitId = data.id;
               if (data.unitNumber) resultsMap.entities.unitNumber = data.unitNumber;
             }
-            if (step.tool === 'get_property_details' && data?.id) {
+            if (['get_property_details', 'create_property'].includes(step.tool) && data?.id) {
               resultsMap.entities.propertyId = data.id;
               if (data.name) resultsMap.entities.propertyName = data.name;
             }
@@ -653,7 +879,17 @@ export class AiService implements OnModuleInit {
                s?.result?.requires_confirmation || 
                s?.result?.data?.requires_confirmation
             ),
-        }
+        },
+        // Collect the first _vc (version-control) summary from successful write steps so
+        // the WhatsApp orchestrator can render the View Diff / Rollback buttons.
+        vcSummary: (() => {
+          for (const s of trace.steps) {
+            if (!s.success) continue;
+            const vc = s.result?._vc || s.result?.data?._vc;
+            if (vc?.versionId) return vc;
+          }
+          return undefined;
+        })(),
       };
 
     } catch (e) {
@@ -971,9 +1207,6 @@ export class AiService implements OnModuleInit {
     return { status: 'approved', actionId, approverId };
   }
 
-  async handleIncomingWhatsapp(phone: string, text?: string, mediaId?: string, mimeType?: string) {
-    return this.whatsappOrchestrator.handleIncomingWhatsapp(phone, text, mediaId, mimeType);
-  }
 
   async executeTool(name: string, args: any, context: any, role?: string, language?: string): Promise<ActionResult> {
     // Safety check: if role looks like a language code (e.g. 'en', 'sw'), it might be a swap
@@ -984,6 +1217,40 @@ export class AiService implements OnModuleInit {
       finalRole = context?.role || context?.userRole || role;
       finalLang = role;
     }
+
+    // Hydrate minimal session context for direct tool calls (menu-router paths bypass chat() context load)
+    try {
+      const contextUid = getSessionUid({
+        userId: context?.userId,
+        phone: context?.phone,
+      });
+      if (contextUid) {
+        const stored = await this.contextMemory.getContext(contextUid);
+        if (stored && typeof stored === 'object') {
+          const keys = [
+            'companyId',
+            'activeTenantId',
+            'activeUnitId',
+            'activePropertyId',
+            'activeUnitNumber',
+            'activeTenantName',
+            'lastReportJobId',
+            'lastReportJob',
+          ];
+          for (const k of keys) {
+            if (context?.[k] === undefined && (stored as any)[k] !== undefined) {
+              context[k] = (stored as any)[k];
+            }
+          }
+        }
+      }
+    } catch (e) {
+      this.logger.debug(
+        `[AiService] Context hydration skipped for tool=${name}: ${e?.message || e}`,
+      );
+    }
+
+    await this.hydrateSecurityContext(context);
 
     const raw = await this.registry.executeTool(
       name, 
@@ -1015,9 +1282,27 @@ export class AiService implements OnModuleInit {
       return normalized;
     }
 
-    // Strings are treated as successful user-facing text
+    // Strings are treated as successful user-facing text (unless they are tool "block" strings).
     if (typeof raw === 'string') {
-      const normalized = { success: true, action: name, data: raw } as ActionResult;
+      const normalizedString = normalizeToolStringShape(raw);
+      if (normalizedString.isBlocked) {
+        const normalized = {
+          success: false,
+          action: name,
+          data: { error: normalizedString.error, message: normalizedString.message },
+          message: normalizedString.message,
+          error: normalizedString.error,
+          requires_clarification: true,
+        } as any as ActionResult;
+        await this.persistActionContext(name, args, normalized?.data, context);
+        return normalized;
+      }
+
+      const normalized = {
+        success: true,
+        action: name,
+        data: raw,
+      } as ActionResult;
       await this.persistActionContext(name, args, normalized?.data, context);
       return normalized;
     }
@@ -1052,12 +1337,16 @@ export class AiService implements OnModuleInit {
 
     // Common error shape from read tools: { error, message? }
     if (raw && typeof raw === 'object' && (raw as any).error) {
+      const toolErr = normalizeToolErrorShape(raw);
+
       const normalized = {
         success: false,
         action: name,
         data: raw,
         message: (raw as any).message,
-        error: typeof (raw as any).error === 'string' ? (raw as any).error : 'TOOL_ERROR',
+        error: toolErr.error,
+        requires_clarification: toolErr.requires_clarification,
+        options: toolErr.options,
       } as ActionResult;
       await this.persistActionContext(name, args, normalized?.data, context);
       return normalized;
@@ -1138,6 +1427,20 @@ export class AiService implements OnModuleInit {
           });
         }
       }
+      if (action === 'generate_report_file') {
+        const jobId = data?.jobId;
+        if (jobId) {
+          await this.contextMemory.setContext(contextUid, {
+            lastReportJobId: String(jobId),
+            lastReportJob: {
+              id: String(jobId),
+              reportType: data?.reportType || args?.reportType,
+              scope: data?.scope || args?.scope,
+              requestedAt: new Date().toISOString(),
+            },
+          });
+        }
+      }
     } catch (e) {
       this.logger.warn(
         `[AiService] Failed to persist action context for ${action}: ${e.message}`,
@@ -1167,6 +1470,30 @@ export class AiService implements OnModuleInit {
     if (context.role === UserRole.TENANT && !context.tenantId) {
       // In a real flow, we'd lookup by phone or session
       // For now, we allow the first tool call to hydrate it
+    }
+  }
+
+  private async hydrateSecurityContext(context: any): Promise<void> {
+    try {
+      if (context?.role !== UserRole.TENANT) return;
+      if (!context?.chatId) return;
+      const identityKey = `ai_session:${context.chatId}:identity`;
+      const lockedIdentity: any = await this.cacheManager.get(identityKey);
+      if (lockedIdentity?.id) {
+        context.security = {
+          ...(context.security || {}),
+          lockedTenantId: lockedIdentity.id,
+          lockedTenantName: lockedIdentity.name,
+          lockedTenantConfidence: lockedIdentity.confidence,
+          source: 'ai_session_identity_cache',
+        };
+        // Also hydrate a tenantId field for tools that default to context.tenantId.
+        if (!context.tenantId) context.tenantId = lockedIdentity.id;
+      }
+    } catch (e) {
+      this.logger.debug(
+        `[AiService] hydrateSecurityContext failed: ${e?.message || e}`,
+      );
     }
   }
 
@@ -1265,19 +1592,62 @@ export class AiService implements OnModuleInit {
        }
     }
 
-    // GLOBAL HARVESTER: Look for any successful report tool result that contains a URL
-    // GLOBAL HARVESTER: Look for any successful report tool result that contains a URL
-    for (const step of trace.steps) {
-      if (step.success) {
-        const foundUrl = step.result?.url || step.result?.reportUrl || step.result?.data?.url || step.result?.downloadUrl;
-        if (foundUrl) {
-          truthObject.data.reportUrl = foundUrl;
-          truthObject.data.url = foundUrl; // Redundancy 1
-          truthObject.data.downloadLink = foundUrl; // Redundancy 2
-          this.logger.log(`[TruthAggregation] RECOVERY_HARVEST: Found report URL in ${step.tool}: ${foundUrl}`);
-          break;
+    // Explicit Provisioning: Only accept URLs from explicit report artifacts (avoid stale/auxiliary URLs).
+    const artifactCandidates: Array<{
+      tool: string;
+      idx: number;
+      kind?: string;
+      format?: string;
+      url?: string;
+      fileName?: string;
+    }> = [];
+    for (let i = 0; i < trace.steps.length; i++) {
+      const step = trace.steps[i];
+      if (!step.success) continue;
+      const arts = step.result?.artifacts || step.result?.data?.artifacts;
+      if (Array.isArray(arts)) {
+        for (const a of arts) {
+          artifactCandidates.push({
+            tool: step.tool,
+            idx: i,
+            kind: a?.kind,
+            format: a?.format,
+            url: a?.url,
+            fileName: a?.fileName,
+          });
         }
       }
+    }
+    const reportArts = artifactCandidates.filter(
+      (a) => a.kind === 'report' && typeof a.url === 'string' && a.url,
+    );
+    if (reportArts.length > 0) {
+      const scoreTool = (tool: string) => {
+        switch (tool) {
+          case 'generate_report_file':
+            return 100;
+          case 'get_financial_report':
+            return 90;
+          case 'download_report':
+            return 80;
+          default:
+            return 10;
+        }
+      };
+      reportArts.sort((a, b) => {
+        const sa = scoreTool(a.tool);
+        const sb = scoreTool(b.tool);
+        if (sa !== sb) return sb - sa;
+        return b.idx - a.idx;
+      });
+      const picked = reportArts[0];
+      truthObject.data.reportUrl = picked.url;
+      truthObject.data.url = picked.url; // Redundancy 1
+      truthObject.data.downloadLink = picked.url; // Redundancy 2
+      truthObject.data.reportFileName = picked.fileName;
+      this.logger.log(
+        `[TruthAggregation] ARTIFACT_PICK: picked ${picked.tool} (idx=${picked.idx}) => ${picked.url}`,
+      );
     }
 
     // 3. Maintenance Truth
@@ -1304,8 +1674,15 @@ export class AiService implements OnModuleInit {
       truthObject.status = (hasCriticalSuccess || hasRevenueTool || hasArrearsTool || hasFinancialReportTool || hasFinancialSummaryTool) ? 'COMPLETE' : 'PARTIAL';
     } else if (intent === AiIntent.ONBOARDING) {
       const hasCreationTool = trace.steps.some((s) => {
-        const isCreation = s.tool === 'create_property' || s.tool === 'register_company';
-        const isConfirmed = !s.result?.requires_confirmation && !s.result?.requires_clarification;
+        const isCreation =
+          s.tool === 'create_property' ||
+          s.tool === 'register_company' ||
+          s.tool === 'register_tenant' ||
+          s.tool === 'create_lease' ||
+          s.tool === 'bulk_create_tenants' ||
+          s.tool === 'create_unit';
+        const isConfirmed =
+          !s.result?.requires_confirmation && !s.result?.requires_clarification;
         return isCreation && s.success && isConfirmed;
       });
       truthObject.status = (hasCriticalSuccess && hasCreationTool) ? 'COMPLETE' : 'PARTIAL';
@@ -1386,7 +1763,7 @@ export class AiService implements OnModuleInit {
 
     // Emergency: always lead with safety instructions, never claim logging unless tool succeeded.
     if (plan.intent === AiIntent.EMERGENCY) {
-      const safety = [
+      const safety = plan.immediateResponse || [
         'If this is a burst pipe or major leak: please shut off the main water valve immediately.',
         'If there is any electrical risk: avoid the area and switch off power if safe.',
         'If anyone is in danger, call local emergency services right now.',
@@ -1429,6 +1806,11 @@ export class AiService implements OnModuleInit {
 
     // Financial: show whatever data exists, and be explicit about missing parts.
     if (plan.intent === AiIntent.FINANCIAL_QUERY || plan.intent === AiIntent.FINANCIAL_REPORTING || plan.intent === AiIntent.REVENUE_REPORT) {
+      const askedForPortfolioReport =
+        plan.steps?.some((s) => s.tool === 'generate_report_file') ||
+        /\bportfolio\b.*\b(repor(t|ts)?|summary)\b|\b(repor(t|ts)?|summary)\b.*\bportfolio\b/i.test(
+          originalMessage || '',
+        );
       const revenue = truth.data?.revenue;
       const collectionRate = truth.data?.collectionRate;
       const balance = truth.data?.balance;
@@ -1439,11 +1821,20 @@ export class AiService implements OnModuleInit {
       if (collectionRate) lines.push(`- Collection Rate: ${collectionRate}`);
 
       if (lines.length > 0) {
-        const caveat = truth.status === 'COMPLETE' ? '' : '\n\nNote: Some details may be missing right now — I can retry or you can share the exact tenant/unit name.';
+        const caveat =
+          truth.status === 'COMPLETE'
+            ? ''
+            : askedForPortfolioReport
+              ? '\n\nNote: Some details may be missing right now — I can retry, or you can share a property name (optional) or a date range for the report.'
+              : '\n\nNote: Some details may be missing right now — I can retry or you can share the exact tenant/unit name.';
         return `Here’s what I could retrieve:\n${lines.join('\n')}${caveat}`.trim();
       }
 
       // If nothing was retrieved, be honest and ask for the missing identity.
+      if (askedForPortfolioReport) {
+        const companyHint = trace?.metadata?.companyId ? '' : ' Please confirm which company workspace this is for.';
+        return `I checked our records, but I couldn’t generate the full portfolio report right now.${companyHint} If you want a single-property report, share the property name (e.g. “Bahari Ridge”).`;
+      }
       return `I checked our records, but I couldn’t retrieve the financial details right now. Please share the tenant name and/or unit number, and I’ll try again.`;
     }
 

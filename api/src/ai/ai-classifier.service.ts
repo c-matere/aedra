@@ -20,6 +20,8 @@ export interface ClassificationResult {
   isLongRequest?: boolean;
   sentenceCount?: number;
   hasAttachments?: boolean;
+  subIntents?: string[];
+  isCompoundRequest?: boolean;
   entities?: {
     unit?: string;
     unitNumber?: string;
@@ -208,6 +210,8 @@ export class AiClassifierService {
          - "Show me photos/pics of the repair", "What is the status of the sink?", "Can I see the before/after?" -> use "get_maintenance_photos" or "get_maintenance_request" (INTELLIGENCE mode).
          - "I want to report a leak", "My sink is broken", "Fix the toilet" -> use "maintenance_request" (ORCHESTRATED mode).
          - NEVER start a workflow for a user just asking for a status or photos of an existing job.
+      10. COMPOUND REQUESTS: If the message asks for multiple actions to be done together (e.g. "create a property, add 10 units, set rent to 30k"),
+          set executionMode to ORCHESTRATED and choose the intent that best represents the overall workflow (usually onboard_property or update_property), not general_query.
 
       User message: "${message}"
 
@@ -426,7 +430,106 @@ export class AiClassifierService {
       entities: data.entities,
     };
 
-    return this.applyIntentGuardrails(result, message);
+    const guarded = this.applyIntentGuardrails(result, message);
+    return this.applyCompoundRequestHeuristics(guarded, message);
+  }
+
+  private applyCompoundRequestHeuristics(
+    result: ClassificationResult,
+    message: string,
+  ): ClassificationResult {
+    const text = (message || '').toLowerCase();
+
+    // Only force ORCHESTRATED for multi-step "do X and Y" style requests (primarily write actions).
+    // This improves the WhatsApp UX by triggering the plan-approve buttons for chained operations.
+    const inferredSubIntents = this.inferSubIntentsFromText(text);
+    if (inferredSubIntents.length < 2) return result;
+
+    const primaryIntent =
+      result.intent === 'unknown' || result.intent === 'general_query'
+        ? inferredSubIntents[0]
+        : result.intent;
+    const bumpedComplexity =
+      result.complexity >= 3 ? (result.complexity as 3 | 4 | 5) : 3;
+
+    return {
+      ...result,
+      intent: primaryIntent,
+      executionMode: 'ORCHESTRATED',
+      complexity: bumpedComplexity,
+      isCompoundRequest: true,
+      subIntents: inferredSubIntents,
+      reason: `${result.reason} (compound request: ${inferredSubIntents.join(', ')})`,
+    };
+  }
+
+  private inferSubIntentsFromText(text: string): string[] {
+    const candidates: string[] = [];
+    const add = (intent: string, when: boolean) => {
+      if (!when) return;
+      if (!candidates.includes(intent)) candidates.push(intent);
+    };
+
+    // Property onboarding / creation
+    add(
+      'onboard_property',
+      /\b(create|add|make|onboard|register)\b.*\b(property|building|house|apartment|plot|estate|block|jengo|nyumba)\b/.test(
+        text,
+      ),
+    );
+
+    // Property update signals (often bundled with unit/rent/address changes)
+    add(
+      'update_property',
+      /\b(update|change|edit|set|sasisha|badilisha)\b.*\b(rent|price|address|location|name|details|landlord|units?|unit\s*count)\b/.test(
+        text,
+      ) ||
+        /\bpass\s+(the\s+)?data\b/.test(text),
+    );
+
+    // Unit creation signals
+    add(
+      'create_unit',
+      /\b(create|add|make|ongeza|tengeneza)\b.*\b(unit|units|vitengo)\b/.test(
+        text,
+      ) ||
+        /\b(total\s+of\s+\d+\s+units)\b/.test(text) ||
+        /\b(\d+)\s+units?\b/.test(text),
+    );
+
+    // Tenant registration/import signals
+    add(
+      'bulk_create_tenants',
+      /\b(bulk|many|multiple|list)\b.*\b(tenants?|wapangaji)\b/.test(text) ||
+        /\b(import|upload)\b.*\b(tenants?|wapangaji)\b/.test(text),
+    );
+    add(
+      'add_tenant',
+      /\b(add|register|onboard|create)\b.*\b(tenant|mpangaji)\b/.test(text),
+    );
+
+    // Lease creation signals
+    add(
+      'create_lease',
+      /\b(create|add|make|sign|renew|ongeza|tengeneza)\b.*\b(lease|contract|agreement|mkataba)\b/.test(
+        text,
+      ),
+    );
+
+    // Payment/expense recording signals
+    add(
+      'record_payment',
+      /\b(record|log|mark|confirm)\b.*\b(payment|paid|malipo)\b/.test(text) ||
+        /\b(nimepay|nimelipa|nimetuma)\b/.test(text),
+    );
+    add(
+      'record_expense',
+      /\b(record|log|add)\b.*\b(expense|cost|bill|invoice)\b/.test(text),
+    );
+
+    // If we only inferred generic updates, avoid "compound" unless we truly have multiple distinct actions.
+    // The caller will require at least 2 candidates, so no further filtering is needed.
+    return candidates;
   }
 
   private applyIntentGuardrails(
@@ -695,9 +798,14 @@ export class AiClassifierService {
     const hasAttachments = attachmentsCount > 0;
     const mode = (forcedIntent: string) =>
       isLong || hasAttachments ? 'PLANNING' : this.getDefaultMode(forcedIntent);
+    const finalize = (res: ClassificationResult) =>
+      this.applyCompoundRequestHeuristics(
+        this.applyIntentGuardrails(res, message),
+        message,
+      );
 
     if (forcedIntent) {
-      return this.applyIntentGuardrails(
+      return finalize(
         this.result(
           forcedIntent,
           isLong || hasAttachments ? 3 : 1,
@@ -709,7 +817,6 @@ export class AiClassifierService {
           sentences.length,
           hasAttachments,
         ),
-        message,
       );
     }
 
@@ -717,7 +824,7 @@ export class AiClassifierService {
     const hasTechnicalFailure = /fail|error|bug/.test(text) || this.systemFailureSignals.some((s: RegExp) => s.test(text));
     if (hasTechnicalFailure) {
       const intent = 'system_failure';
-      return this.result(
+      return finalize(this.result(
         intent,
         1,
         mode(intent),
@@ -727,13 +834,13 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Emergency
     if (this.emergencyKeywords.some((kw) => text.includes(kw))) {
       const intent = 'emergency_escalation';
-      return this.result(
+      return finalize(this.result(
         intent,
         1,
         mode(intent),
@@ -743,13 +850,13 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Bulk reminders (order above arrears to avoid overlap)
     if (/remind|kumbushia/.test(text)) {
       const intent = 'send_bulk_reminder';
-      return this.result(
+      return finalize(this.result(
         intent,
         isLong ? 3 : 2,
         mode(intent),
@@ -759,7 +866,7 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Payment
@@ -767,7 +874,7 @@ export class AiClassifierService {
     const hasMpesaCode = /[A-Z0-9]{10}/.test(message);
     if (hasPaymentSignal || hasMpesaCode) {
       const intent = 'record_payment';
-      return this.result(
+      return finalize(this.result(
         intent,
         isLong ? 3 : 2,
         mode(intent),
@@ -777,13 +884,13 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Payment Trigger (STK Push)
     if (this.paymentTriggerPatterns.some(p => p.test(message))) {
         const intent = 'initiate_payment';
-        return this.result(
+        return finalize(this.result(
             intent,
             1,
             mode(intent),
@@ -793,13 +900,13 @@ export class AiClassifierService {
             isLong,
             sentences.length,
             hasAttachments,
-        );
+        ));
     }
 
     // Receipt
     if (/receipt|risiti/.test(text)) {
       const intent = 'request_receipt';
-      return this.result(
+      return finalize(this.result(
         intent,
         1,
         mode(intent),
@@ -809,7 +916,7 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Financial / Rent issues
@@ -819,7 +926,7 @@ export class AiClassifierService {
       )
     ) {
       const intent = 'payment_promise';
-      return this.result(
+      return finalize(this.result(
         intent,
         1,
         mode(intent),
@@ -829,7 +936,7 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Arrears / rent status
@@ -837,7 +944,7 @@ export class AiClassifierService {
       /who has not paid|hawajapaya|arrears|unpaid|collection/i.test(message)
     ) {
       const intent = 'check_rent_status';
-      return this.result(
+      return finalize(this.result(
         intent,
         1,
         mode(intent),
@@ -847,7 +954,7 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Maintenance & Complaints
@@ -855,7 +962,7 @@ export class AiClassifierService {
       const isWaterOut = /maji.*(imepotea|limepotea|lack|no water)/i.test(text) || /no water/i.test(text);
       const intent = isWaterOut ? 'utility_outage' : 'maintenance_request';
       const unitMatch = text.match(/(?:house|unit|nyumba|room)\s*(?:no\.?|number|#)?\s*([a-z0-9]+)/i);
-      return this.result(
+      return finalize(this.result(
         intent,
         1,
         mode(intent),
@@ -866,13 +973,13 @@ export class AiClassifierService {
         sentences.length,
         hasAttachments,
         unitMatch ? { unit: unitMatch[1].toUpperCase() } : undefined,
-      );
+      ));
     }
 
     if (/noise|loud|disturb|shouting|neighbor|mpangaji wa|make kelele|kelele/.test(text)) {
       const intent = 'tenant_complaint';
       const unitMatch = text.match(/(?:house|unit|nyumba|room)\s*(?:no\.?|number|#)?\s*([a-z0-9]+)/i);
-      return this.result(
+      return finalize(this.result(
         intent,
         1,
         mode(intent),
@@ -883,13 +990,13 @@ export class AiClassifierService {
         sentences.length,
         hasAttachments,
         unitMatch ? { subject_unit: unitMatch[1].toUpperCase() } : undefined,
-      );
+      ));
     }
 
     // Reports
     if (/full report|request report|send.*report|resend.*report|csv|pdf/.test(text)) {
       const intent = 'generate_mckinsey_report';
-      return this.result(
+      return finalize(this.result(
         intent,
         3,
         mode(intent),
@@ -899,11 +1006,11 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
     if (/report|ripoti|mckinsey/.test(text)) {
       const intent = 'generate_mckinsey_report';
-      return this.result(
+      return finalize(this.result(
         intent,
         5,
         mode(intent),
@@ -913,7 +1020,7 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Vacancies
@@ -921,7 +1028,7 @@ export class AiClassifierService {
       /vacant|vacancies|which units are vacant|vitengo.*viko wazi/i.test(text)
     ) {
       const intent = 'check_vacancy';
-      return this.result(
+      return finalize(this.result(
         intent,
         1,
         mode(intent),
@@ -931,13 +1038,13 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Select company
     if (/select.*company|switch.*company|open.*company/i.test(text)) {
       const intent = 'select_company';
-      return this.result(
+      return finalize(this.result(
         intent,
         1,
         mode(intent),
@@ -947,13 +1054,13 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // List companies
     if (/list.*compan|show.*compan/.test(text)) {
       const intent = 'list_companies';
-      return this.result(
+      return finalize(this.result(
         intent,
         1,
         mode(intent),
@@ -963,7 +1070,7 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Add tenant
@@ -971,7 +1078,7 @@ export class AiClassifierService {
       const intent = text.includes('tenant') && (text.includes('list') || text.includes('multiple') || text.includes('plural') || text.endsWith('s')) 
         ? 'bulk_create_tenants' 
         : 'add_tenant';
-      return this.result(
+      return finalize(this.result(
         intent,
         2,
         mode(intent),
@@ -981,13 +1088,13 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Update Property / Feed Data
     if (/update property|feed.*data.*property|change property details/i.test(text)) {
       const intent = 'update_property';
-      return this.result(
+      return finalize(this.result(
         intent,
         2,
         mode(intent),
@@ -997,7 +1104,7 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Expenses / Commissions
@@ -1005,7 +1112,7 @@ export class AiClassifierService {
       const intent = text.includes('list') || text.includes('show') || text.includes('view') 
         ? 'list_expenses' 
         : 'record_expense';
-      return this.result(
+      return finalize(this.result(
         intent,
         2,
         mode(intent),
@@ -1015,14 +1122,14 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Reports (CSV vs McKinsey)
     if (/report|summary|breakdown|revenue|arrears/i.test(text)) {
       const isCsv = /csv|spreadsheet|excel|sheet/i.test(text);
       const intent: 'generate_csv_report' | 'generate_mckinsey_report' | 'generate_statement' | 'maintenance_emergency' | 'agent_initiate' = isCsv ? 'generate_csv_report' : 'generate_mckinsey_report';
-      return this.result(
+      return finalize(this.result(
         intent,
         3,
         'ORCHESTRATED',
@@ -1032,13 +1139,13 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Onboard Property / Unit
     if (/create property|new property|add property/i.test(text)) {
       const intent = 'onboard_property';
-      return this.result(
+      return finalize(this.result(
         intent,
         2,
         mode(intent),
@@ -1048,11 +1155,11 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
     if (/create unit|add unit|new unit/i.test(text)) {
       const intent = 'create_unit';
-      return this.result(
+      return finalize(this.result(
         intent,
         2,
         mode(intent),
@@ -1062,13 +1169,13 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Leases
     if (/create lease|new lease|add lease/i.test(text)) {
       const intent = 'create_lease';
-      return this.result(
+      return finalize(this.result(
         intent,
         2,
         mode(intent),
@@ -1078,13 +1185,13 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Landlord collection queries
     if (/how much has been collected/i.test(text)) {
       const intent = 'collection_status';
-      return this.result(
+      return finalize(this.result(
         intent,
         1,
         mode(intent),
@@ -1094,7 +1201,7 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Simple direct lookups that should stay cheap
@@ -1104,7 +1211,7 @@ export class AiClassifierService {
       )
     ) {
       const intent = 'general_query';
-      return this.result(
+      return finalize(this.result(
         intent,
         1,
         mode(intent),
@@ -1114,12 +1221,12 @@ export class AiClassifierService {
         isLong,
         sentences.length,
         hasAttachments,
-      );
+      ));
     }
 
     // Default
     const finalIntent = 'general_query';
-    return this.applyIntentGuardrails(
+    return finalize(
       this.result(
         finalIntent,
         isLong || hasAttachments ? 3 : 2,
@@ -1131,7 +1238,6 @@ export class AiClassifierService {
         sentences.length,
         hasAttachments,
       ),
-      message,
     );
   }
 

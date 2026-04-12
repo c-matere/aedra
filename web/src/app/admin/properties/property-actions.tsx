@@ -40,6 +40,7 @@ type CreatePropertyFormValues = {
 type UpdatePropertyFormValues = {
     name: string
     address?: string
+    location?: string
     propertyType?: string
     description?: string
     commissionPercentage?: number
@@ -165,6 +166,7 @@ export function AddPropertyButton({ role }: { role: UserRole | null }) {
         const payload: CreatePropertyPayload = {
             name,
             address,
+            location: values.location,
             propertyType: propertyType || "RESIDENTIAL",
             description,
             commissionPercentage: commissionPercentage || 0,
@@ -278,8 +280,12 @@ export function AddPropertyButton({ role }: { role: UserRole | null }) {
                                 </select>
                             </div>
                             <div className="space-y-2 col-span-2">
-                                <label className="text-sm font-medium text-neutral-300">Address Location</label>
+                                <label className="text-sm font-medium text-neutral-300">Address (Display)</label>
                                 <Input name="address" placeholder="e.g. Links Road, Nyali, Mombasa" className="bg-white/5 border-white/10 text-white" />
+                            </div>
+                            <div className="space-y-2 col-span-2">
+                                <label className="text-sm font-medium text-neutral-300">Property Location (Internal/City)</label>
+                                <Input name="location" placeholder="e.g. Mombasa" className="bg-white/5 border-white/10 text-white" />
                             </div>
                             <div className="space-y-2 col-span-2">
                                 <label className="text-sm font-medium text-neutral-300">Description</label>
@@ -410,7 +416,7 @@ export function PropertyRowActions({ role, property }: { role: UserRole | null; 
             return
         }
 
-        const { name, address, propertyType, description, commissionPercentage } = values
+        const { name, address, location, propertyType, description, commissionPercentage } = values
 
         if (!name) {
             setError("Property name is required.")
@@ -418,7 +424,7 @@ export function PropertyRowActions({ role, property }: { role: UserRole | null; 
             return
         }
 
-        const res = await updatePropertyAction(role, property.id, { name, address, propertyType, description, commissionPercentage })
+        const res = await updatePropertyAction(role, property.id, { name, address, location, propertyType, description, commissionPercentage })
         if (res.error) {
             setError(res.error)
         } else {
@@ -516,10 +522,18 @@ export function PropertyRowActions({ role, property }: { role: UserRole | null; 
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-300">Address (Optional)</label>
+                            <label className="text-sm font-medium text-neutral-300">Address (Display)</label>
                             <Input
                                 name="address"
                                 defaultValue={property.address || ""}
+                                className="bg-white/5 border-white/10 text-white placeholder:text-neutral-500"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-neutral-300">Location (Internal)</label>
+                            <Input
+                                name="location"
+                                defaultValue={property.location || ""}
                                 className="bg-white/5 border-white/10 text-white placeholder:text-neutral-500"
                             />
                         </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ClipboardList, Loader2, Plus, XCircle } from "lucide-react"
+import { ClipboardList, Loader2, Plus, XCircle, Trash2, Calendar, UserPlus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,7 @@ import {
     SlidePanelTitle,
     SlidePanelTrigger,
 } from "@/components/ui/slide-panel"
+import { Switch } from "@/components/ui/switch"
 import {
     createInvoiceAction,
     createPaymentAction,
@@ -361,12 +362,14 @@ export function TerminateLeaseButton({ leaseId, unitId, role, onSuccess }: AddAc
 }
 
 const leaseFieldSchema: FieldSchema[] = [
-    { name: "tenantId", required: true, parser: parseText, errorMessage: "Tenant selection is required." },
+    { name: "tenantId", required: false, parser: parseText },
     { name: "startDate", required: true, parser: parseDate, errorMessage: "Start date is required." },
     { name: "endDate", required: false, parser: parseDate },
     { name: "rentAmount", required: true, parser: parseNumber, errorMessage: "Rent amount must be a number." },
     { name: "deposit", required: false, parser: parseNumber },
     { name: "status", required: true, parser: parseText },
+    { name: "notes", required: false, parser: parseText },
+    { name: "agreementFee", required: false, parser: parseNumber },
 ]
 
 export function CreateLeaseButton({ unit, role, tenants, onSuccess }: { unit: UnitRecord, role: UserRole | null, tenants: TenantRecord[], onSuccess?: () => void }) {
@@ -375,6 +378,23 @@ export function CreateLeaseButton({ unit, role, tenants, onSuccess }: { unit: Un
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [selectedTenantId, setSelectedTenantId] = useState<string | undefined>()
+    const [createNewTenant, setCreateNewTenant] = useState(false)
+    const [reminders, setReminders] = useState<{ text: string; remindAt: string }[]>([])
+
+    function addReminder() {
+        setReminders([...reminders, { text: "", remindAt: new Date().toISOString().split('T')[0] }])
+    }
+
+    function removeReminder(index: number) {
+        setReminders(reminders.filter((_, i) => i !== index))
+    }
+
+    function updateReminder(index: number, field: 'text' | 'remindAt', value: string) {
+        const updated = [...reminders]
+        updated[index] = { ...updated[index], [field]: value }
+        setReminders(updated)
+    }
+
 
     async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault()
@@ -386,17 +406,44 @@ export function CreateLeaseButton({ unit, role, tenants, onSuccess }: { unit: Un
         const formData = new FormData(e.currentTarget)
         const { values, errors } = parseForm<any>(leaseFieldSchema, formData)
         
+        if (!createNewTenant && !selectedTenantId) {
+            setError("Please select a tenant or create a new one.")
+            setLoading(false)
+            return
+        }
+
         if (errors.length) {
             setError(errors.join(" · "))
             setLoading(false)
             return
         }
 
-        const res = await createLeaseAction(role, {
+        const payload: CreateLeasePayload = {
             ...values,
             unitId: unit.id,
             propertyId: unit.propertyId,
-        } as CreateLeasePayload)
+            tenantId: createNewTenant ? undefined : selectedTenantId,
+            reminders: reminders.filter(r => r.text),
+        } as CreateLeasePayload
+
+        if (createNewTenant) {
+            payload.newTenant = {
+                firstName: formData.get("firstName") as string,
+                lastName: formData.get("lastName") as string,
+                email: formData.get("email") as string || undefined,
+                phone: formData.get("phone") as string || undefined,
+                idNumber: formData.get("idNumber") as string || undefined,
+                tenantCode: formData.get("tenantCode") as string || undefined,
+            }
+            
+            if (!payload.newTenant.firstName || !payload.newTenant.lastName) {
+                setError("Tenant name is required.")
+                setLoading(false)
+                return
+            }
+        }
+
+        const res = await createLeaseAction(role, payload)
 
         if (res.error) {
             setError(res.error)
@@ -433,15 +480,37 @@ export function CreateLeaseButton({ unit, role, tenants, onSuccess }: { unit: Un
                     {error ? <p className="text-sm text-red-400">{error}</p> : null}
                     
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-neutral-300">Tenant</label>
-                        <Combobox
-                            name="tenantId"
-                            options={tenants.map(t => ({ value: t.id, label: `${t.firstName} ${t.lastName}` }))}
-                            value={selectedTenantId}
-                            onValueChange={setSelectedTenantId}
-                            placeholder="Select tenant..."
-                            required
-                        />
+                        <div className="flex items-center justify-between">
+                            <label className="text-sm font-medium text-neutral-300">Tenant</label>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-neutral-400">New Tenant</span>
+                                <Switch checked={createNewTenant} onCheckedChange={setCreateNewTenant} />
+                            </div>
+                        </div>
+
+                        {!createNewTenant ? (
+                            <Combobox
+                                name="tenantId"
+                                options={tenants.map(t => ({ value: t.id, label: `${t.firstName} ${t.lastName}` }))}
+                                value={selectedTenantId}
+                                onValueChange={setSelectedTenantId}
+                                placeholder="Select tenant..."
+                                required={!createNewTenant}
+                            />
+                        ) : (
+                            <div className="space-y-3 rounded-lg border border-white/10 bg-white/5 p-3">
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Input name="firstName" placeholder="First Name" required />
+                                    <Input name="lastName" placeholder="Last Name" required />
+                                </div>
+                                <Input name="email" type="email" placeholder="Email (Optional)" />
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Input name="phone" placeholder="Phone Number" />
+                                    <Input name="idNumber" placeholder="ID Number" />
+                                </div>
+                                <Input name="tenantCode" placeholder="Tenant Internal Code (e.g. T001)" />
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -465,6 +534,11 @@ export function CreateLeaseButton({ unit, role, tenants, onSuccess }: { unit: Un
                             <Input name="deposit" type="number" step="0.01" defaultValue={unit.rentAmount} />
                         </div>
                     </div>
+                    
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-neutral-300">Agreement Fee (KES)</label>
+                        <Input name="agreementFee" type="number" step="0.01" placeholder="Optional agreement/processing fee" />
+                    </div>
 
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-neutral-300">Initial Status</label>
@@ -474,6 +548,55 @@ export function CreateLeaseButton({ unit, role, tenants, onSuccess }: { unit: Un
                         </select>
                     </div>
 
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-neutral-300">Notes</label>
+                        <textarea
+                            name="notes"
+                            placeholder="Add notes for this lease..."
+                            className="flex min-h-[80px] w-full rounded-md border border-white/20 bg-neutral-900 px-3 py-2 text-sm text-white shadow-sm ring-offset-background placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/30 disabled:cursor-not-allowed disabled:opacity-50"
+                        />
+                    </div>
+
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <label className="text-sm font-medium text-neutral-300">Reminders</label>
+                            <Button type="button" variant="outline" size="sm" onClick={addReminder} className="h-7 px-2 text-xs border-white/10 bg-white/5 hover:bg-white/10">
+                                <Plus className="mr-1 h-3 w-3" /> Add Reminder
+                            </Button>
+                        </div>
+
+                        {reminders.map((reminder, index) => (
+                            <div key={index} className="flex gap-2 items-start bg-white/5 p-2 rounded-md border border-white/5">
+                                <div className="flex-1 space-y-2">
+                                    <Input
+                                        value={reminder.text}
+                                        onChange={(e) => updateReminder(index, 'text', e.target.value)}
+                                        placeholder="Remind me to..."
+                                        className="h-8 text-xs"
+                                    />
+                                    <div className="flex items-center gap-2">
+                                        <Calendar className="h-3 w-3 text-neutral-400" />
+                                        <Input
+                                            type="date"
+                                            value={reminder.remindAt}
+                                            onChange={(e) => updateReminder(index, 'remindAt', e.target.value)}
+                                            className="h-7 text-[10px] w-auto py-0"
+                                        />
+                                    </div>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeReminder(index)}
+                                    className="h-8 w-8 text-neutral-500 hover:text-red-400"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+
                     <Button type="submit" disabled={loading} className="w-full">
                         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Create Lease
@@ -481,5 +604,20 @@ export function CreateLeaseButton({ unit, role, tenants, onSuccess }: { unit: Un
                 </form>
             </SlidePanelContent>
         </SlidePanel>
+    )
+}
+
+export function ViewStatementButton({ leaseId }: { leaseId: string }) {
+    const router = useRouter()
+    return (
+        <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-3 text-[10px] font-bold border-blue-500/30 text-blue-400 hover:bg-blue-500/10 uppercase tracking-wider"
+            onClick={() => router.push(`/admin/properties/leases/${leaseId}/statement`)}
+        >
+            <ClipboardList className="h-3 w-3 mr-1" />
+            Statement
+        </Button>
     )
 }

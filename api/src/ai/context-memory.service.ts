@@ -64,6 +64,13 @@ export interface SessionContext {
   lastPriority?: string;
   lockedState?: LockedState;
   registrationData?: Record<string, string>;
+  lastReportJobId?: string;
+  lastReportJob?: {
+    id: string;
+    reportType?: string;
+    scope?: string;
+    requestedAt?: string;
+  };
   updatedAt: number;
 }
 
@@ -101,7 +108,8 @@ export class ContextMemoryService {
       ...context,
       updatedAt: Date.now(),
     };
-    await this.cache.set(this.key(uid), updated, 3600 * 1000); // 1 hour TTL
+    // Longer TTL to avoid losing staged context when users reply later (common on WhatsApp).
+    await this.cache.set(this.key(uid), updated, 24 * 3600 * 1000); // 24 hours
   }
 
   /**

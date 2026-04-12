@@ -47,6 +47,7 @@ describe('AiWhatsappOrchestratorService - Actionable Echo', () => {
         companyId: 'c1',
       }),
       getWhatsAppProfile: jest.fn().mockResolvedValue({ language: 'en' }),
+      downloadMedia: jest.fn(),
       sendReaction: jest.fn(),
       sendTextMessage: jest.fn(),
       sendInteractiveMessage: jest.fn(),
@@ -192,6 +193,41 @@ describe('AiWhatsappOrchestratorService - Actionable Echo', () => {
       }),
     );
     // Verify aiService.chat was NOT called yet
+    expect(mockAiService.chat).not.toHaveBeenCalled();
+  });
+
+  it('returns a helpful message when voice-note download fails (no classification)', async () => {
+    const phone = '254711111111';
+
+    mockPrisma.chatHistory.findFirst.mockResolvedValue({
+      id: 'chat1',
+      companyId: 'c1',
+      updatedAt: new Date(),
+    });
+
+    mockWhatsapp.downloadMedia.mockRejectedValue(new Error('fetch failed'));
+
+    await service.handleIncomingWhatsapp(
+      phone,
+      undefined,
+      'media_1',
+      'audio/ogg',
+      'wamid_voice_1',
+    );
+
+    expect(mockWhatsapp.sendTextMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: phone,
+        text: '🎤 Received your voice note. Let me listen to it...',
+      }),
+    );
+    expect(mockWhatsapp.sendTextMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: phone,
+        text: "Sorry — I couldn't download your voice note. Please resend it or type your message.",
+      }),
+    );
+    expect(mockClassifier.classify).not.toHaveBeenCalled();
     expect(mockAiService.chat).not.toHaveBeenCalled();
   });
 

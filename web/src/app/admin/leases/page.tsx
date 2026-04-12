@@ -7,7 +7,7 @@ import {
 } from "@/lib/backend-api";
 import { getRoleFromCookie, getSessionTokenFromCookie } from "@/lib/cookie-utils";
 import { AddLeaseButton, LeaseRowActions } from "./lease-actions";
-import { LeaseHistory } from "./lease-history";
+import { LeaseDetailsPanel } from "./lease-details";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { redirect } from "next/navigation";
@@ -61,11 +61,11 @@ export default async function LeasesPage({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-black text-white tracking-tight drop-shadow-md">
             {activeTenant ? `Leases for ${activeTenant.firstName} ${activeTenant.lastName}` : "Leases"}
           </h1>
-          <p className="text-sm text-neutral-300">Lease lifecycle management.</p>
+          <p className="text-neutral-400 text-sm font-medium">Lease lifecycle and financial matching.</p>
         </div>
         <AddLeaseButton role={role} tenants={tenants} units={units} properties={properties} />
       </div>
@@ -89,28 +89,28 @@ export default async function LeasesPage({
           {leasesData?.data?.length ? (
             leasesData.data.map((lease) => (
               <div key={lease.id} className="flex items-center justify-between rounded border border-white/10 bg-white/5 p-3">
-                <LeaseHistory
-                  leaseId={lease.id}
-                  leaseTitle={lease.tenant ? `${lease.tenant.firstName} ${lease.tenant.lastName}` : lease.id}
+                <LeaseDetailsPanel
+                  lease={lease}
+                  token={sessionToken}
                 >
                   <div className="flex-1 cursor-pointer group">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-white group-hover:text-blue-400 transition-colors">
+                      <p className="text-sm font-black text-white group-hover:text-blue-400 transition-colors">
                         {lease.tenant
                           ? `${lease.tenant.firstName} ${lease.tenant.lastName}`
                           : lease.tenantId}
                       </p>
                       {lease.balance !== undefined && lease.balance > 0 && (
-                        <span className="px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-[10px] font-black text-red-400 uppercase tracking-tighter">
+                        <span className="px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-[9px] font-black text-red-400 uppercase tracking-tighter">
                           Arrears: KES {lease.balance.toLocaleString()}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-neutral-400">
+                    <p className="text-[11px] text-neutral-500 font-medium">
                       {lease.unit?.unitNumber || lease.unitId} • KSH {lease.rentAmount.toLocaleString()} • {lease.status}
                     </p>
                   </div>
-                </LeaseHistory>
+                </LeaseDetailsPanel>
                 <div className="flex items-center gap-2">
                   <LeaseRowActions
                     role={role}

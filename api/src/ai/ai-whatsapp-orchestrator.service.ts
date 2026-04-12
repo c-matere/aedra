@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
@@ -28,6 +28,7 @@ import { WaCrudButtonsService } from './wa-crud-buttons.service';
 import { WorkflowEngine } from '../workflows/workflow.engine';
 import Groq, { toFile } from 'groq-sdk';
 import { AiServiceChatResponse } from './ai-contracts.types';
+import { ContextMemoryService } from './context-memory.service';
 
 @Injectable()
 export class AiWhatsappOrchestratorService {
@@ -40,7 +41,7 @@ export class AiWhatsappOrchestratorService {
     private readonly classifier: AiClassifierService,
     private readonly orchestrator: NextStepOrchestrator,
     private readonly recovery: ErrorRecoveryService,
-    @Inject(forwardRef(() => AiService)) private readonly aiService: AiService,
+    private readonly aiService: AiService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private readonly menuRouter: MenuRouterService,
     private readonly mainMenu: MainMenuService,
@@ -49,6 +50,7 @@ export class AiWhatsappOrchestratorService {
     private readonly staging: AiStagingService,
     private readonly crudButtons: WaCrudButtonsService,
     private readonly workflowEngine: WorkflowEngine,
+    private readonly contextMemory: ContextMemoryService,
   ) {
     const apiKey = process.env.GROQ_API_KEY;
     this.groq = apiKey ? new Groq({ apiKey }) : (null as any);
@@ -264,50 +266,103 @@ export class AiWhatsappOrchestratorService {
           const lang = language || 'en';
           let downloadedMedia: { data: string; mimeType: string } | null = null;
           if (mimeType?.startsWith('audio') && mediaId) {
+            // Proactive feedback for audio (sent even if download/transcription fails)
+            const feedbackMsg =
+              lang === 'sw'
+                ? '🎤 Nimepokea ujumbe wako wa sauti. Hebu niusikilize...'
+                : '🎤 Received your voice note. Let me listen to it...';
+            await this.whatsappService.sendTextMessage({
+              companyId,
+              to: phone,
+              text: feedbackMsg,
+            });
+
             try {
               downloadedMedia = await this.whatsappService.downloadMedia(
                 mediaId,
                 companyId,
               );
-              // Proactive feedback for audio
-              const feedbackMsg =
+            } catch (e: any) {
+              const msg = (e?.message || '').toLowerCase();
+              const isNetworkError =
+                msg.includes('fetch failed') ||
+                msg.includes('timeout') ||
+                msg.includes('econnrefused') ||
+                msg.includes('network');
+              this.logger.error(
+                `WhatsApp audio download failed: ${e?.message || e}${isNetworkError ? ' (network)' : ''}`,
+              );
+              const failMsg =
                 lang === 'sw'
-                  ? '🎤 Nimepokea ujumbe wako wa sauti. Hebu niusikilize...'
-                  : '🎤 Received your voice note. Let me listen to it...';
+                  ? 'Samahani — sikuweza kupakua voice note yako. Tafadhali jaribu kuituma tena au andika ujumbe wako.'
+                  : "Sorry — I couldn't download your voice note. Please resend it or type your message.";
               await this.whatsappService.sendTextMessage({
                 companyId,
                 to: phone,
-                text: feedbackMsg,
+                text: failMsg,
               });
+              return { response: failMsg, chatId: lastChat?.id || null };
+            }
 
-              const transcript = await this.transcribeAudio(
+            let transcript: string | null = null;
+            try {
+              transcript = await this.transcribeAudio(
                 downloadedMedia.data,
                 downloadedMedia.mimeType,
                 language || undefined,
               );
-              if (!transcript || transcript.trim() === '') {
-                const failMsg =
-                  language === 'sw'
-                    ? 'Samahani, sikuweza kusikia vizuri. Tafadhali rudia au andika ujumbe wako.'
-                    : 'Sorry, I could not understand the voice note. Please try again or type your message.';
-                await this.whatsappService.sendTextMessage({
-                  companyId,
-                  to: phone,
-                  text: failMsg,
-                });
-                return { response: failMsg, chatId: lastChat?.id || null };
-              }
-
-              // We DEFER the "✍️ I heard" echo until after classification
-              // to provide a combined "Actionable Echo"
-              text = transcript;
-              const detectedLang = detectLanguage(transcript || '');
-              if (detectedLang !== 'mixed') {
-                language = detectedLang as any;
-              }
-            } catch (e) {
-              this.logger.error(`Audio transcription failed: ${e.message}`);
+            } catch (e: any) {
+              const msg = (e?.message || '').toLowerCase();
+              const isNetworkError =
+                msg.includes('fetch failed') ||
+                msg.includes('timeout') ||
+                msg.includes('econnrefused') ||
+                msg.includes('network');
+              this.logger.error(
+                `Audio transcription failed: ${e?.message || e}${isNetworkError ? ' (network)' : ''}`,
+              );
+              const failMsg =
+                lang === 'sw'
+                  ? 'Samahani — sikuweza kusikiliza voice note yako sasa hivi. Tafadhali jaribu tena au andika ujumbe wako.'
+                  : "Sorry — I couldn't process your voice note right now. Please try again or type your message.";
+              await this.whatsappService.sendTextMessage({
+                companyId,
+                to: phone,
+                text: failMsg,
+              });
+              return { response: failMsg, chatId: lastChat?.id || null };
             }
+
+            if (!transcript || transcript.trim() === '') {
+              const failMsg =
+                lang === 'sw'
+                  ? 'Samahani, sikuweza kusikia vizuri. Tafadhali rudia au andika ujumbe wako.'
+                  : 'Sorry, I could not understand the voice note. Please try again or type your message.';
+              await this.whatsappService.sendTextMessage({
+                companyId,
+                to: phone,
+                text: failMsg,
+              });
+              return { response: failMsg, chatId: lastChat?.id || null };
+            }
+
+            // Echo back what was heard so the user can verify before the AI acts on it
+            const echoMsg =
+              lang === 'sw'
+                ? `✍️ Nilisikia: _"${transcript}"_`
+                : `✍️ I heard: _"${transcript}"_`;
+            await this.whatsappService.sendTextMessage({
+              companyId,
+              to: phone,
+              text: echoMsg,
+            });
+
+            text = transcript;
+            const detectedLang = detectLanguage(transcript || '');
+            if (detectedLang !== 'mixed') {
+              language = detectedLang as any;
+            }
+
           }
 
           // Resolve chatId early for logging
@@ -392,11 +447,48 @@ export class AiWhatsappOrchestratorService {
             const matchedItem = activeList.items.find((i: any) => i.id === safeText);
             if (matchedItem) {
               isListSelection = true;
-              listSelectionType = matchedItem.role === 'TENANT' ? 'tenant' 
-                                : matchedItem.address ? 'property' 
-                                : matchedItem.unitNumber ? 'unit' 
-                                : 'item';
-              const itemName = matchedItem.name || matchedItem.firstName || matchedItem.title || safeText;
+              const matchedType = (matchedItem.type || '').toString().toLowerCase().trim();
+              listSelectionType =
+                matchedType === 'tenant' || matchedItem.role === 'TENANT'
+                  ? 'tenant'
+                  : matchedType === 'property' || matchedItem.address
+                    ? 'property'
+                    : matchedType === 'unit' || matchedItem.unitNumber
+                      ? 'unit'
+                      : 'item';
+              const itemName =
+                matchedItem.name || matchedItem.firstName || matchedItem.title || safeText;
+
+              // Persist selection into ContextMemory so follow-ups like "this property" resolve.
+              try {
+                if (listSelectionType === 'property') {
+                  await this.contextMemory.stitch(uid, [
+                    { type: 'property', id: matchedItem.id, name: itemName },
+                  ]);
+                } else if (listSelectionType === 'tenant') {
+                  await this.contextMemory.stitch(uid, [
+                    { type: 'tenant', id: matchedItem.id, name: itemName },
+                  ]);
+                } else if (listSelectionType === 'unit') {
+                  await this.contextMemory.stitch(uid, [
+                    { type: 'unit', id: matchedItem.id, name: itemName },
+                  ]);
+                }
+              } catch (e: any) {
+                this.logger.warn(
+                  `[WhatsApp Orchestrator] Failed to persist selection context: ${e?.message || e}`,
+                );
+              }
+
+              // Consume the selection list so it doesn't keep re-triggering selection UI.
+              await this.cacheManager.del(listKey);
+              const sessionKey = `ai_session:${uid}`;
+              const session = await this.cacheManager.get<any>(sessionKey);
+              if (session && session.awaitingSelection) {
+                delete session.awaitingSelection;
+                await this.cacheManager.set(sessionKey, session, 3600 * 1000);
+              }
+
               // Rewrite the original text payload so the rest of the orchestrator sees semantic text
               text = `Select this item: ${itemName} (ID: ${safeText})`;
               safeText = text.trim();
@@ -853,13 +945,13 @@ export class AiWhatsappOrchestratorService {
             
             // Safety check: if tool returned confirmation required but AI didn't provide buttons
             if (!result.interactive && result.metadata?.requires_confirmation) {
-               await this.staging.stage(uid, 'pending_action', {
-                 text: (staged as any).text,
-                 classification: overrideClassification || (staged as any).classification,
-                 history: staged.history || [],
-                 chatId: staged.chatId,
-                 attachments: staged.attachments,
-               });
+	               await this.staging.stage(uid, 'pending_action', {
+	                 text: (staged as any).text,
+	                 classification: overrideClassification || (staged as any).classification,
+	                 history: staged.history || [],
+	                 chatId: staged.chatId,
+	                 attachments: staged.attachments,
+	               }, 24 * 3600 * 1000);
 
                const proceedButtons = {
                   type: 'button',
@@ -928,7 +1020,7 @@ export class AiWhatsappOrchestratorService {
               this.logger.log(`[Recovery] Retrying action: ${activeRecovery.action}`);
               await this.cacheManager.del(recoveryKey);
               
-              if (activeRecovery.action === 'execute_tool') {
+              if (activeRecovery.action === 'execute_tool' && activeRecovery.toolName) {
                 const result = await this.aiService.executeTool(
                   activeRecovery.toolName,
                   activeRecovery.args,
@@ -952,13 +1044,32 @@ export class AiWhatsappOrchestratorService {
                 return { response: formatted.text, chatId };
               }
               
-              return await this.handleIncomingWhatsapp(
-                phone,
-                activeRecovery.originalText,
-                undefined,
-                undefined,
-                `retry_${Date.now()}`
-              );
+              if (activeRecovery.action === 'retry_plan_approve') {
+                return await this.handleIncomingWhatsapp(
+                  phone,
+                  'plan_approve',
+                  undefined,
+                  undefined,
+                  `retry_${Date.now()}`,
+                );
+              }
+
+              if (activeRecovery.originalText) {
+                return await this.handleIncomingWhatsapp(
+                  phone,
+                  activeRecovery.originalText,
+                  undefined,
+                  undefined,
+                  `retry_${Date.now()}`,
+                );
+              }
+
+              const retryMsg =
+                lang === 'sw'
+                  ? 'Ombi la kujaribu tena limekwisha muda. Tafadhali tuma tena ujumbe wako.'
+                  : 'That retry expired. Please resend your request.';
+              await sendAndLog(retryMsg);
+              return { response: retryMsg, chatId };
             } else if (choice === '2') {
                await this.cacheManager.del(recoveryKey);
                const menu = this.mainMenu.getMainMenu(lang, sender.role as any);
@@ -1361,9 +1472,18 @@ export class AiWhatsappOrchestratorService {
               effectiveText.toLowerCase(),
             );
 
-          const isLongPrompt = effectiveText.length > 60 || effectiveText.split(' ').length > 8;
-          const requiresDisambiguation = 
-            !isLongPrompt && looksLikePropertyRef && (!explicitWrite || confidence < 0.75);
+	          const isLongPrompt = effectiveText.length > 60 || effectiveText.split(' ').length > 8;
+	          // Avoid competing "shadow classifier" logic when a deterministic route exists.
+	          const deterministic = await this.menuRouter.routeMessage(
+	            uid,
+	            effectiveText,
+	            lang,
+	          );
+	          const requiresDisambiguation =
+	            !deterministic.handled &&
+	            !isLongPrompt &&
+	            looksLikePropertyRef &&
+	            (!explicitWrite || confidence < 0.75);
 
           // Dynamic disambiguation: avoid robotic confirmations, ALWAYS trigger for explicit List Selections
           if (
@@ -1384,13 +1504,13 @@ export class AiWhatsappOrchestratorService {
                 history.shift();
             }
 
-            await this.staging.stage(uid, 'pending_intent_choice', {
-              text: effectiveText,
-              classification,
-              history,
-              chatId: lastChat?.id,
-              attachments,
-            });
+	            await this.staging.stage(uid, 'pending_intent_choice', {
+	              text: effectiveText,
+	              classification,
+	              history,
+	              chatId: lastChat?.id,
+	              attachments,
+	            }, 24 * 3600 * 1000);
 
             // --- Dynamic intent-aware disambiguation ---
             // Map the LLM's classified intent to the options most relevant in that context.
@@ -1547,11 +1667,19 @@ export class AiWhatsappOrchestratorService {
                   ? 'Kusasisha taarifa za jengo'
                   : 'Updating property details',
             };
-            const intentDesc =
+            let intentDesc =
               humanIntents[classification.intent] ||
               (lang === 'sw'
                 ? 'Kutekeleza ombi lako'
                 : 'Processing your request');
+            const hasCompoundSteps =
+              classification.executionMode === 'ORCHESTRATED' &&
+              Array.isArray(classification.subIntents) &&
+              classification.subIntents.length > 1;
+            if (hasCompoundSteps) {
+              intentDesc =
+                lang === 'sw' ? 'Ombi lenye hatua kadhaa' : 'Multi-step request';
+            }
             const label =
               !explicitWrite && confidence < 0.75
                 ? lang === 'sw'
@@ -1561,10 +1689,28 @@ export class AiWhatsappOrchestratorService {
                   ? '📝 Kusudi'
                   : '📝 Intent';
 
+            const stepsPreview = hasCompoundSteps
+              ? (() => {
+                  const maxSteps = 3;
+                  const phrases = (classification.subIntents || [])
+                    .slice(0, maxSteps)
+                    .map((i) => humanIntents[i] || i);
+                  const extra =
+                    (classification.subIntents || []).length > maxSteps
+                      ? lang === 'sw'
+                        ? ` +${(classification.subIntents || []).length - maxSteps} zaidi`
+                        : ` +${(classification.subIntents || []).length - maxSteps} more`
+                      : '';
+                  const joiner = lang === 'sw' ? ' → ' : ' → ';
+                  const prefix = lang === 'sw' ? '🧩 Hatua' : '🧩 Steps';
+                  return `\n${prefix}: ${phrases.join(joiner)}${extra}`;
+                })()
+              : '';
+
             const echoBody =
               lang === 'sw'
-                ? `🎤 Nimepokea ujumbe wako.\n✍️ Nilichosikia: "${effectiveText}"\n${label}: ${intentDesc}`
-                : `🎤 Received your request.\n✍️ I heard: "${effectiveText}"\n${label}: ${intentDesc}`;
+                ? `🎤 Nimepokea ujumbe wako.\n✍️ Nilichosikia: "${effectiveText}"\n${label}: ${intentDesc}${stepsPreview}`
+                : `🎤 Received your request.\n✍️ I heard: "${effectiveText}"\n${label}: ${intentDesc}${stepsPreview}`;
 
             let history: any[] = [];
             if (lastChat?.id) {
@@ -1577,13 +1723,13 @@ export class AiWhatsappOrchestratorService {
                 history.shift();
             }
 
-            await this.staging.stage(uid, 'pending_action', {
-              text: effectiveText,
-              classification,
-              history,
-              chatId: lastChat?.id,
-              attachments,
-            });
+	            await this.staging.stage(uid, 'pending_action', {
+	              text: effectiveText,
+	              classification,
+	              history,
+	              chatId: lastChat?.id,
+	              attachments,
+	            }, 24 * 3600 * 1000);
             if (classification.executionMode === 'ORCHESTRATED') {
               const planButtons = this.crudButtons.buildPlanButtons(
                 intentDesc,
@@ -1664,61 +1810,53 @@ export class AiWhatsappOrchestratorService {
                 finalResponse,
               );
 
-            if (
-              !result.interactive &&
-              (!result.metadata?.clarificationNeeded || responseLooksLikeSelection)
-            ) {
-              if (result.vcSummary) {
-                result.interactive = this.crudButtons.buildCrudButtons(
-                  result.vcSummary,
-                  language || 'en',
+            const needsClarification =
+              !!result.metadata?.clarificationNeeded || responseLooksLikeSelection;
+            if (!result.interactive && needsClarification) {
+              const justCachedList: any = await this.cacheManager.get(
+                `list:${uid}`,
+              );
+              if (!justCachedList && (cameFromListTool || responseLooksLikeSelection)) {
+                this.logger.warn(
+                  `[WhatsApp] Clarification needed but no list found in cache for ${uid}`,
                 );
-              } else {
-                const justCachedList: any = await this.cacheManager.get(
-                  `list:${uid}`,
-                );
-                if (
-                  (cameFromListTool && responseLooksLikeSelection) ||
-                  (justCachedList &&
-                    justCachedList.items &&
-                    justCachedList.items.length > 0)
-                ) {
-                  // If we didn't explicitly detect a list tool but have a cached list and selection text, show it.
-                  if (!justCachedList && (cameFromListTool || responseLooksLikeSelection)) {
-                      this.logger.warn(`[WhatsApp] Selection required but no list found in cache for ${uid}`);
-                  }
-                  
-                  if (
-                    justCachedList &&
-                    justCachedList.items &&
-                    justCachedList.items.length > 0
-                  ) {
-                  const items = justCachedList.items.slice(0, 10);
-                  result.interactive = {
-                    type: 'list',
-                    header: {
-                      type: 'text',
-                      text: language === 'sw' ? 'Chagua hapa' : 'Selection Required',
-                    },
-                    body: { text: finalResponse.slice(0, 1024) },
-                    action: {
-                      button: language === 'sw' ? 'Chagua moja' : 'Select Option',
-                      sections: [
-                        {
-                          title: 'Results',
-                          rows: items.map((item: any) => ({
-                            id: item.id,
-                            title: item.name.slice(0, 24),
-                            description: item.type,
-                          })),
-                        },
-                      ],
-                    },
-                  };
-                }
-                }
+              }
+
+              if (justCachedList?.items?.length > 0) {
+                const items = justCachedList.items.slice(0, 10);
+                result.interactive = {
+                  type: 'list',
+                  header: {
+                    type: 'text',
+                    text: language === 'sw' ? 'Chagua hapa' : 'Selection Required',
+                  },
+                  body: { text: finalResponse.slice(0, 1024) },
+                  action: {
+                    button: language === 'sw' ? 'Chagua moja' : 'Select Option',
+                    sections: [
+                      {
+                        title: 'Results',
+                        rows: items.map((item: any) => ({
+                          id: item.id,
+                          title: item.name.slice(0, 24),
+                          description: item.type,
+                        })),
+                      },
+                    ],
+                  },
+                };
               }
             }
+
+            // Version-control buttons: fire after every successful mutation that returned a _vc summary.
+            // This is independent of clarification; it should always appear after a create/update/delete.
+            if (!result.interactive && result.vcSummary?.versionId) {
+              result.interactive = this.crudButtons.buildCrudButtons(
+                result.vcSummary,
+                language || 'en',
+              );
+            }
+
 
             if (result.requires_authorization) {
               const session = (await this.cacheManager.get<any>(
@@ -1744,13 +1882,13 @@ export class AiWhatsappOrchestratorService {
             }
 
             if (!result.interactive && result.metadata?.requires_confirmation) {
-               await this.staging.stage(uid, 'pending_action', {
-                 text,
-                 classification,
-                 history,
-                 chatId: lastChat?.id || chatId,
-                 attachments,
-               });
+	               await this.staging.stage(uid, 'pending_action', {
+	                 text,
+	                 classification,
+	                 history,
+	                 chatId: lastChat?.id || chatId,
+	                 attachments,
+	               }, 24 * 3600 * 1000);
 
                result.interactive = {
                   type: 'button',
@@ -1843,14 +1981,27 @@ export class AiWhatsappOrchestratorService {
       // Clear stale lists and set recovery context
       await this.cacheManager.del(`list:${contextUid}`);
       await this.cacheManager.set(`recovery:${contextUid}`, {
-        action: 'execute_tool', // This needs to be smarter, but for now we assume tool failure
-        // We need to capture what just failed. This is tricky given the current orchestrator structure.
-        // For now, let's at least clear the list so '1' doesn't go to companies.
+        action: (text?.trim() || '') === 'plan_approve' ? 'retry_plan_approve' : 'retry_original',
+        originalText: text?.trim() || '',
       }, 300 * 1000);
 
       await this.cacheManager.set(
         `fail_reason:${recovery.errorId}`,
-        err.message,
+        (() => {
+          const raw = String(err?.message || err || 'Unknown error');
+          const code = err?.code ? ` code=${String(err.code)}` : '';
+          const lower = raw.toLowerCase();
+          if (lower.includes('fetch failed')) {
+            return `fetch failed (network call to an upstream service failed)${code}`;
+          }
+          if (lower.includes('timeout') || lower.includes('timed out')) {
+            return `timeout (upstream service did not respond in time)${code}`;
+          }
+          if (lower.includes('econnrefused')) {
+            return `connection refused (upstream service unreachable)${code}`;
+          }
+          return `${raw}${code}`.slice(0, 400);
+        })(),
         3600 * 1000,
       ); // 1 hour
       const interactive = this.whatsappFormatter.buildButtonMessage(
@@ -1964,12 +2115,12 @@ export class AiWhatsappOrchestratorService {
         const unpaidInvoices = await this.prisma.invoice.aggregate({
           where: {
             lease: { tenantId: sender.id, deletedAt: null },
-            status: 'OPEN',
+            status: { not: 'PAID' },
             deletedAt: null,
           },
           _sum: { amount: true },
         });
-        context.balanceDue = unpaidInvoices._sum.amount || 0;
+        context.balanceDue = unpaidInvoices?._sum?.amount || 0;
       } else if (sender.role === UserRole.LANDLORD) {
         if (sender.companyId) {
           context.collectionRate = await this.aiService.getCollectionRate(

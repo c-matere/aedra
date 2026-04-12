@@ -11,6 +11,7 @@ import { PropertyType, Prisma } from '@prisma/client';
 export interface CreatePropertyDto {
   name: string;
   address?: string;
+  location?: string;
   propertyType?: PropertyType;
   description?: string;
   commissionPercentage?: number;
@@ -32,6 +33,7 @@ export interface CreatePropertyDto {
 export interface UpdatePropertyDto {
   name?: string;
   address?: string;
+  location?: string;
   propertyType?: PropertyType;
   description?: string;
   commissionPercentage?: number;
@@ -238,6 +240,7 @@ export class PropertiesService {
         data: {
           name: data.name,
           address: data.address,
+          location: data.location,
           propertyType: data.propertyType,
           description: data.description,
           commissionPercentage: data.commissionPercentage ?? 0,

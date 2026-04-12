@@ -53,6 +53,9 @@ export function IntegrationsEditButton({ company, token }: IntegrationsEditButto
         africaTalkingApiKey: company.africaTalkingApiKey || "",
         mapProvider: company.mapProvider ?? "Mapbox GL",
         mapboxAccessToken: company.mapboxAccessToken || "",
+        zuriDomain: company.zuriDomain || "https://zuriproperties.co.ke",
+        zuriUsername: company.zuriUsername || "",
+        zuriPassword: company.zuriPassword || "",
     });
     const router = useRouter();
 
@@ -338,6 +341,43 @@ export function IntegrationsEditButton({ company, token }: IntegrationsEditButto
                                 />
                             </div>
                         )}
+                    </div>
+
+                    <div className="h-px bg-white/5" />
+
+                    {/* Zuri Lease Section */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Historical Data (Zuri Lease)</h4>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-medium text-neutral-300">Zuri Domain</label>
+                            <Input
+                                value={formData.zuriDomain}
+                                onChange={(e) => setFormData({ ...formData, zuriDomain: e.target.value })}
+                                className="bg-white/5 border-white/10"
+                                placeholder="https://zuriproperties.co.ke"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-neutral-300">Zuri Username</label>
+                                <Input
+                                    value={formData.zuriUsername}
+                                    onChange={(e) => setFormData({ ...formData, zuriUsername: e.target.value })}
+                                    className="bg-white/5 border-white/10"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-neutral-300">Zuri Password</label>
+                                <Input
+                                    type="password"
+                                    value={formData.zuriPassword}
+                                    onChange={(e) => setFormData({ ...formData, zuriPassword: e.target.value })}
+                                    className="bg-white/5 border-white/10"
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <DialogFooter>

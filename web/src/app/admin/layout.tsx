@@ -21,6 +21,7 @@ import {
     BriefcaseBusiness,
     LifeBuoy,
     Plug,
+    Shield,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -62,7 +63,6 @@ export default async function AdminLayout({
     const navItems: NavDefinition[] = [
         { href: "/admin", label: "Dashboard", icon: LayoutDashboard, iconKey: "dashboard" },
         { href: "/admin/properties", label: "Properties", icon: Building2, iconKey: "properties" },
-        { href: "/admin/units", label: "Units", icon: Layers, iconKey: "units" },
         { href: "/admin/tenants", label: "Tenants", icon: Users, iconKey: "tenants" },
         { href: "/admin/landlords", label: "Landlords", icon: Handshake, iconKey: "landlords" },
         { href: "/admin/leases", label: "Leases", icon: FileText, iconKey: "leases" },
@@ -77,8 +77,8 @@ export default async function AdminLayout({
         { href: "/admin/notifications", label: "Notifications", icon: Bell, iconKey: "notifications" },
         { href: "/admin/reports", label: "Reports", icon: BarChart3, iconKey: "reports" },
         { href: "/admin/integrations", label: "Integrations", icon: Plug, iconKey: "integrations" },
+        { href: "/admin/rbac", label: "Access Control", icon: Shield, iconKey: "rbac" },
         { href: "/admin/support", label: "Support", icon: LifeBuoy, iconKey: "support" },
-        { href: "/admin/audit-logs", label: "Audit Logs", icon: FileText, iconKey: "auditLogs" },
         { href: "/admin/settings", label: "Settings", icon: Settings, iconKey: "settings" },
     ]
 
@@ -91,7 +91,7 @@ export default async function AdminLayout({
         },
         {
             title: "Real Estate",
-            items: accessibleNavItems.filter(i => ["/admin/properties", "/admin/units", "/admin/tenants", "/admin/landlords", "/admin/leases", "/admin/maintenance"].includes(i.href))
+            items: accessibleNavItems.filter(i => ["/admin/properties", "/admin/tenants", "/admin/landlords", "/admin/leases", "/admin/maintenance"].includes(i.href))
         },
         {
             title: "Financials",
@@ -103,7 +103,7 @@ export default async function AdminLayout({
         },
         {
             title: "System",
-            items: accessibleNavItems.filter(i => ["/admin/reports", "/admin/integrations", "/admin/support", "/admin/settings", "/admin/audit-logs"].includes(i.href))
+            items: accessibleNavItems.filter(i => ["/admin/reports", "/admin/integrations", "/admin/rbac", "/admin/settings", "/admin/support"].includes(i.href))
         }
     ].filter(g => g.items.length > 0)
 

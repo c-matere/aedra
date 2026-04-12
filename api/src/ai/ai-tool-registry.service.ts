@@ -84,32 +84,48 @@ export class AiToolRegistryService {
     role: UserRole,
     language: string,
   ): Promise<any> {
-    this.logger.log(`Executing tool: ${name} for role: ${role}`);
+    const toolName = (name as any)?.toString?.().trim?.() || '';
+    this.logger.log(
+      `Executing tool: ${toolName || '[INVALID]'} for role: ${role}`,
+    );
+
+    if (!toolName) {
+      return {
+        error: 'INVALID_TOOL_NAME',
+        message:
+          'I couldn’t determine which action to run. Please retry, or type your request again with the tenant/unit/property details.',
+        requires_clarification: true,
+      };
+    }
 
     // v5.2 Deterministic Safety Net (Allowlist-First)
-    if (!this.isToolAllowed(name, role)) {
-      this.logger.error(`[Security] Tool ${name} is NOT permitted for role ${role}`);
-      throw new Error(`Unauthorized: Tool ${name} is not permitted for your role.`);
+    if (!this.isToolAllowed(toolName, role)) {
+      this.logger.error(
+        `[Security] Tool ${toolName} is NOT permitted for role ${role}`,
+      );
+      throw new Error(
+        `Unauthorized: Tool ${toolName} is not permitted for your role.`,
+      );
     }
 
     // Agent Tools delegation
-    if (name === 'analyze_agent_goal') {
+    if (toolName === 'analyze_agent_goal') {
       return await this.autonomousAgentService.analyzeGoal(context);
     }
-    if (name === 'evaluate_agent_progress') {
+    if (toolName === 'evaluate_agent_progress') {
       return await this.autonomousAgentService.evaluateProgress(context);
     }
-    if (name === 'process_agent_feedback') {
+    if (toolName === 'process_agent_feedback') {
       return await this.autonomousAgentService.processFeedback(context);
     }
-    if (name === 'notify_agent_plan') {
+    if (toolName === 'notify_agent_plan') {
       return await this.autonomousAgentService.notifyPlan(context);
     }
-    if (name === 'send_agent_heartbeat') {
+    if (toolName === 'send_agent_heartbeat') {
       return await this.autonomousAgentService.sendHeartbeatUpdate(context);
     }
 
-    if (name === 'execute_agent_chunk') {
+    if (toolName === 'execute_agent_chunk') {
       const plan = context.analyze_goal;
       if (!plan || !plan.tasks) {
         return { error: 'No agent plan found in context.analyze_goal' };
@@ -146,9 +162,9 @@ export class AiToolRegistryService {
     }
 
     // Routing logic based on tool categories
-    if (this.isReadTool(name)) {
+    if (this.isReadTool(toolName)) {
       return await this.readTools.executeReadTool(
-        name,
+        toolName,
         args,
         context,
         role,
@@ -157,13 +173,13 @@ export class AiToolRegistryService {
     }
 
     if (
-      name.includes('_report') ||
-      name.includes('_staged') ||
-      name === 'register_company' ||
-      name === 'process_risk_analysis'
+      toolName.includes('_report') ||
+      toolName.includes('_staged') ||
+      toolName === 'register_company' ||
+      toolName === 'process_risk_analysis'
     ) {
       return await this.reportTools.executeReportTool(
-        name,
+        toolName,
         args,
         context,
         role,
@@ -172,13 +188,13 @@ export class AiToolRegistryService {
     }
 
     if (
-      name === 'view_version_history' ||
-      name === 'view_portfolio_history' ||
-      name === 'generate_history_pdf' ||
-      name === 'rollback_change'
+      toolName === 'view_version_history' ||
+      toolName === 'view_portfolio_history' ||
+      toolName === 'generate_history_pdf' ||
+      toolName === 'rollback_change'
     ) {
       return await this.historyTools.executeHistoryTool(
-        name,
+        toolName,
         args,
         context,
         role,
@@ -186,13 +202,13 @@ export class AiToolRegistryService {
     }
 
     // send_notification: alias for a simple log/message action
-    if (name === 'send_notification' || name === 'notify_tenant') {
+    if (toolName === 'send_notification' || toolName === 'notify_tenant') {
       return await this.writeTools.executeWriteTool('send_notification', args, context, role, language);
     }
 
     // Default to write tools for everything else (mutative)
     return await this.writeTools.executeWriteTool(
-      name,
+      toolName,
       args,
       context,
       role,

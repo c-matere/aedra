@@ -1,16 +1,18 @@
-import { Controller, Get, Post, Req, Param } from '@nestjs/common';
+import { Controller, Get, Post, Req, Param, Query } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../auth/roles.enum';
 import type { RequestWithUser } from '../auth/request-with-user.interface';
 
 import { AiReportToolService } from '../ai/ai-report-tool.service';
+import { ReportsGeneratorService } from './reports-generator.service';
 
 @Controller('reports')
 export class ReportsController {
   constructor(
     private readonly reportsService: ReportsService,
     private readonly aiReportTool: AiReportToolService,
+    private readonly reportsGenerator: ReportsGeneratorService,
   ) {}
 
   @Get('summary')
@@ -29,6 +31,45 @@ export class ReportsController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
   async getRevenue(@Req() req: RequestWithUser) {
     return this.reportsService.getRevenue(req.user!);
+  }
+
+  @Get('leases/:id/statement')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
+  async getTenantStatement(
+    @Req() req: RequestWithUser,
+    @Param('id') id: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.reportsService.getTenantStatement(
+      id,
+      req.user!,
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+    );
+  }
+
+  @Get('leases/:id/statement/pdf')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
+  async getTenantStatementPdf(
+    @Req() req: RequestWithUser,
+    @Param('id') id: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const data = await this.reportsService.getTenantStatement(
+      id,
+      req.user!,
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+    );
+
+    const fileName = `statement_${data.tenant.firstName}_${data.tenant.lastName}_${new Date().toISOString().split('T')[0]}.pdf`;
+    const url = await this.reportsGenerator.generateTenantStatementPdf(
+      data,
+      fileName,
+    );
+    return { url };
   }
 
   @Get(':id/data')

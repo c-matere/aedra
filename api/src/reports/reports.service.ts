@@ -86,13 +86,15 @@ export class ReportsService {
       throw new ForbiddenException('Your account is not linked to a company.');
     }
 
-    const revenueWhere = isSuperAdmin
+    const revenueWhere: any = isSuperAdmin
       ? {}
       : { lease: { property: { companyId: actor.companyId } } };
+    revenueWhere.type = { notIn: ['PENALTY', 'AGREEMENT_FEE'] };
 
-    const invoiceWhere = isSuperAdmin
+    const invoiceWhere: any = isSuperAdmin
       ? {}
       : { lease: { property: { companyId: actor.companyId } } };
+    invoiceWhere.type = { notIn: ['PENALTY', 'AGREEMENT_FEE'] };
 
     const [totalRevenue, totalInvoiced] = await Promise.all([
       this.prisma.payment.aggregate({
@@ -185,6 +187,7 @@ export class ReportsService {
             lease: { propertyId },
             createdAt: { gte: start, lte: end },
             deletedAt: null,
+            type: { notIn: ['PENALTY', 'AGREEMENT_FEE'] },
           },
           _sum: { amount: true },
         }),
@@ -193,6 +196,7 @@ export class ReportsService {
             lease: { propertyId },
             paidAt: { gte: start, lte: end },
             deletedAt: null,
+            type: { notIn: ['PENALTY', 'AGREEMENT_FEE'] },
           },
           _sum: { amount: true },
         }),
@@ -319,6 +323,136 @@ export class ReportsService {
         { month: 'Current', value: occupancyRate },
       ],
       month: start.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
+    };
+  }
+
+  async getTenantStatement(
+    leaseId: string,
+    actor: AuthenticatedUser,
+    startDate?: Date,
+    endDate?: Date,
+  ) {
+    const isSuperAdmin = actor.role === 'SUPER_ADMIN';
+    const start = startDate || new Date(0);
+    const end = endDate || new Date();
+
+    const lease = await this.prisma.lease.findUnique({
+      where: { id: leaseId },
+      include: {
+        tenant: true,
+        unit: {
+          select: {
+            unitNumber: true,
+            propertyId: true,
+          },
+        },
+        property: {
+          include: {
+            company: true,
+          },
+        },
+      },
+    });
+
+    if (!lease) throw new Error('Lease not found.');
+    if (!isSuperAdmin && lease.property.companyId !== actor.companyId) {
+      throw new ForbiddenException('Access denied.');
+    }
+
+    // Opening Balance Calculation
+    const [priorInvoices, priorPayments] = await Promise.all([
+      this.prisma.invoice.aggregate({
+        where: { leaseId, createdAt: { lt: start }, deletedAt: null },
+        _sum: { amount: true },
+      }),
+      this.prisma.payment.aggregate({
+        where: { leaseId, paidAt: { lt: start }, deletedAt: null },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const openingBalance =
+      (priorInvoices._sum.amount || 0) - (priorPayments._sum.amount || 0);
+
+    // Fetch Transactions in Range
+    const [invoices, payments] = await Promise.all([
+      this.prisma.invoice.findMany({
+        where: { leaseId, createdAt: { gte: start, lte: end }, deletedAt: null },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.payment.findMany({
+        where: { leaseId, paidAt: { gte: start, lte: end }, deletedAt: null },
+        orderBy: { paidAt: 'asc' },
+      }),
+    ]);
+
+    // Combine and sort
+    const transactions = [
+      ...invoices.map((inv) => ({
+        id: inv.id,
+        date: inv.createdAt,
+        code: `INV-${inv.id.slice(0, 8).toUpperCase()}`,
+        description: inv.description,
+        debit: inv.amount,
+        credit: 0,
+        type: inv.type,
+      })),
+      ...payments.map((p) => ({
+        id: p.id,
+        date: p.paidAt,
+        code: `RCT-${p.id.slice(0, 8).toUpperCase()}`,
+        description: p.notes || `Payment for ${p.type} via ${p.method}`,
+        debit: 0,
+        credit: p.amount,
+        type: p.type,
+      })),
+    ].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    // Calculate Running Balance
+    let currentBalance = openingBalance;
+    const ledger = transactions.map((t) => {
+      currentBalance += t.debit - t.credit;
+      return { ...t, balance: currentBalance };
+    });
+
+    // Summaries
+    const invoiceSummary = invoices.reduce((acc, inv) => {
+      acc[inv.type] = (acc[inv.type] || 0) + inv.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const paymentSummary = payments.reduce((acc, p) => {
+      acc[p.type] = (acc[p.type] || 0) + p.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      company: lease.property.company,
+      tenant: lease.tenant,
+      property: lease.property,
+      unit: lease.unit,
+      lease: {
+        id: lease.id,
+        startDate: lease.startDate,
+        endDate: lease.endDate,
+        rentAmount: lease.rentAmount,
+        deposit: lease.deposit,
+        status: lease.status,
+      },
+      range: { start, end },
+      openingBalance,
+      closingBalance: currentBalance,
+      ledger,
+      summaries: {
+        invoices: Object.entries(invoiceSummary).map(([type, amount]) => ({
+          type,
+          amount,
+        })),
+        payments: Object.entries(paymentSummary).map(([type, amount]) => ({
+          type,
+          amount,
+        })),
+      },
     };
   }
 }

@@ -13,6 +13,7 @@ export interface CreateTenantDto {
   email?: string;
   phone?: string;
   idNumber?: string;
+  tenantCode?: string;
   companyId?: string;
   propertyId: string;
 }
@@ -23,6 +24,7 @@ export interface UpdateTenantDto {
   email?: string;
   phone?: string;
   idNumber?: string;
+  tenantCode?: string;
   companyId?: string;
   propertyId?: string;
 }
@@ -141,6 +143,7 @@ export class TenantsService {
         email: data.email,
         phone: data.phone,
         idNumber: data.idNumber,
+        tenantCode: data.tenantCode,
         companyId,
         propertyId: data.propertyId,
       },

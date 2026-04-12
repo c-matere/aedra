@@ -700,7 +700,8 @@ export const coreReadTools = [
 export const coreWriteTools = [
   {
     name: 'register_tenant',
-    description: 'Create a new tenant record and link them to a property. Requires confirmation.',
+    description:
+      'Create a new tenant record and link them to a property (or infer property from a unit). Requires confirmation.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -709,13 +710,62 @@ export const coreWriteTools = [
         email: { type: SchemaType.STRING, description: 'Email address' },
         phone: { type: SchemaType.STRING, description: 'Phone number' },
         idNumber: { type: SchemaType.STRING, description: 'ID number' },
-        propertyId: { type: SchemaType.STRING, description: 'Property UUID' },
+        propertyId: {
+          type: SchemaType.STRING,
+          description:
+            'Property UUID or name (optional if unitId/unitName is provided)',
+        },
+        unitId: {
+          type: SchemaType.STRING,
+          description:
+            'Unit UUID or identifier to resolve (e.g. "Adra Unit 1")',
+        },
+        unitName: {
+          type: SchemaType.STRING,
+          description:
+            'Unit name/label/number to resolve (e.g. "Unit 1", "A1")',
+        },
         confirm: {
           type: SchemaType.BOOLEAN,
           description: 'Must be true to create',
         },
       },
-      required: ['firstName', 'lastName', 'propertyId', 'confirm'],
+      required: ['firstName', 'lastName', 'confirm'],
+    },
+  },
+  {
+    name: 'create_tenant',
+    description:
+      'Alias of register_tenant. Create a new tenant record and link them to a property (or infer property from a unit). Requires confirmation.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        firstName: { type: SchemaType.STRING, description: 'First name' },
+        lastName: { type: SchemaType.STRING, description: 'Last name' },
+        email: { type: SchemaType.STRING, description: 'Email address' },
+        phone: { type: SchemaType.STRING, description: 'Phone number' },
+        idNumber: { type: SchemaType.STRING, description: 'ID number' },
+        propertyId: {
+          type: SchemaType.STRING,
+          description:
+            'Property UUID or name (optional if unitId/unitName is provided)',
+        },
+        unitId: {
+          type: SchemaType.STRING,
+          description:
+            'Unit UUID or identifier to resolve (e.g. "Adra Unit 1")',
+        },
+        unitName: {
+          type: SchemaType.STRING,
+          description:
+            'Unit name/label/number to resolve (e.g. "Unit 1", "A1")',
+        },
+        confirm: {
+          type: SchemaType.BOOLEAN,
+          description: 'Must be true to create',
+        },
+      },
+      required: ['firstName', 'lastName', 'confirm'],
     },
   },
   {
@@ -794,6 +844,10 @@ export const coreWriteTools = [
         commissionPercentage: {
           type: SchemaType.NUMBER,
           description: 'Management fee percentage',
+        },
+        unitCount: {
+          type: SchemaType.NUMBER,
+          description: 'Number of units to create automatically (optional)',
         },
         confirm: {
           type: SchemaType.BOOLEAN,
@@ -1627,6 +1681,20 @@ export const reportTools = [
         explain: {
           type: SchemaType.BOOLEAN,
           description: 'Include derivation details',
+        },
+      },
+    },
+  },
+  {
+    name: 'get_report_status',
+    description:
+      'Get the status of a previously requested report generation job (e.g., "report status"). If jobId is omitted, the system will use the most recent report job for this user/session when available.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        jobId: {
+          type: SchemaType.STRING,
+          description: 'Optional report job ID to check.',
         },
       },
     },

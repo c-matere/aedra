@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/authenticated-user.interface';
-import { EncryptionService } from '../common/encryption.service';
+import { VaultService } from '../common/vault.service';
 
 const SENSITIVE_FIELDS = [
   'mpesaConsumerKey',
@@ -13,6 +13,8 @@ const SENSITIVE_FIELDS = [
   'mpesaPasskey',
   'africaTalkingApiKey',
   'mapboxAccessToken',
+  'waAccessToken',
+  'zuriPassword',
 ];
 
 export interface UpdateCompanyDto {
@@ -21,6 +23,7 @@ export interface UpdateCompanyDto {
   phone?: string;
   address?: string;
   logo?: string | null;
+  pinNumber?: string;
   waAccessToken?: string;
   waVerifyToken?: string;
   waPhoneNumberId?: string;
@@ -48,13 +51,17 @@ export interface UpdateCompanyDto {
   // Billing & Invoicing
   autoInvoicingEnabled?: boolean;
   invoicingDay?: number;
+  // Zuri Lease
+  zuriDomain?: string;
+  zuriUsername?: string;
+  zuriPassword?: string;
 }
 
 @Injectable()
 export class CompaniesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly encryptionService: EncryptionService,
+    private readonly vaultService: VaultService,
   ) {}
 
   async findAll() {
@@ -68,15 +75,20 @@ export class CompaniesService {
 
   async findOne(id: string) {
 
-    const company = await this.prisma.company.findUnique({
-      where: { id },
-    });
+    try {
+      const company = await this.prisma.company.findUnique({
+        where: { id },
+      });
 
-    if (!company) {
-      throw new NotFoundException('Company not found.');
+      if (!company) {
+        throw new NotFoundException('Company not found.');
+      }
+
+      return this.decryptCompany(company);
+    } catch (error: any) {
+      console.error('[CompaniesService] findOne error:', error.message, error.stack);
+      throw error;
     }
-
-    return this.decryptCompany(company);
   }
 
   async update(id: string, data: UpdateCompanyDto) {
@@ -90,36 +102,25 @@ export class CompaniesService {
       throw new NotFoundException('Company not found.');
     }
 
-    // Encrypt sensitive fields
-    const encryptedData = { ...data };
-    for (const field of SENSITIVE_FIELDS) {
-      if (encryptedData[field as keyof UpdateCompanyDto]) {
-        encryptedData[field as keyof UpdateCompanyDto] = this.encryptionService.encrypt(
-          encryptedData[field as keyof UpdateCompanyDto] as string,
-        ) as any;
-      }
-    }
+    // Encrypt sensitive fields using Vault
+    const encryptedData = this.vaultService.encryptObject(
+        data,
+        SENSITIVE_FIELDS
+    );
+
+    // Strip out fields that should not be passed to Prisma update
+    const { id: _, companyId: __, ...updatePayload } = encryptedData as any;
 
     const updated = await this.prisma.company.update({
       where: { id },
-      data: encryptedData,
+      data: updatePayload,
     });
 
     return this.decryptCompany(updated);
   }
 
   private decryptCompany(company: any) {
-    const decrypted = { ...company };
-    for (const field of SENSITIVE_FIELDS) {
-      if (decrypted[field]) {
-        try {
-          decrypted[field] = this.encryptionService.decrypt(decrypted[field]);
-        } catch (e) {
-          // If decryption fails, keep as is (might not be encrypted yet)
-        }
-      }
-    }
-    return decrypted;
+    return this.vaultService.decryptObject(company, SENSITIVE_FIELDS);
   }
 
   private mergeDecryptedData(stored: any, incoming: UpdateCompanyDto) {

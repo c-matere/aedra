@@ -6,6 +6,9 @@ import { UserRole } from '../auth/roles.enum';
 import { withRetry } from '../common/utils/retry';
 import { AiIntent, OperationalIntent, TruthObject, UnifiedPlan } from './ai-contracts.types';
 import { AiToolRegistryService } from './ai-tool-registry.service';
+import { UNIFIED_PLAN_SCHEMA, TAKEOVER_ADVICE_SCHEMA } from './ai-schemas';
+import { ResponseSchema, FunctionDeclaration } from '@google/generative-ai';
+import { AI_TOOL_DEFINITIONS } from './ai-tool-definitions';
 
 export interface TakeoverAdvice {
   text: string;
@@ -458,6 +461,7 @@ export class AiPromptService {
     const instructions =
       "\nCRITICAL: Always include 'intent' and 'steps' fields in the root of the JSON object. Do NOT wrap in a 'plan' object. " +
       "NEVER output a tool named 'NONE'/'NOOP'/'NO_TOOL' — if no tool is required, return an empty steps array []. " +
+      "COMPOUND REQUESTS: If the user asks for multiple actions in one message (e.g. create property + add units + set rent), you MUST include multiple steps in the correct order and use 'dependsOn' to link IDs across steps. " +
       "If a tenant name (e.g. Fatuma Ali) is mentioned but you don't have their ID, you MUST call 'search_tenants' first WITH args.query set to the full tenant name/identifier from the message/history. " +
       "Do NOT call 'search_tenants' with empty args to list tenants — use 'list_tenants' for that. " +
       "NEVER use 'NONE' for required UUIDs. NEVER use {{curly_braces}} in arguments. " +
@@ -465,46 +469,23 @@ export class AiPromptService {
     const combinedSystemPrompt = rolePrompt + contextPart + instructions;
 
     try {
-      // Tier 1: Gemini 2.0 Flash (with failover to Groq)
+      // Unified Planning with Structured Outputs (Gemini 2.0 Flash)
+      // Pass the formal schema PLUS tool definitions to enable "Thinking with Tools".
       const response = await this.callLLMWithFailover(
         `User Message: "${message}"`,
         history,
         this.primaryModel,
         0.1,
         combinedSystemPrompt,
+        1,
+        UNIFIED_PLAN_SCHEMA as any,
+        AI_TOOL_DEFINITIONS.filter(t => tools.includes(t.name))
       );
 
-      try {
-        const jsonMatch = response.match(/```json\s * ([\s\S] *?) \s * ```/) || [null, response];
-        const jsonContent = jsonMatch[1] || response;
-        const rawPlan = JSON.parse(jsonContent.trim());
-        return this.validatePlan(rawPlan);
-      } catch(parseError) {
-        const msg = (parseError as any)?.message || String(parseError);
-        this.logger.warn(`[UnifiedPlanner](${this.primaryModel}) JSON parse failed: ${msg}. Attempting JSON repair...`);
-
-        // Tier 2: JSON repair using the SAME model (no model fallback).
-        const repairPrompt = [
-          'Your previous output was not valid JSON or did not match the required schema.',
-          'Return ONLY valid JSON that matches the schema exactly. No markdown fences.',
-          'Do not add commentary.',
-          `Original user message: ${JSON.stringify(message)} `,
-          `Invalid output: ${JSON.stringify(response)} `,
-        ].join('\n');
-
-        const repaired = await this.callLLMWithFailover(
-          repairPrompt,
-          history,
-          this.primaryModel,
-          0.0,
-          combinedSystemPrompt + '\n\nCRITICAL: Output valid JSON ONLY.',
-        );
-        const repairedContent = (repaired.match(/```json\s * ([\s\S] *?) \s * ```/) || [null, repaired])[1] || repaired;
-        const repairedPlan = JSON.parse(repairedContent.trim());
-        return this.validatePlan(repairedPlan);
-      }
+      const rawPlan = JSON.parse(response.trim());
+      return this.validatePlan(rawPlan);
     } catch(e: any) {
-      this.logger.error(`[UnifiedPlanner] LLM planning failed(${this.primaryModel}): ${e.message} `);
+      this.logger.error(`[UnifiedPlanner] Planning failed: ${e.message}`);
       return this.fallbackPlan("I encountered a technical issue while planning. How else can I help?");
     }
   }
@@ -600,9 +581,6 @@ export class AiPromptService {
     'Each proposed action must use an ALLOWED TOOL and must include concrete args (IDs from context) when available.',
     'If required args are missing, do NOT propose the tool; instead ask a question to collect the missing detail.',
     'Never use placeholders like PENDING/NONE/UNKNOWN in args.',
-    'Output MUST be valid JSON only. No markdown fences.',
-    'SCHEMA:',
-    '{ "text": "string", "suggestions": [ { "label": "string", "tool": "string", "args": {} } ] }',
   ].join('\n');
 
   const prompt = [
@@ -622,78 +600,39 @@ export class AiPromptService {
       prompt,
       history || [],
       this.primaryModel,
-      0.2,
+      0.1,
       systemInstruction,
+      1,
+      TAKEOVER_ADVICE_SCHEMA as any,
     );
 
-    try {
-      const jsonContent = (response.match(/```json\s * ([\s\S] *?) \s * ```/) || [null, response])[1] || response;
-      const parsed = JSON.parse(String(jsonContent).trim());
-      const text = typeof parsed?.text === 'string' ? parsed.text.trim() : '';
-      const suggestionsRaw = Array.isArray(parsed?.suggestions) ? parsed.suggestions : [];
-      const suggestions = suggestionsRaw
-        .filter((s: any) => s && typeof s.label === 'string' && typeof s.tool === 'string')
-        .map((s: any) => ({
-          label: String(s.label).slice(0, 20),
-          tool: String(s.tool).trim(),
-          args: s.args && typeof s.args === 'object' ? s.args : {},
-        }))
-        .filter((s: any) => tools.includes(s.tool))
-        .slice(0, 3);
+    const parsed = JSON.parse(response.trim());
+    const suggestions = (Array.isArray(parsed?.suggestions) ? parsed.suggestions : [])
+      .filter((s: any) => s && typeof s.label === 'string' && typeof s.tool === 'string')
+      .map((s: any) => ({
+        label: String(s.label).slice(0, 20),
+        tool: String(s.tool).trim(),
+        args: s.args && typeof s.args === 'object' ? s.args : {},
+      }))
+      .filter((s: any) => tools.includes(s.tool))
+      .slice(0, 3);
 
-      const safeText =
-        text ||
-        (input.language === 'sw'
-          ? 'Nimeona hilo. Ungependa niendelee na hatua ipi?'
-          : 'I see that. Which option would you like me to proceed with?');
+    const safeText =
+      (parsed.text || '').trim() ||
+      (input.language === 'sw'
+        ? 'Nimeona hilo. Ungependa niendelee na hatua ipi?'
+        : 'I see that. Which option would you like me to proceed with?');
 
-      return { text: safeText, suggestions };
-    } catch(parseError) {
-      const msg = (parseError as any)?.message || String(parseError);
-      this.logger.warn(`[TakeoverAdvice] JSON parse failed: ${msg}. Attempting repair...`);
-
-      const repairPrompt = [
-        'Return ONLY valid JSON that matches the schema exactly. No markdown.',
-        `Invalid output: ${JSON.stringify(response).substring(0, 2500)} `,
-      ].join('\n');
-      const repaired = await this.callLLMWithFailover(
-        repairPrompt,
-        history || [],
-        this.primaryModel,
-        0.0,
-        systemInstruction,
-      );
-      const repairedContent = (repaired.match(/```json\s * ([\s\S] *?) \s * ```/) || [null, repaired])[1] || repaired;
-      const parsed = JSON.parse(String(repairedContent).trim());
-      const text = typeof parsed?.text === 'string' ? parsed.text.trim() : '';
-      const suggestionsRaw = Array.isArray(parsed?.suggestions) ? parsed.suggestions : [];
-      const suggestions = suggestionsRaw
-        .filter((s: any) => s && typeof s.label === 'string' && typeof s.tool === 'string')
-        .map((s: any) => ({
-          label: String(s.label).slice(0, 20),
-          tool: String(s.tool).trim(),
-          args: s.args && typeof s.args === 'object' ? s.args : {},
-        }))
-        .filter((s: any) => tools.includes(s.tool))
-        .slice(0, 3);
-
-      const safeText =
-        text ||
-        (input.language === 'sw'
-          ? 'Nimeona hilo. Ungependa niendelee na hatua ipi?'
-          : 'I see that. Which option would you like me to proceed with?');
-
-      return { text: safeText, suggestions };
-    }
+    return { text: safeText, suggestions };
   } catch(e: any) {
-    this.logger.error(`[TakeoverAdvice] Failed: ${e.message} `);
+    this.logger.error(`[TakeoverAdvice] Advice generation failed: ${e.message}`);
     const fallback =
       input.language === 'sw'
         ? 'Samahani—kuna hitilafu kidogo. Ungependa niunde ripoti kamili au nichuje kwa property/tenant?'
         : 'Sorry—something went wrong. Would you like a full report, or should I filter by property/tenant?';
     return { text: fallback, suggestions: [] };
   }
-}
+  }
 
   /**
    * Generates a final conversational summary that is strictly grounded in the Execution Trace.
@@ -1010,6 +949,32 @@ try {
   }
 
   /**
+   * Directly generates a function call using Gemini Native Function Calling.
+   * This skips the structured plan and lets the model decide the tool + args immediately.
+   */
+  public async generateNativeFunctionCall(
+    message: string,
+    role: UserRole,
+    history: any[],
+    allowedTools: string[]
+  ): Promise<any> {
+    const tools = AI_TOOL_DEFINITIONS.filter(t => allowedTools.includes(t.name));
+    
+    // We use a high-stakes temperature for tool selection
+    const response = await this.callModel(
+      message,
+      history,
+      this.primaryModel,
+      0, // Zero temperature for deterministic tool choice
+      "You are the execution engine. If a tool is needed, call it. If not, respond normally.",
+      undefined,
+      tools as any
+    );
+
+    return response; 
+  }
+
+  /**
    * Deterministic Acknowledgement: Generates a natural language response
    * for a specific workflow state, ensuring zero tool calls.
    */
@@ -1040,17 +1005,19 @@ Context: ${JSON.stringify(context)}
    * failover to Groq (Llama 3.3) for high availability.
    */
   private async callLLMWithFailover(
-  prompt: string,
-  history: any[],
-  modelName: string,
-  temperature: number,
-  systemInstruction ?: string,
-  maxRetries: number = 1,
-): Promise < string > {
-  try {
-    // Primary Attempt (Gemini)
-    return await this.callLLMWithRetry(prompt, history, modelName, temperature, systemInstruction, maxRetries);
-  } catch(e: any) {
+    prompt: string,
+    history: any[],
+    modelName: string,
+    temperature: number,
+    systemInstruction?: string,
+    maxRetries: number = 1,
+    schema?: any,
+    tools?: any
+  ): Promise<string> {
+    try {
+      // Primary Attempt (Gemini)
+      return await this.callLLMWithRetry(prompt, history, modelName, temperature, systemInstruction, maxRetries, schema, tools);
+    } catch (e: any) {
     const msg = (e?.message || '').toLowerCase();
     const isNetworkError = msg.includes('fetch failed') || msg.includes('network') || msg.includes('econnrefused') || msg.includes('timeout');
 
@@ -1068,18 +1035,20 @@ Context: ${JSON.stringify(context)}
 }
 
   private async callLLMWithRetry(
-  prompt: string,
-  history: any[],
-  modelName: string,
-  temperature: number,
-  systemInstruction ?: string,
-  maxRetries: number = 2,
-): Promise < string > {
-  let lastError: any;
-  for(let attempt = 0; attempt <= maxRetries; attempt++) {
-  try {
-    return await this.callModel(prompt, history, modelName, temperature, systemInstruction);
-  } catch (e: any) {
+    prompt: string,
+    history: any[],
+    modelName: string,
+    temperature: number,
+    systemInstruction?: string,
+    maxRetries: number = 2,
+    schema?: any,
+    tools?: any,
+  ): Promise<string> {
+    let lastError: any;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await this.callModel(prompt, history, modelName, temperature, systemInstruction, schema, tools);
+      } catch (e: any) {
     lastError = e;
     const msg = e?.message || String(e);
     this.logger.warn(`[LLM] ${modelName} attempt ${attempt + 1}/${maxRetries + 1} failed: ${msg}`);
@@ -1100,18 +1069,28 @@ throw lastError;
   return msg.includes('429') || msg.includes('too many requests') || msg.includes('resource exhausted');
 }
 
-  private async callModel(prompt: string, history: any[], modelName: string, temperature: number, systemInstruction ?: string): Promise < string > {
-  const isGemini = modelName.includes('gemini');
+  private async callModel(
+    prompt: string,
+    history: any[],
+    modelName: string,
+    temperature: number,
+    systemInstruction?: string,
+    schema?: any,
+    tools?: FunctionDeclaration[]
+  ): Promise<string> {
+    const isGemini = modelName.includes('gemini');
 
-  if(isGemini) {
-    const model = this.genAI.getGenerativeModel({
-      model: modelName,
-      systemInstruction: systemInstruction || undefined,
-      generationConfig: {
-        temperature,
-        responseMimeType: (prompt.includes('{') && prompt.includes('}')) || (systemInstruction?.includes('JSON')) ? 'application/json' : 'text/plain'
-      },
-    });
+    if (isGemini) {
+      const model = this.genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: systemInstruction || undefined,
+        generationConfig: {
+          temperature,
+          responseMimeType: schema ? 'application/json' : ((prompt.includes('{') && prompt.includes('}')) || (systemInstruction?.includes('JSON')) ? 'application/json' : 'text/plain'),
+          responseSchema: schema || undefined,
+        },
+        tools: tools ? [{ functionDeclarations: tools }] : undefined,
+      });
 
     const contents = history.length > 0 ? [
       ...history.map(h => ({ role: h.role === 'assistant' || h.role === 'model' ? 'model' : 'user', parts: [{ text: h.content }] })),

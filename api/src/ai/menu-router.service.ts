@@ -2,7 +2,6 @@ import { Injectable, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { WhatsAppFormatterService } from './whatsapp-formatter.service';
 import { MainMenuService } from './main-menu.service';
-import * as natural from 'natural';
 
 type MenuSelectionType = 'company' | 'property' | 'tenant' | 'unit';
 
@@ -18,6 +17,59 @@ export interface MenuRouteResult {
   tool?: { name: string; args?: any };
   response?: string;
 }
+
+// Lightweight Jaro-Winkler (avoids heavy deps and ESM/CJS interop issues at runtime/tests)
+const jaroWinklerDistance = (aRaw: string, bRaw: string): number => {
+  const a = (aRaw || '').toString();
+  const b = (bRaw || '').toString();
+  if (a === b) return 1;
+  const aLen = a.length;
+  const bLen = b.length;
+  if (aLen === 0 || bLen === 0) return 0;
+
+  const matchDistance = Math.max(Math.floor(Math.max(aLen, bLen) / 2) - 1, 0);
+  const aMatches = new Array<boolean>(aLen).fill(false);
+  const bMatches = new Array<boolean>(bLen).fill(false);
+
+  let matches = 0;
+  for (let i = 0; i < aLen; i++) {
+    const start = Math.max(0, i - matchDistance);
+    const end = Math.min(i + matchDistance + 1, bLen);
+    for (let j = start; j < end; j++) {
+      if (bMatches[j]) continue;
+      if (a[i] !== b[j]) continue;
+      aMatches[i] = true;
+      bMatches[j] = true;
+      matches++;
+      break;
+    }
+  }
+  if (matches === 0) return 0;
+
+  let t = 0;
+  let k = 0;
+  for (let i = 0; i < aLen; i++) {
+    if (!aMatches[i]) continue;
+    while (k < bLen && !bMatches[k]) k++;
+    if (k < bLen && a[i] !== b[k]) t++;
+    k++;
+  }
+  const transpositions = t / 2;
+
+  const jaro =
+    (matches / aLen + matches / bLen + (matches - transpositions) / matches) /
+    3;
+
+  // Winkler prefix boost
+  let prefix = 0;
+  const maxPrefix = 4;
+  for (let i = 0; i < Math.min(maxPrefix, aLen, bLen); i++) {
+    if (a[i] === b[i]) prefix++;
+    else break;
+  }
+  const p = 0.1;
+  return jaro + prefix * p * (1 - jaro);
+};
 
 @Injectable()
 export class MenuRouterService {
@@ -133,6 +185,10 @@ export class MenuRouterService {
     if (!message) return { handled: false };
     const text = message.trim();
     const lowered = text.toLowerCase();
+    const normalized = lowered
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
     // Direct tool IDs from interactive list replies (bypass LLM planner)
     // Example: list_reply.id = "get_portfolio_arrears"
@@ -199,15 +255,21 @@ export class MenuRouterService {
       return this.handleAuthSelection(text, language);
     }
 
-    // Harden common interactive IDs (avoid underscores/planning issues/spaces)
-    const cleanLower = lowered.replace(/_/g, ' ').trim();
+    // Harden common interactive IDs (avoid underscores/planning issues/spaces/punctuation)
+    const cleanLower = normalized.replace(/_/g, ' ').trim();
     if (cleanLower === 'list tenants' || cleanLower === 'view tenants' || text === 'list_tenants') {
       return { handled: true, tool: { name: 'list_tenants', args: { limit: 20 } } };
     }
     if (cleanLower === 'list companies' || cleanLower === 'view companies' || text === 'list_companies' || text === 'menu_companies') {
       return { handled: true, tool: { name: 'list_companies' } };
     }
-    if (cleanLower === 'list properties' || cleanLower === 'view properties' || text === 'list_properties') {
+    if (
+      cleanLower === 'list properties' ||
+      cleanLower === 'view properties' ||
+      cleanLower === 'list of properties' ||
+      cleanLower === 'properties list' ||
+      text === 'list_properties'
+    ) {
       return { handled: true, tool: { name: 'list_properties' } };
     }
 
@@ -226,6 +288,21 @@ export class MenuRouterService {
       };
     }
 
+    if (
+      /^(list|show|view)\s+(all\s+)?properties\b/.test(normalized) ||
+      // e.g. "list our properties", "show me the list of our properties"
+      (/^(list|show|view)\b/.test(normalized) &&
+        /\bproperties\b/.test(normalized) &&
+        !/\bhow are\b/.test(normalized) &&
+        !/\b(doing|performing|performance|status)\b/.test(normalized)) ||
+      /^properties\b/.test(normalized) ||
+      normalized === 'list of properties' ||
+      normalized === 'properties list' ||
+      text.startsWith('list_properties')
+    ) {
+      return { handled: true, tool: { name: 'list_properties' } };
+    }
+
     if (text.startsWith('get_property_arrears:')) {
       const parts = text.split(':');
       return {
@@ -233,6 +310,98 @@ export class MenuRouterService {
         tool: {
           name: 'get_portfolio_arrears',
           args: { propertyId: parts[1] },
+        },
+      };
+    }
+
+    // Report status / tracking (avoid generating a new report)
+    // Examples:
+    // - "report status"
+    // - "status of the report"
+    // - "status with the report"
+    // - "report progress"
+    const looksLikeReportStatus =
+      /^(report\s+(status|progress)|status\s+of\s+(the\s+)?report|status\s+with\s+(the\s+)?report|progress\s+of\s+(the\s+)?report)\b/.test(
+        lowered,
+      ) ||
+      (/\breport\b/.test(lowered) && /\b(status|progress|tracking)\b/.test(lowered));
+    if (looksLikeReportStatus) {
+      return {
+        handled: true,
+        tool: { name: 'get_report_status', args: {} },
+      };
+    }
+
+    // Portfolio performance questions (common voice-note phrasing)
+    // Examples:
+    // - "how are our properties doing"
+    // - "how are the properties performing"
+    // - "status of our properties"
+    const looksLikePortfolioPerformanceQuestion =
+      /\bproperties\b/.test(lowered) &&
+      (/\b(doing|performing|performance|status|health|occupancy|vacancy|arrears|collections?|rent)\b/.test(
+        lowered,
+      ) ||
+        /\bhow are\b/.test(lowered));
+    if (looksLikePortfolioPerformanceQuestion) {
+      return {
+        handled: true,
+        tool: {
+          name: 'generate_report_file',
+          args: {
+            reportType: 'Summary',
+            format: 'pdf',
+            scope: 'company',
+          },
+        },
+      };
+    }
+
+    // Portfolio reports (voice notes often transcribe to "generate full portfolio report ...")
+    // Route deterministically to avoid LLM planning ambiguity.
+    const looksLikePortfolioReport =
+      /\bportfolio\b/.test(lowered) &&
+      (/\brepor(t|ts)?\b/.test(lowered) || /\bsummary\b/.test(lowered));
+    if (looksLikePortfolioReport) {
+      const looksTemporal = (s: string) => {
+        const t = (s || '').toLowerCase();
+        if (!t) return false;
+        if (/\b(20\d{2}|19\d{2})\b/.test(t)) return true;
+        if (/\b(q[1-4]|quarter)\b/.test(t)) return true;
+        if (/\b(this|last|next)\s+(week|month|year|quarter)\b/.test(t))
+          return true;
+        if (/\b(today|yesterday|tomorrow|week|month|year)\b/.test(t))
+          return true;
+        if (
+          /\b(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|jun(e)?|jul(y)?|aug(ust)?|sep(tember)?|oct(ober)?|nov(ember)?|dec(ember)?)\b/.test(
+            t,
+          )
+        )
+          return true;
+        return false;
+      };
+
+      let propertyName: string | undefined;
+      const propMatch = lowered.match(/\bproperty\s+(.+)$/i);
+      if (propMatch?.[1]) propertyName = propMatch[1].trim();
+
+      // Heuristic: "for <name>" is often a property name ("... report for Bahari Ridge")
+      if (!propertyName) {
+        const forMatch = lowered.match(/\bfor\s+(.+)$/i);
+        const candidate = forMatch?.[1]?.trim();
+        if (candidate && !looksTemporal(candidate)) propertyName = candidate;
+      }
+
+      return {
+        handled: true,
+        tool: {
+          name: 'generate_report_file',
+          args: {
+            reportType: 'Summary',
+            format: 'pdf',
+            scope: propertyName ? 'property' : 'company',
+            ...(propertyName ? { propertyName } : {}),
+          },
         },
       };
     }
@@ -327,7 +496,7 @@ export class MenuRouterService {
         // Fuzzy match using Jaro-Winkler (threshold 0.85)
         const candidates = session.lastResults.map(r => ({
           ...r,
-          score: natural.JaroWinklerDistance(query, r.name.toLowerCase(), { ignoreCase: true })
+          score: jaroWinklerDistance(query, r.name.toLowerCase())
         })).sort((a, b) => b.score - a.score);
 
         if (candidates[0] && candidates[0].score >= 0.85) {

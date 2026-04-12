@@ -276,6 +276,9 @@ export interface CompanyRecord {
   mpesaEnvironment: string | null;
   autoInvoicingEnabled: boolean;
   invoicingDay: number;
+  zuriDomain: string | null;
+  zuriUsername: string | null;
+  zuriPassword: string | null;
 }
 
 export interface RoleRecord {
@@ -302,6 +305,7 @@ export interface PropertyAssignmentRecord {
     id: string;
     name: string;
     address?: string;
+    location?: string;
   };
 }
 
@@ -310,7 +314,9 @@ export interface UpdateCompanyPayload {
   email?: string;
   phone?: string;
   address?: string;
-  logo?: string;
+  logo?: string | null;
+  pinNumber?: string;
+  waAccessToken?: string;
   // Security settings
   sessionDurationHours?: number;
   passwordPolicy?: string;
@@ -334,11 +340,15 @@ export interface UpdateCompanyPayload {
   mpesaEnvironment?: string | null;
   autoInvoicingEnabled?: boolean;
   invoicingDay?: number;
+  zuriDomain?: string;
+  zuriUsername?: string;
+  zuriPassword?: string;
 }
 
 export interface CreatePropertyPayload {
   name: string;
   address?: string;
+  location?: string;
   propertyType?: string;
   description?: string;
   commissionPercentage?: number;
@@ -360,6 +370,7 @@ export interface CreatePropertyPayload {
 export interface UpdatePropertyPayload {
   name?: string;
   address?: string;
+  location?: string;
   propertyType?: string;
   description?: string;
   commissionPercentage?: number;
@@ -370,6 +381,7 @@ export interface CreateTenantPayload {
   lastName: string;
   email?: string;
   propertyId: string;
+  tenantCode?: string;
 }
 
 export interface UpdateTenantPayload {
@@ -377,6 +389,7 @@ export interface UpdateTenantPayload {
   lastName?: string;
   email?: string;
   propertyId?: string;
+  tenantCode?: string;
 }
 
 export interface CreateLandlordPayload {
@@ -489,7 +502,19 @@ export interface CreateLeasePayload {
   status?: string;
   propertyId: string;
   unitId?: string;
-  tenantId: string;
+  tenantId?: string;
+  newTenant?: {
+    firstName: string;
+    lastName: string;
+    email?: string;
+    phone?: string;
+    idNumber?: string;
+    tenantCode?: string;
+    companyId: string;
+  };
+  notes?: string;
+  reminders?: { text: string; remindAt: string }[];
+  agreementFee?: number;
 }
 
 export interface UpdateLeasePayload {
@@ -585,6 +610,38 @@ export interface InvitationRecord {
   };
 }
 
+export interface TenantStatementRecord {
+  company: CompanyRecord;
+  tenant: TenantRecord;
+  property: PropertyRecord;
+  unit: { unitNumber: string };
+  lease: {
+    id: string;
+    startDate: string;
+    endDate?: string;
+    rentAmount: number;
+    deposit?: number;
+    status: string;
+  };
+  range: { start: string; end: string };
+  openingBalance: number;
+  closingBalance: number;
+  ledger: {
+    id: string;
+    date: string;
+    code: string;
+    description: string;
+    debit: number;
+    credit: number;
+    balance: number;
+    type: string;
+  }[];
+  summaries: {
+    invoices: { type: string; amount: number }[];
+    payments: { type: string; amount: number }[];
+  };
+}
+
 export interface AcceptInvitationPayload {
   firstName: string;
   lastName: string;
@@ -621,6 +678,7 @@ export const TARGET_ENDPOINTS = {
   chatSessions: "/ai/chat/sessions",
   roles: "/roles",
   staffAssignments: "/staff",
+  zuriSync: "/integrations/zuri-lease/trigger-sync",
 } as const;
 
 export function backendBaseUrl(): string {
@@ -1604,4 +1662,99 @@ export async function getPaymentPdf(
   id: string,
 ): Promise<BackendRequestResult<{ url: string }>> {
   return backendGet<{ url: string }>(`${TARGET_ENDPOINTS.payments}/${id}/pdf`, token);
+}
+export async function fetchTenantStatement(
+  token: string,
+  leaseId: string,
+  params?: { startDate?: string; endDate?: string },
+): Promise<BackendRequestResult<TenantStatementRecord>> {
+  const query = new URLSearchParams();
+  if (params?.startDate) query.append("startDate", params.startDate);
+  if (params?.endDate) query.append("endDate", params.endDate);
+
+  const qs = query.toString();
+  const path = qs
+    ? `${TARGET_ENDPOINTS.reports}/leases/${leaseId}/statement?${qs}`
+    : `${TARGET_ENDPOINTS.reports}/leases/${leaseId}/statement`;
+
+  return backendGet<TenantStatementRecord>(path, token);
+}
+
+export async function getTenantStatementPdf(
+  token: string,
+  leaseId: string,
+  params?: { startDate?: string; endDate?: string },
+): Promise<BackendRequestResult<{ url: string }>> {
+  const query = new URLSearchParams();
+  if (params?.startDate) query.append("startDate", params.startDate);
+  if (params?.endDate) query.append("endDate", params.endDate);
+
+  const qs = query.toString();
+  const path = qs
+    ? `${TARGET_ENDPOINTS.reports}/leases/${leaseId}/statement/pdf?${qs}`
+    : `${TARGET_ENDPOINTS.reports}/leases/${leaseId}/statement/pdf`;
+
+  return backendGet<{ url: string }>(path, token);
+}
+
+export interface RecurringExpenseRecord {
+  id: string;
+  description: string;
+  amount: number;
+  category: string;
+  dayOfMonth: number;
+  isActive: boolean;
+  lastGeneratedAt?: string;
+  propertyId: string;
+  companyId: string;
+  createdAt: string;
+  property?: { name: string };
+}
+
+export async function getRecurringExpenses(
+  token: string,
+  propertyId?: string,
+): Promise<BackendRequestResult<RecurringExpenseRecord[]>> {
+  const path = propertyId
+    ? `${TARGET_ENDPOINTS.expenses}/recurring?propertyId=${propertyId}`
+    : `${TARGET_ENDPOINTS.expenses}/recurring`;
+  // Using TARGET_ENDPOINTS.expenses assuming recurring-expenses is under same prefix or I should define new one
+  // Actually the controller was /recurring-expenses
+  return backendGet<RecurringExpenseRecord[]>("/recurring-expenses", token, {
+    ...(propertyId ? { propertyId } : {}),
+  });
+}
+
+export async function createRecurringExpense(
+  token: string,
+  data: Partial<RecurringExpenseRecord>,
+): Promise<BackendRequestResult<RecurringExpenseRecord>> {
+  return backendPost<RecurringExpenseRecord>("/recurring-expenses", data, token);
+}
+
+export async function updateRecurringExpense(
+  token: string,
+  id: string,
+  data: Partial<RecurringExpenseRecord>,
+): Promise<BackendRequestResult<RecurringExpenseRecord>> {
+  return backendPut<RecurringExpenseRecord>(`/recurring-expenses/${id}`, data, token);
+}
+
+export async function deleteRecurringExpense(
+  token: string,
+  id: string,
+): Promise<BackendRequestResult<void>> {
+  return backendDelete<void>(`/recurring-expenses/${id}`, token);
+}
+export async function triggerZuriSync(
+  token: string,
+  companyId: string,
+  propertyIds?: string[],
+): Promise<BackendRequestResult<{ message: string; results: any[] }>> {
+  return backendRequest<{ message: string; results: any[] }>(
+    TARGET_ENDPOINTS.zuriSync,
+    token,
+    "POST",
+    { companyId, propertyIds },
+  );
 }

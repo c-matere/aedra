@@ -32,6 +32,7 @@ export function CompanyEditButton({ company, token }: CompanyEditButtonProps) {
         email: company.email || "",
         phone: company.phone || "",
         address: company.address || "",
+        pinNumber: company.pinNumber || "",
     });
     const router = useRouter();
 
@@ -207,6 +208,15 @@ export function CompanyEditButton({ company, token }: CompanyEditButtonProps) {
                         <Input
                             value={formData.address}
                             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                            className="bg-white/5 border-white/10"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-neutral-300">Company PIN (Tax ID)</label>
+                        <Input
+                            value={formData.pinNumber}
+                            onChange={(e) => setFormData({ ...formData, pinNumber: e.target.value })}
+                            placeholder="e.g. P012345678Q"
                             className="bg-white/5 border-white/10"
                         />
                     </div>

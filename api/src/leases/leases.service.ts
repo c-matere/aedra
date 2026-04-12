@@ -4,9 +4,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { LeaseStatus, Prisma } from '@prisma/client';
+import { LeaseStatus, Prisma, InvoiceType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
+import { TenantsService, CreateTenantDto } from '../tenants/tenants.service';
 
 export interface CreateLeaseDto {
   startDate: string;
@@ -16,7 +17,11 @@ export interface CreateLeaseDto {
   status?: string;
   propertyId: string;
   unitId?: string;
-  tenantId: string;
+  tenantId?: string;
+  newTenant?: Omit<CreateTenantDto, 'propertyId'>;
+  notes?: string;
+  reminders?: { text: string; remindAt: string }[];
+  agreementFee?: number;
 }
 
 export interface UpdateLeaseDto {
@@ -32,7 +37,10 @@ export interface UpdateLeaseDto {
 
 @Injectable()
 export class LeasesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenantsService: TenantsService,
+  ) {}
 
   async findAll(
     actor: AuthenticatedUser,
@@ -188,8 +196,25 @@ export class LeasesService {
   }
 
   async create(data: CreateLeaseDto, actor: AuthenticatedUser) {
+    let tenantId = data.tenantId;
+
+    if (!tenantId && data.newTenant) {
+      const newTenant = await this.tenantsService.create(
+        {
+          ...data.newTenant,
+          propertyId: data.propertyId,
+        },
+        actor,
+      );
+      tenantId = newTenant.id;
+    }
+
+    if (!tenantId) {
+      throw new BadRequestException('Tenant ID or new tenant data is required.');
+    }
+
     const relation = await this.validateTenantPropertyUnit(
-      data.tenantId,
+      tenantId,
       data.propertyId,
       data.unitId,
       actor,
@@ -212,9 +237,11 @@ export class LeasesService {
       propertyId: relation.property.id,
       unitId: data.unitId ? data.unitId : null,
       tenantId: relation.tenant.id,
+      notes: data.notes,
+      agreementFee: data.agreementFee,
     };
 
-    return this.prisma.lease.create({
+    const lease = await this.prisma.lease.create({
       data: createData,
       include: {
         tenant: {
@@ -228,6 +255,32 @@ export class LeasesService {
         unit: { select: { id: true, unitNumber: true } },
       },
     });
+
+    if (data.reminders && data.reminders.length > 0) {
+      await this.prisma.leaseReminder.createMany({
+        data: data.reminders.map((r) => ({
+          text: r.text,
+          remindAt: new Date(r.remindAt),
+          leaseId: lease.id,
+        })),
+      });
+    }
+    
+    if (data.agreementFee && data.agreementFee > 0) {
+      await this.prisma.invoice.create({
+        data: {
+          amount: data.agreementFee,
+          description: 'Agreement Fee',
+          type: InvoiceType.AGREEMENT_FEE,
+          dueDate: new Date(),
+          status: 'PENDING',
+          leaseId: lease.id,
+          companyId: actor.companyId,
+        },
+      });
+    }
+
+    return lease;
   }
 
   async update(id: string, data: UpdateLeaseDto, actor: AuthenticatedUser) {

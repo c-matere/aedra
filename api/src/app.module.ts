@@ -5,24 +5,16 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { RolesGuard } from './auth/roles.guard';
-import { UsersController } from './users/users.controller';
-import { UsersService } from './users/users.service';
-import { TenantsController } from './tenants/tenants.controller';
-import { TenantsService } from './tenants/tenants.service';
-import { AuthController } from './auth/auth.controller';
-import { AuthService } from './auth/auth.service';
-import { PropertiesController } from './properties/properties.controller';
-import { PropertiesService } from './properties/properties.service';
-import { LandlordsController } from './landlords/landlords.controller';
-import { LandlordsService } from './landlords/landlords.service';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { TenantsModule } from './tenants/tenants.module';
+import { PropertiesModule } from './properties/properties.module';
+import { LandlordsModule } from './landlords/landlords.module';
 import { UnitsModule } from './units/units.module';
-import { ExpensesController } from './expenses/expenses.controller';
-import { ExpensesService } from './expenses/expenses.service';
-import { LeasesController } from './leases/leases.controller';
-import { LeasesService } from './leases/leases.service';
+import { ExpensesModule } from './expenses/expenses.module';
+import { LeasesModule } from './leases/leases.module';
 import { PaymentsModule } from './payments/payments.module';
-import { MaintenanceRequestsController } from './maintenance-requests/maintenance-requests.controller';
-import { MaintenanceRequestsService } from './maintenance-requests/maintenance-requests.service';
+import { MaintenanceRequestsModule } from './maintenance-requests/maintenance-requests.module';
 import { AuditModule } from './audit/audit.module';
 import { AuditLoggingInterceptor } from './audit/audit-logging.interceptor';
 import { InvoicesModule } from './invoices/invoices.module';
@@ -40,14 +32,27 @@ import { WorkflowModule } from './workflows/workflow.module';
 import { TodoModule } from './todo/todo.module';
 import { RolesModule } from './roles/roles.module';
 import { StaffModule } from './staff/staff.module';
+import { ZuriLeaseModule } from './integrations/zuri-lease/zuri-lease.module';
+import { ScheduleModule } from '@nestjs/schedule';
+
+import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor';
 
 @Module({
   imports: [
     PrismaModule,
     AuditModule,
+    ScheduleModule.forRoot(),
     MessagingModule,
     PaymentsModule,
     AiModule,
+    AuthModule,
+    UsersModule,
+    TenantsModule,
+    PropertiesModule,
+    LandlordsModule,
+    ExpensesModule,
+    LeasesModule,
+    MaintenanceRequestsModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
@@ -95,28 +100,14 @@ import { StaffModule } from './staff/staff.module';
     WorkflowModule,
     RolesModule,
     StaffModule,
+    ZuriLeaseModule,
   ],
+
   controllers: [
     AppController,
-    AuthController,
-    UsersController,
-    TenantsController,
-    PropertiesController,
-    LandlordsController,
-    ExpensesController,
-    LeasesController,
-    MaintenanceRequestsController,
   ],
   providers: [
     AppService,
-    AuthService,
-    UsersService,
-    TenantsService,
-    PropertiesService,
-    LandlordsService,
-    ExpensesService,
-    LeasesService,
-    MaintenanceRequestsService,
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
@@ -128,6 +119,10 @@ import { StaffModule } from './staff/staff.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: AuditLoggingInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TenantContextInterceptor,
     },
   ],
 })

@@ -144,7 +144,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
                   { ...context, isRlsSecondary: true },
                   () => (tx as any)[modelProp][operation](args),
                 );
-              }, this.txOptions);
+              }, base.txOptions);
             },
           },
         },

@@ -315,7 +315,7 @@ export class UnitsService {
                   where: { paidAt: { gte: startOfMonth }, deletedAt: null },
                 },
                 invoices: {
-                  where: { deletedAt: null, status: { not: 'CANCELLED' } },
+                  where: { deletedAt: null, status: { not: 'VOID' as any } },
                 },
                 penalties: {
                   where: { deletedAt: null, status: { not: 'WAIVED' } },
@@ -337,7 +337,7 @@ export class UnitsService {
       const unpaid_this_month: any[] = [];
       const partial_payments: any[] = [];
 
-      for (const unit of prop.units) {
+      for (const unit of (prop as any).units) {
         const activeLease = unit.leases[0];
         if (!activeLease) continue;
 
@@ -349,11 +349,11 @@ export class UnitsService {
         // How much of the TOTAL DEBT (Rent + Penalties + Invoices) has been covered by TOTAL PAYMENTS.
         
         const rentAmount = activeLease.rentAmount;
-        const penaltiesAmount = activeLease.penalties.reduce((sum, p) => sum + p.amount, 0);
-        const invoicesAmount = activeLease.invoices.reduce((sum, i) => sum + i.amount, 0);
+        const penaltiesAmount = activeLease.penalties.reduce((sum: number, p: any) => sum + p.amount, 0);
+        const invoicesAmount = activeLease.invoices.reduce((sum: number, i: any) => sum + i.amount, 0);
         
         const expected = rentAmount + penaltiesAmount + invoicesAmount;
-        const collected = activeLease.payments.reduce((sum, p) => sum + p.amount, 0);
+        const collected = activeLease.payments.reduce((sum: number, p: any) => sum + p.amount, 0);
 
         totalExpected += expected;
         totalCollected += collected;

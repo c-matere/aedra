@@ -1,0 +1,1447 @@
+
+
+                            <input type="hidden" name="field" value="By Code" id="navbarSearchField">
+
+                            <input class="form-control form-control-lg" type="search" name="key" id="navbarSearchInput" placeholder="Search..." aria-label="Search">
+
+                            <select class="form-select form-select-lg" id="navbarSearchType">
+                                <option>By Code</option>
+                                <option>By Name</option>
+                                <option>By Phone Number</option>
+                            </select>
+
+                            <button class="btn btn-sm btn-danger w-100 w-lg-auto" type="submit" id="navbarSearchBtn">
+                                <i class="fas fa-search"></i>
+                            </button>
+
+                        
+---
+
+                                <div class="content-layout-wrapper layout-item-0">
+                                    <script type="text/javascript">
+                                        $(document).ready(function () {
+                                            $('.process').on('click', function () {
+                                                $("#confirmModal").modal("show");
+                                            });
+                                            $('#confirmYes').on('click', function () {
+                                                $("confirmModal").modal("hide");
+                                                $("#loadingModal").modal("show");
+                                                setTimeout(function () {
+                                                    window.location = "EODRoutine";
+                                                }, 1000);
+                                            });
+                                        });
+                                    </script>
+                                    <div class="modal fade" id="lockdownModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                                        <div class="modal-dialog modal-sm modal-dialog-centered">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">System State</h5>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div id="message"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                                        <div class="modal-dialog modal-sm modal-dialog-centered">
+                                            <div class="modal-content text-center p-3">
+                                                <h5 class="modal-title">Loading...</h5>
+                                                <div class="modal-body">
+                                                    <div id="message">
+                                                        <img src="images/large_loading.gif" height="50" width="50">
+                                                        <p>Please wait while some page elements are
+                                                            loaded</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+
+                                    <div class="modal fade" id="confirmModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                                        <div class="modal-dialog modal-sm modal-dialog-centered">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Confirmation Required</h5>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div id="message">
+                                                        <p><strong>Ensure that all users have logged out
+                                                                of the system before you
+                                                                continue.</strong></p>
+                                                        <p>Do you want to process End of Day Routine?
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-danger" id="btnConfirmYes">Yes</button>
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="modal fade" id="confirmTaskModal" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Confirm Task</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p id="confirmTaskMessage"></p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="button" id="confirmTaskBtn" class="btn btn-primary">Yes</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+
+                                    <div class="modal fade" id="statementModal" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-lg modal-dialog-centered">
+                                            <div class="modal-content">
+                                                <div class="modal-header bg-danger text-dark">
+                                                    <h5 class="modal-title">
+                                                        <i class="fas fa-file-invoice me-2"></i>
+                                                        Generate Account Statement
+                                                    </h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <form method="get" action="ExportAccountStatement" target="_blank">
+                                                        <input type="hidden" name="format" value="PDF">
+                                                        <div class="table-responsive">
+                                                            <table class="display table w-100" style="width:100%;">
+                                                                <tbody><tr>
+                                                                    <th class="text-start fw-semibold">Type of Statement</th>
+                                                                    <td>
+                                                                        <div class="form-check">
+                                                                            <input class="form-check-input" type="radio" name="report" id="statement_type_accounting" value="CustomerAccountingStatement" checked="">
+                                                                            <label class="form-check-label" for="statement_type_accounting"> Accounting Statement
+                                                                            </label>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td>
+                                                                        <div class="form-check">
+                                                                            <input class="form-check-input" type="radio" name="report" id="statement_type_itemized" value="CustomerStatementItemized">
+                                                                            <label class="form-check-label" for="statement_type_itemized">
+                                                                                Itemized Statement
+                                                                            </label>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <th class="text-start fw-semibold">Statement Period</th>
+                                                                    <td>
+                                                                        <input type="text" name="start_date" id="start_date" class="form-control flatpickr-input" placeholder="Start Date" autocomplete="off" readonly="readonly">
+                                                                    </td>
+                                                                    <td>
+                                                                        <input type="text" name="end_date" id="end_date" class="form-control flatpickr-input" placeholder="End Date" autocomplete="off" readonly="readonly">
+                                                                    </td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td colspan="3" class="text-end pt-3">
+                                                                        <button type="submit" class="btn btn-danger px-4">
+                                                                            Preview
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody></table>
+                                                        </div>
+                                                        <script type="text/javascript">
+                                                            document.addEventListener("DOMContentLoaded", function () {
+
+                                                                const today = new Date();
+                                                                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+
+                                                                function formatDate(date) {
+                                                                    const year = date.getFullYear();
+                                                                    const month = ("0" + (date.getMonth() + 1)).slice(-2);
+                                                                    const day = ("0" + date.getDate()).slice(-2);
+                                                                    return `--`;
+                                                                            }
+
+                                                                            flatpickr("#start_date", {
+                                                                                dateFormat: "Y-m-d",
+                                                                                defaultDate: firstDay
+                                                                            });
+
+                                                                            flatpickr("#end_date", {
+                                                                                dateFormat: "Y-m-d",
+                                                                                defaultDate: today
+                                                                            });
+
+                                                                            document.getElementById("start_date").value = formatDate(firstDay);
+                                                                            document.getElementById("end_date").value = formatDate(today);
+
+                                                                        });
+                                                        </script>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="tab-content" id="mainTabContent">
+                                        <div id="tab-home" class="tab-pane fade show active" role="tabpanel" aria-labelledby="tab-home-tab">
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <div class="row">
+                                                        <script>
+                                                            function openTab(tabId) {
+                                                                const trigger = document.getElementById(tabId);
+                                                                const tab = bootstrap.Tab.getOrCreateInstance(trigger);
+                                                                tab.show();
+                                                            }
+                                                        </script>
+                                                        <div class="col-sm-6 col-md-4 col-lg-4 mb-4">
+                                                            <a class="card card-dashboard text-center text-decoration-none h-100" onclick="openTab('tab-marketing-tab'); return false;">
+                                                                <img src="images/realestate-icon.png" class="card-img-top" alt="Marketing">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">S &amp; M</h5>
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                        <div class="col-sm-6 col-md-4 col-lg-4 mb-4">
+                                                            <a class="card card-dashboard text-center text-decoration-none h-100 tab-link" onclick="openTab('tab-properties-tab'); return false;">
+                                                                <img src="images/architecture.png" class="card-img-top" alt="Properties">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">Properties</h5>
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                        <div class="col-sm-6 col-md-4 col-lg-4 mb-4">
+                                                            <a class="card card-dashboard text-center text-decoration-none h-100" onclick="openTab('tab-leases-tab'); return false;">
+                                                                <img src="images/icon3.png" class="card-img-top" alt="Tenants">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">Tenants</h5>
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                        <div class="col-sm-6 col-md-4 col-lg-4 mb-4">
+                                                            <a class="card card-dashboard text-center text-decoration-none" onclick="openTab('tab-partners-tab'); return false;">
+                                                                <img src="images/real-estate-crm-software-support.png" class="card-img-top" alt="Partners">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">Partners</h5>
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                        <div class="col-sm-6 col-md-4 col-lg-4 mb-4">
+                                                            <a class="card card-dashboard text-center text-decoration-none h-100" onclick="openTab('tab-suppliers-tab'); return false;">
+                                                                <img src="images/supplier.png" class="card-img-top" alt="Suppliers">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">Suppliers</h5>
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                        <div class="col-sm-6 col-md-4 col-lg-4 mb-4">
+                                                            <a class="card card-dashboard text-center text-decoration-none h-100" onclick="openTab('tab-accounting-tab'); return false;">
+                                                                <img src="images/accounting.png" class="card-img-top" alt="Accounting">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">Accounting</h5>
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                        <div class="col-sm-6 col-md-4 col-lg-4 mb-4">
+                                                            <a class="card card-dashboard text-center text-decoration-none h-100" onclick="openTab('tab-system-tab'); return false;">
+                                                                <img src="images/setup.png" class="card-img-top" alt="System">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">System</h5>
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div id="tab-marketing" class="tab-pane fade" role="tabpanel" aria-labelledby="tab-marketing-tab">
+                                            <div class="row">
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion" id="accordionActions">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingActions">
+                                                                <button class="accordion-button bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseActions" aria-expanded="true" aria-controls="collapseActions">
+                                                                    Actions
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseActions" class="accordion-collapse collapse show" aria-labelledby="headingActions">
+                                                                <div class="accordion-body p-0">
+                                                                    <div class="list-group list-group-flush">
+                                                                        <a href="MyListings" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-list me-2"></i>My Listings
+                                                                        </a>
+                                                                        <a href="add_prospect.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-user-plus me-2"></i>Add Prospect
+                                                                        </a>
+                                                                        <a href="LoadProspects?status=Active" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-eye me-2"></i>Show Active Prospects
+                                                                        </a>
+                                                                        <a href="LoadLeads?status=Active&amp;motivation=Hot" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-fire me-2"></i>Show Active Leads
+                                                                        </a>
+                                                                        <a href="LoadLeads?status=Converted" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-check-circle me-2"></i>Show Conversions
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion" id="accordionReports">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingReports">
+                                                                <button class="accordion-button bg-danger text-dark collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseReports" aria-expanded="false" aria-controls="collapseReports">
+                                                                    Reports
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseReports" class="accordion-collapse collapse show" aria-labelledby="headingReports" style="">
+                                                                <div class="accordion-body text-center">
+                                                                    <i class="fas fa-chart-bar fa-2x mb-2 text-muted"></i>
+                                                                    <p class="text-muted">No reports available</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion search-accordion" id="accordionSearch">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingSearch">
+                                                                <button class="accordion-button bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSearch" aria-expanded="true" aria-controls="collapseSearch">
+                                                                    Prospect Search
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseSearch" class="accordion-collapse collapse show" aria-labelledby="headingSearch">
+                                                                <div class="accordion-body">
+                                                                    <div class="d-flex flex-column">
+                                                                        <img src="images/realestate-icon.png" class="img-fluid mb-3" alt="Prospect">
+                                                                        <form class="search mb-3" action="ProspectSearch" method="post">
+                                                                            <input type="hidden" name="field" value="By Name">
+                                                                            <div class="input-group mb-2">
+                                                                                <input type="text" name="key" autocomplete="off" class="form-control main-search" placeholder="Search...">
+                                                                                <button class="btn btn-danger" type="submit">
+                                                                                    <i class="fas fa-search"></i>
+                                                                                </button>
+                                                                            </div>
+                                                                        </form>
+                                                                        <select class="form-select mb-3" id="searchType">
+                                                                            <option>By Name</option>
+                                                                            <option>By Phone Number</option>
+                                                                        </select>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <script>
+                                                    $(document).ready(function () {
+                                                        $("#searchType").change(function () {
+                                                            var field = $(this).val();
+                                                            $("input[name='field']").val(field);
+                                                        });
+                                                        // Auto-detect search type based on input
+                                                        $("input[name='key']").keypress(function (e) {
+                                                            if (e.keyCode >= 48) {
+                                                                if (e.keyCode >= 65 && e.keyCode <= 122) {
+                                                                    $("#searchType").val("By Name");
+                                                                    $("input[name='field']").val("By Name");
+                                                                } else {
+                                                                    $("#searchType").val("By Phone Number");
+                                                                    $("input[name='field']").val("By Phone Number");
+                                                                }
+                                                            }
+                                                        });
+                                                    });
+                                                </script>
+                                            </div>
+                                        </div>
+
+                                        <div id="tab-properties" class="tab-pane fade" role="tabpanel" aria-labelledby="tab-properties-tab">
+                                            <div class="row">
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion" id="accordionActions">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingActions">
+                                                                <button class="accordion-button bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseActions" aria-expanded="true" aria-controls="collapseActions">
+                                                                    Actions
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseActions" class="accordion-collapse collapse show" aria-labelledby="headingActions">
+                                                                <div class="list-group list-group-flush">
+                                                                    <a href="AddLandlord" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                        <i class="fas fa-user-plus me-2"></i>Create
+                                                                        a Landlord
+                                                                    </a>
+                                                                    <a href="SendBulkSMS?recipient_type=Landlord" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                        <i class="fas fa-sms me-2"></i>Send
+                                                                        Bulk SMS to Landlords
+                                                                    </a>
+                                                                    <a href="start_remittance.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                        <i class="fas fa-file-invoice-dollar me-2"></i>Prepare
+                                                                        Remittance
+                                                                    </a>
+                                                                    <a href="LoadRefinancing" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                        <i class="fas fa-sync-alt me-2"></i>Refinance
+                                                                        Loans
+                                                                    </a>
+                                                                    <a href="vacant_units_search.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                        <i class="fas fa-search me-2"></i>Units
+                                                                        Search
+                                                                    </a>
+                                                                    <a href="LoadSetup?level=LANDLORDS" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                        <i class="fas fa-home me-2"></i>Property Settings
+                                                                    </a>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion" id="accordionReports">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingReports">
+                                                                <button class="accordion-button bg-danger text-dark collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseReports" aria-expanded="false" aria-controls="collapseReports">
+                                                                    Reports
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseReports" class="accordion-collapse collapse show" aria-labelledby="headingReports" style="">
+                                                                <div class="accordion-body text-center">
+                                                                    <div class="list-group list-group-flush">
+                                                                        <a href="portfolio_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-concierge-bell me-2"></i>Portfolio</a>
+                                                                        <a href="income_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-file-invoice-dollar me-2"></i>Income</a>
+                                                                        <a href="expenses_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-money-bill-wave me-2"></i>Expenses
+                                                                        </a>
+                                                                        <a href="loans_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-hand-holding-usd me-2"></i>Loans/Advances
+                                                                        </a>
+                                                                        <a href="remittance_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-exchange-alt me-2"></i>Remittances
+                                                                        </a>
+                                                                        <a href="landlord_vouchers_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-money-bill-wave me-2"></i>Vouchers
+                                                                        </a>
+                                                                        <a href="landlord_issues_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-exclamation-triangle me-2"></i>Issues
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion search-accordion" id="accordionSearch">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingSearch">
+                                                                <button class="accordion-button bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSearch" aria-expanded="false" aria-controls="collapseSearch">
+                                                                    Property Landlord Search
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseSearch" class="accordion-collapse collapse show" aria-labelledby="headingSearch">
+                                                                <div class="accordion-body">
+                                                                    <script>
+                                                                        $(document).ready(function () {
+                                                                            $("#propertySearchType").change(function () {
+                                                                                var field = $(this).val();
+                                                                                $("input[name='field']").val(field);
+                                                                            });
+                                                                            $("input[name='key']").keypress(function (e) {
+                                                                                if (e.keyCode >= 48) {
+                                                                                    if (e.keyCode >= 65 && e.keyCode <= 122) {
+                                                                                        $("#propertySearchType").val("By Name");
+                                                                                        $("input[name='field']").val("By Name");
+                                                                                    } else if ($(this).val().length < 4) {
+                                                                                        $("#propertySearchType").val("By Property Code");
+                                                                                        $("input[name='field']").val("By Property Code");
+                                                                                    } else {
+                                                                                        $("#propertySearchType").val("By Phone Number");
+                                                                                        $("input[name='field']").val("By Phone Number");
+                                                                                    }
+                                                                                }
+                                                                            });
+                                                                        });
+                                                                    </script>
+                                                                    <div class="card-body">
+                                                                        <div class="d-flex flex-column h-100">
+                                                                            <img src="images/architecture.png" class="img-fluid mb-3" alt="Property Search">
+                                                                            <form class="search mb-3" action="PropertySearch" method="post">
+                                                                                <input type="hidden" name="field" value="By Name">
+                                                                                <div class="input-group mb-2">
+                                                                                    <input type="text" name="key" autocomplete="off" class="form-control main-search" placeholder="Search...">
+                                                                                    <button class="btn btn-danger" type="submit">
+                                                                                        <i class="fas fa-search"></i>
+                                                                                    </button>
+                                                                                </div>
+                                                                            </form>
+
+                                                                            <select class="form-select" id="propertySearchType">
+                                                                                <option>By Property Code</option>
+                                                                                <option>By Name</option>
+                                                                                <option>By Phone Number</option>
+                                                                                <option>By Plot Number</option>
+                                                                            </select>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div id="tab-leases" class="tab-pane fade" role="tabpanel" aria-labelledby="tab-leases-tab">
+                                            <div class="row">
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion" id="accordionActions">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingActions">
+                                                                <button class="accordion-button bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseActions" aria-expanded="true" aria-controls="collapseActions">
+                                                                    Actions
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseActions" class="accordion-collapse collapse show" aria-labelledby="headingActions">
+                                                                <div class="card-body">
+                                                                    <div class="list-group list-group-flush">
+                                                                        <a href="LoadTenantScreening" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-user-check me-2"></i>Tenant
+                                                                            Screening
+                                                                        </a>
+                                                                        <a href="SendBulkSMS?recipient_type=Tenant" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-sms me-2"></i>Send
+                                                                            Bulk SMS
+                                                                        </a>
+                                                                        <a href="debt_recovery_home.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-file-invoice-dollar me-2"></i>Debt
+                                                                            Recovery
+                                                                        </a>
+                                                                        <a href="LoadSetup?level=TENANTS" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-user-friends me-2"></i>Tenant Settings
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion" id="accordionReports">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingReports">
+                                                                <button class="accordion-button bg-danger text-dark collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseReports" aria-expanded="false" aria-controls="collapseReports">
+                                                                    Reports
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseReports" class="accordion-collapse collapse show" aria-labelledby="headingReports" style="">
+                                                                <div class="accordion-body text-center">
+                                                                    <div class="card-body">
+                                                                        <div class="list-group list-group-flush">
+                                                                            <a href="leases_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-file-contract me-2"></i> Leases</a>
+                                                                            <a href="billing_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-file-invoice-dollar me-2"></i> Billing</a>
+                                                                            <a href="collection_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-hand-holding-usd me-2"></i>Collection
+                                                                            </a>
+                                                                            <a href="tenant_vouchers_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-money-bill-wave me-2"></i>Vouchers
+                                                                            </a>
+                                                                            <a href="debt_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-exclamation-circle me-2"></i>Debt Control
+                                                                            </a>
+                                                                            <a href="tenant_issues_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-tools me-2"></i>Issues
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion search-accordion" id="accordionSearch">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingSearch">
+                                                                <button class="accordion-button bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSearch" aria-expanded="false" aria-controls="collapseSearch">
+                                                                    Tenant Search
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseSearch" class="accordion-collapse collapse show" aria-labelledby="headingSearch">
+                                                                <div class="accordion-body">
+                                                                    <script>
+                                                                        $(document).ready(function () {
+                                                                            $("#tenantSearchType").change(function () {
+                                                                                var field = $(this).val();
+                                                                                $("input[name='field']").val(field);
+                                                                            });
+
+                                                                            $("input[name='key']").keypress(function (e) {
+                                                                                var currentVal = $(this).val();
+
+                                                                                if (e.keyCode >= 48 || e.keyCode === 43) {
+                                                                                    if (e.keyCode === 43 && currentVal.length === 0) {
+                                                                                        $("#tenantSearchType").val("By Phone Number");
+                                                                                        $("input[name='field']").val("By Phone Number");
+                                                                                    }
+
+                                                                                    // Case 2: By Name (User presses a letter)
+                                                                                    else if (e.keyCode >= 65 && e.keyCode <= 122) {
+                                                                                        $("#tenantSearchType").val("By Name");
+                                                                                        $("input[name='field']").val("By Name");
+                                                                                    } else {
+                                                                                        $("#tenantSearchType").val("By Tenant Code");
+                                                                                        $("input[name='field']").val("By Tenant Code");
+                                                                                    }
+                                                                                }
+                                                                            });
+                                                                        });
+                                                                    </script>
+                                                                    <div class="card-body">
+                                                                        <div class="d-flex flex-column h-100">
+                                                                            <img src="images/icon3.png" class="img-fluid mb-3" alt="Tenant Search">
+
+                                                                            <form class="search mb-3" action="TenantSearch" method="post">
+                                                                                <input type="hidden" name="field" value="By Name">
+                                                                                <div class="input-group mb-2">
+                                                                                    <input type="text" name="key" autocomplete="off" class="form-control main-search" placeholder="Search...">
+                                                                                    <button class="btn btn-danger" type="submit">
+                                                                                        <i class="fas fa-search"></i>
+                                                                                    </button>
+                                                                                </div>
+                                                                            </form>
+
+                                                                            <select class="form-select" id="tenantSearchType">
+                                                                                <option>By Tenant Code</option>
+                                                                                <option>By Name</option>
+                                                                                <option>By Phone Number</option>
+                                                                            </select>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+
+                                        <div id="tab-partners" class="tab-pane fade" role="tabpanel" aria-labelledby="tab-partners-tab">
+                                            <div class="row">
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion" id="accordionActions">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingActions">
+                                                                <button class="accordion-button bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseActions" aria-expanded="true" aria-controls="collapseActions">
+                                                                    Actions
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseActions" class="accordion-collapse collapse show" aria-labelledby="headingActions">
+                                                                <div class="card-body">
+                                                                    <div class="list-group list-group-flush">
+                                                                        <a href="AddPartner" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-handshake me-2"></i>Add
+                                                                            Trade Partner
+                                                                        </a>
+                                                                        <a href="LoadPartners" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-list me-2"></i>List of Trade Partner
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion" id="accordionReports">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingReports">
+                                                                <button class="accordion-button bg-danger text-dark collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseReports" aria-expanded="false" aria-controls="collapseReports">
+                                                                    Reports
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseReports" class="accordion-collapse collapse show" aria-labelledby="headingReports" style="">
+                                                                <div class="accordion-body text-center">
+                                                                    <div class="card-body">
+                                                                        <div class="list-group list-group-flush">
+                                                                            <a href="suppliers_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-file-contract me-2"></i>Suppliers</a>
+                                                                            <a href="members_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-file-contract me-2"></i>Members Of Staff</a>
+                                                                            <a href="partners_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-file-invoice-dollar me-2"></i>Other Partners</a>
+                                                                            
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion search-accordion" id="accordionSearch">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingSearch">
+                                                                <button class="accordion-button bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSearch" aria-expanded="false" aria-controls="collapseSearch">
+                                                                    Entity Search
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseSearch" class="accordion-collapse collapse show" aria-labelledby="headingSearch">
+                                                                <div class="accordion-body">
+                                                                    <script>
+                                                                        $(document).ready(function () {
+                                                                            var isMobile = window.innerWidth <= 991;
+
+                                                                            if (isMobile) {
+                                                                                setTimeout(function () {
+                                                                                    var $mobileSearch = $(".main-search");
+                                                                                    if ($mobileSearch.length) {
+                                                                                        $mobileSearch.focus();
+                                                                                    }
+                                                                                }, 500);
+                                                                            }
+                                                                            $("#backofficeSearchType").change(function () {
+                                                                                var field = $(this).val();
+                                                                                $("input[name='field']").val(field);
+                                                                            });
+                                                                            $("input[name='key']").keypress(function (e) {
+                                                                                if (e.keyCode >= 48) {
+                                                                                    if (e.keyCode >= 65 && e.keyCode <= 122) {
+                                                                                        $("#backofficeSearchType").val("By Name");
+                                                                                        $("input[name='field']").val("By Name");
+                                                                                    } else if ($(this).val().length < 6 && $(this).val().match(/\d/)) {
+                                                                                        $("#backofficeSearchType").val("By Code");
+                                                                                        $("input[name='field']").val("By Code");
+                                                                                    } else {
+                                                                                        $("#backofficeSearchType").val("By Phone Number");
+                                                                                        $("input[name='field']").val("By Phone Number");
+                                                                                    }
+                                                                                }
+                                                                            });
+                                                                        });
+                                                                    </script>
+                                                                    <div class="card-body">
+                                                                        <div class="d-flex flex-column h-100">
+                                                                            <img src="images/real-estate-crm-software-support.png" class="img-fluid mb-3" alt="Entity Search">
+
+                                                                            <form class="search mb-3" action="BackofficeSearch" method="post">
+                                                                                <input type="hidden" name="field" value="By Name">
+                                                                                <div class="input-group mb-2">
+                                                                                    <input type="text" name="key" autocomplete="off" class="form-control main-search" placeholder="Search...">
+                                                                                    <button class="btn btn-danger" type="submit">
+                                                                                        <i class="fas fa-search"></i>
+                                                                                    </button>
+                                                                                </div>
+                                                                            </form>
+
+                                                                            <select class="form-select" id="backofficeSearchType">
+                                                                                <option>By Code</option>
+                                                                                <option>By Name</option>
+                                                                                <option>By Phone Number</option>
+                                                                            </select>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div id="tab-suppliers" class="tab-pane fade" role="tabpanel" aria-labelledby="tab-suppliers-tab">
+                                            <div class="row">
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion" id="accordionActions">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingActions">
+                                                                <button class="accordion-button bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseActions" aria-expanded="true" aria-controls="collapseActions">
+                                                                    Actions
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseActions" class="accordion-collapse collapse show" aria-labelledby="headingActions">
+                                                                <div class="card-body">
+                                                                    <div class="list-group list-group-flush">
+                                                                        <a href="AddSupplier" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-truck me-2"></i>Add
+                                                                            Supplier
+                                                                        </a>
+                                                                        <a href="LoadSuppliers" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-address-book me-2"></i>List
+                                                                            of Supplier
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion" id="accordionReports">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingReports">
+                                                                <button class="accordion-button bg-danger text-dark collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseReports" aria-expanded="false" aria-controls="collapseReports">
+                                                                    Reports
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseReports" class="accordion-collapse collapse show" aria-labelledby="headingReports" style="">
+                                                                <div class="accordion-body text-center">
+                                                                    <div class="card-body">
+                                                                        <div class="list-group list-group-flush">
+                                                                            <a href="suppliers_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-file-contract me-2"></i>Suppliers</a>
+                                                                            <a href="members_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-file-contract me-2"></i>Members Of Staff</a>
+                                                                            <a href="partners_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-file-invoice-dollar me-2"></i>Other Partners</a>
+                                                                            
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion search-accordion" id="accordionSearch">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingSearch">
+                                                                <button class="accordion-button bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSearch" aria-expanded="false" aria-controls="collapseSearch">
+                                                                    Supplier Search
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseSearch" class="accordion-collapse collapse show" aria-labelledby="headingSearch">
+                                                                <div class="accordion-body">
+                                                                    <div class="card-body">
+                                                                        <div class="d-flex flex-column h-100">
+                                                                            <img src="images/supplier.png" class="img-fluid mb-3" alt="Supplier Search">
+
+                                                                            <form class="search mb-3" action="SupplierSearch" method="post">
+                                                                                <input type="hidden" name="field" value="By Name">
+                                                                                <div class="input-group mb-2">
+                                                                                    <input type="text" name="key" autocomplete="off" class="form-control main-search" placeholder="Search...">
+                                                                                    <button class="btn btn-danger" type="submit">
+                                                                                        <i class="fas fa-search"></i>
+                                                                                    </button>
+                                                                                </div>
+                                                                            </form>
+
+                                                                            <select class="form-select" id="backofficeSearchType">
+                                                                                <option>By Code</option>
+                                                                                <option>By Name</option>
+                                                                                <option>By Phone Number</option>
+                                                                            </select>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div id="tab-accounting" class="tab-pane fade" role="tabpanel" aria-labelledby="tab-accounting-tab">
+                                            <div class="row">
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion mb-3" id="accordionChartOfAccounts">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingChart">
+                                                                <button class="accordion-button bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseChart" aria-expanded="true" aria-controls="collapseChart">
+                                                                    Chart of Accounts
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseChart" class="accordion-collapse collapse show" aria-labelledby="headingChart">
+                                                                <div class="accordion-body p-0">
+                                                                    <div class="list-group list-group-flush">
+                                                                        <a href="LoadCashAccounts" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-money-bill-wave me-2"></i>Cash
+                                                                            &amp; Bank Accounts
+                                                                        </a>
+                                                                        <a href="LoadAccounts?account_class=Ledger Account" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-building me-2"></i>Company
+                                                                            Ledgers
+                                                                        </a>
+                                                                        <a href="LoadAccounts?account_class=Landlord Account" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-home me-2"></i>Property
+                                                                            Ledgers
+                                                                        </a>
+                                                                        <a href="LoadAccounts?account_class=Partner Account" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-handshake me-2"></i>Partner
+                                                                            Ledgers
+                                                                        </a>
+                                                                        <a href="LoadAccounts?account_class=Supplier Account" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-truck me-2"></i>Supplier
+                                                                            Ledgers
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="accordion" id="accordionActions">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingActions">
+                                                                <button class="accordion-button bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseActions" aria-expanded="false" aria-controls="collapseActions">
+                                                                    Actions
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseActions" class="accordion-collapse collapse show" aria-labelledby="headingActions">
+                                                                <div class="accordion-body p-0">
+                                                                    <div class="list-group list-group-flush">
+                                                                        <a href="PostBulkJournals" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-book me-2"></i>Post
+                                                                            Journal Entries
+                                                                        </a>
+                                                                        <a href="PostBulkBanking" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-university me-2"></i>Record
+                                                                            Banking
+                                                                        </a>
+                                                                        <a href="PostBulkExpenses" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-credit-card me-2"></i>Post
+                                                                            Direct Payments
+                                                                        </a>
+                                                                        <a href="PostIncome" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-cash-register me-2"></i>Post
+                                                                            Direct Collections
+                                                                        </a>
+                                                                        <a href="MpesaC2BReconciliation" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-mobile-alt me-2"></i>Mpesa
+                                                                            C2B Reconciliation
+                                                                        </a>
+                                                                        <a href="ConfigureBanks" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                            <i class="fas fa-university me-2"></i>Configure Banks
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion mb-3" id="accordionTransactionsReports">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingTransactions">
+                                                                <button class="accordion-button bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTransactions" aria-expanded="true" aria-controls="collapseTransactions">
+                                                                    Transactions Reports
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseTransactions" class="accordion-collapse collapse show" aria-labelledby="headingTransactions">
+                                                                <div class="accordion-body p-0">
+                                                                    <div class="list-group list-group-flush">
+                                                                        <a href="LoadTransactionReports" class="list-group-item list-group-item-action">Receipts</a>
+                                                                        <a href="load_mpesa_report.jsp" class="list-group-item list-group-item-action">MPESA
+                                                                            C2B Transactions</a>
+                                                                        <a href="load_gab_report.jsp" class="list-group-item list-group-item-action">GAB
+                                                                            H2H
+                                                                            Notifications</a>
+                                                                        <a href="load_income_report.jsp" class="list-group-item list-group-item-action">Incomes</a>
+                                                                        <a href="LoadAllVouchersReports" class="list-group-item list-group-item-action">Vouchers</a>
+                                                                        <a href="load_journals.jsp" class="list-group-item list-group-item-action">Journals</a>
+                                                                        <a href="LoadIncomeReport" class="list-group-item list-group-item-action">Direct
+                                                                            Collections</a>
+                                                                        <a href="LoadExpensesReport" class="list-group-item list-group-item-action">Direct
+                                                                            Payments</a>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="accordion" id="accordionLedgerReports">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingLedgerReports">
+                                                                <button class="accordion-button bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseLedgerReports" aria-expanded="false" aria-controls="collapseLedgerReports">
+                                                                    Ledgers &amp; Accounts Reports
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseLedgerReports" class="accordion-collapse collapse show" aria-labelledby="headingLedgerReports">
+                                                                <div class="accordion-body p-0">
+                                                                    <div class="list-group list-group-flush">
+                                                                        <a href="load_ledger_statements.jsp" class="list-group-item list-group-item-action">Ledger
+                                                                            Statements</a>
+                                                                        <a href="load_general_ledger.jsp" class="list-group-item list-group-item-action">General
+                                                                            Ledger</a>
+                                                                        <a href="load_accounts_receivable.jsp" class="list-group-item list-group-item-action">Accounts
+                                                                            Receivable</a>
+                                                                        <a href="load_accounts_payable.jsp" class="list-group-item list-group-item-action">Accounts
+                                                                            Payable</a>
+                                                                        <a href="load_trial_balance.jsp" class="list-group-item list-group-item-action">Trial
+                                                                            Balance</a>
+                                                                        <a href="load_profit_loss.jsp" class="list-group-item list-group-item-action">Profit
+                                                                            &amp; Loss</a>
+                                                                        <a href="load_balance_sheet.jsp" class="list-group-item list-group-item-action">Balance
+                                                                            Sheet</a>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="accordion search-accordion" id="accordionSearch">
+                                                        <div class="accordion-item">
+                                                            <h2 class="accordion-header" id="headingSearch">
+                                                                <button class="accordion-button bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSearch" aria-expanded="true" aria-controls="collapseSearch">
+                                                                    Ledger Search
+                                                                </button>
+                                                            </h2>
+                                                            <div id="collapseSearch" class="accordion-collapse collapse show" aria-labelledby="headingSearch">
+                                                                <div class="accordion-body">
+                                                                    <div class="d-flex flex-column h-100">
+                                                                        <img src="images/accounting.png" class="img-fluid mb-3" alt="Accounting">
+                                                                        <h2 class="mb-3">Ledger Search</h2>
+                                                                        <form class="search-form" action="SelectAccount" method="get">
+                                                                            <div class="input-group mb-3">
+                                                                                <div class="awesomplete"><input type="text" id="gl_code" name="gl_code" class="form-control main-search" placeholder="Enter GL Code..." autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-owns="awesomplete_list_1" role="combobox"><ul hidden="" role="listbox" id="awesomplete_list_1" aria-label="Results List"></ul><span class="visually-hidden" role="status" aria-live="assertive" aria-atomic="true"></span></div>
+                                                                                <button class="btn btn-danger" type="submit" name="search">
+                                                                                    <i class="fas fa-search"></i>
+                                                                                </button>
+                                                                            </div>
+                                                                        </form>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div id="tab-system" class="tab-pane fade" role="tabpanel" aria-labelledby="tab-system-tab">
+                                            <div class="tab-content" id="mainTabContent">
+                                                <div class="row">
+                                                    <div class="col-md-4 mb-3">
+                                                        <div class="accordion" id="accordionActions">
+                                                            <div class="accordion-item">
+                                                                <h2 class="accordion-header" id="headingGlobalSettings">
+                                                                    <button class="accordion-button collapsed bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGlobalSettings" aria-expanded="false" aria-controls="collapseGlobalSettings">
+                                                                        Global Settings
+                                                                    </button>
+                                                                </h2>
+                                                                <div id="collapseGlobalSettings" class="accordion-collapse collapse show" aria-labelledby="headingGlobalSettings" data-bs-parent="#accordionActions">
+                                                                    <div class="accordion-body">
+                                                                        <div class="list-group list-group-flush">
+                                                                            <a href="users_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-user-tie me-2"></i>Manage Credentials
+                                                                            </a>
+                                                                            <a href="LoadSetup?level=GLOBAL" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-cog me-2"></i>Company Settings
+                                                                            </a>
+
+                                                                            <a href="SystemScheduledTasks" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-clock me-2"></i>Control Scheduled Tasks
+                                                                            </a>
+                                                                            <a href="AlertsSubscriptionsActionController?businessLevel=GLOBAL&amp;ACTION=READ" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-bell me-2"></i>Manage Alert Subscriptions
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="accordion-item">
+                                                                <h2 class="accordion-header" id="headingTemplates">
+                                                                    <button class="accordion-button collapsed bg-danger text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTemplates" aria-expanded="false" aria-controls="collapseTemplates">
+                                                                        Templates
+                                                                    </button>
+                                                                </h2>
+                                                                <div id="collapseTemplates" class="accordion-collapse collapse show" aria-labelledby="headingTemplates" data-bs-parent="#accordionActions">
+                                                                    <div class="accordion-body">
+                                                                        <div class="list-group list-group-flush">
+                                                                            <a href="ManageSMSTemplates" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-sms me-2"></i>Manage SMS Templates
+                                                                            </a>
+                                                                            <a href="LoadSetup?level=InvoiceTemplates" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-file-invoice me-2"></i>Invoice Templates
+                                                                            </a>
+                                                                            <a href="LoadSetup?level=LoanTemplates" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-hand-holding-usd me-2"></i>Loan Templates
+                                                                            </a>
+                                                                            <a href="LoadSetup?level=PayrollTemplates" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                <i class="fas fa-money-check-alt me-2"></i>Payroll Templates
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="col-md-4 mb-3">
+                                                        <div class="accordion" id="accordionReports">
+                                                            <div class="accordion-item">
+                                                                <h2 class="accordion-header" id="headingReports">
+                                                                    <button class="accordion-button bg-danger text-dark collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseReports" aria-expanded="false" aria-controls="collapseReports">
+                                                                        Reports
+                                                                    </button>
+                                                                </h2>
+                                                                <div id="collapseReports" class="accordion-collapse collapse show" aria-labelledby="headingReports" style="">
+                                                                    <div class="accordion-body text-center">
+                                                                        <div class="card-body">
+                                                                            <div class="list-group list-group-flush">
+                                                                                <a href="load_sms_report.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                    <i class="fas fa-paper-plane me-2"></i>Outgoing SMS
+                                                                                </a>
+                                                                                <a href="load_email_report.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                    <i class="fas fa-envelope me-2"></i>Outgoing Email
+                                                                                </a>
+                                                                                <a href="LoadAuditTrailReport" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                    <i class="fas fa-clipboard-list me-2"></i>Audit Trails
+                                                                                </a>
+                                                                                <a href="load_audit_logs.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                    <i class="fas fa-clipboard-list me-2"></i>System
+                                                                                    Logs
+                                                                                </a>
+                                                                                <a href="global_dashboard.jsp" class="list-group-item list-group-item-action d-flex align-items-center">
+                                                                                    <i class="fas fa-file-invoice-dollar me-2"></i>System Billing
+                                                                                </a>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="col-md-4 mb-3">
+                                                        <div class="card-body text-center d-flex flex-column justify-content-center">
+                                                            <h1 class="h4 mb-4 text-primary">Licensed To
+                                                            </h1>
+                                                            <div class="mb-4">
+                                                                <img src="reports/logo.gif" alt="Company Logo" class="img-fluid w-100 h-100">
+                                                            </div>
+                                                            <h1 class="h3 mb-0 text-dark">
+                                                                SAK Properties Ltd</h1>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="d-none">
+                                                    <form id="portal-login-form" action="https://zurideals.com/login" method="post">
+                                                        <input type="email" name="email" id="portalusername" required="">
+                                                        <input type="password" name="password" id="portalpass" required="">
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            
+---
+
+                                                        <input type="hidden" name="format" value="PDF">
+                                                        <div class="table-responsive">
+                                                            <table class="display table w-100" style="width:100%;">
+                                                                <tbody><tr>
+                                                                    <th class="text-start fw-semibold">Type of Statement</th>
+                                                                    <td>
+                                                                        <div class="form-check">
+                                                                            <input class="form-check-input" type="radio" name="report" id="statement_type_accounting" value="CustomerAccountingStatement" checked="">
+                                                                            <label class="form-check-label" for="statement_type_accounting"> Accounting Statement
+                                                                            </label>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td>
+                                                                        <div class="form-check">
+                                                                            <input class="form-check-input" type="radio" name="report" id="statement_type_itemized" value="CustomerStatementItemized">
+                                                                            <label class="form-check-label" for="statement_type_itemized">
+                                                                                Itemized Statement
+                                                                            </label>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <th class="text-start fw-semibold">Statement Period</th>
+                                                                    <td>
+                                                                        <input type="text" name="start_date" id="start_date" class="form-control flatpickr-input" placeholder="Start Date" autocomplete="off" readonly="readonly">
+                                                                    </td>
+                                                                    <td>
+                                                                        <input type="text" name="end_date" id="end_date" class="form-control flatpickr-input" placeholder="End Date" autocomplete="off" readonly="readonly">
+                                                                    </td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td colspan="3" class="text-end pt-3">
+                                                                        <button type="submit" class="btn btn-danger px-4">
+                                                                            Preview
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody></table>
+                                                        </div>
+                                                        <script type="text/javascript">
+                                                            document.addEventListener("DOMContentLoaded", function () {
+
+                                                                const today = new Date();
+                                                                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+
+                                                                function formatDate(date) {
+                                                                    const year = date.getFullYear();
+                                                                    const month = ("0" + (date.getMonth() + 1)).slice(-2);
+                                                                    const day = ("0" + date.getDate()).slice(-2);
+                                                                    return `--`;
+                                                                            }
+
+                                                                            flatpickr("#start_date", {
+                                                                                dateFormat: "Y-m-d",
+                                                                                defaultDate: firstDay
+                                                                            });
+
+                                                                            flatpickr("#end_date", {
+                                                                                dateFormat: "Y-m-d",
+                                                                                defaultDate: today
+                                                                            });
+
+                                                                            document.getElementById("start_date").value = formatDate(firstDay);
+                                                                            document.getElementById("end_date").value = formatDate(today);
+
+                                                                        });
+                                                        </script>
+                                                    
+---
+
+                                                                <tbody><tr>
+                                                                    <th class="text-start fw-semibold">Type of Statement</th>
+                                                                    <td>
+                                                                        <div class="form-check">
+                                                                            <input class="form-check-input" type="radio" name="report" id="statement_type_accounting" value="CustomerAccountingStatement" checked="">
+                                                                            <label class="form-check-label" for="statement_type_accounting"> Accounting Statement
+                                                                            </label>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td>
+                                                                        <div class="form-check">
+                                                                            <input class="form-check-input" type="radio" name="report" id="statement_type_itemized" value="CustomerStatementItemized">
+                                                                            <label class="form-check-label" for="statement_type_itemized">
+                                                                                Itemized Statement
+                                                                            </label>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <th class="text-start fw-semibold">Statement Period</th>
+                                                                    <td>
+                                                                        <input type="text" name="start_date" id="start_date" class="form-control flatpickr-input" placeholder="Start Date" autocomplete="off" readonly="readonly">
+                                                                    </td>
+                                                                    <td>
+                                                                        <input type="text" name="end_date" id="end_date" class="form-control flatpickr-input" placeholder="End Date" autocomplete="off" readonly="readonly">
+                                                                    </td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td colspan="3" class="text-end pt-3">
+                                                                        <button type="submit" class="btn btn-danger px-4">
+                                                                            Preview
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+---
+
+                                                <div class="card-body">
+                                                    <div class="row">
+                                                        <script>
+                                                            function openTab(tabId) {
+                                                                const trigger = document.getElementById(tabId);
+                                                                const tab = bootstrap.Tab.getOrCreateInstance(trigger);
+                                                                tab.show();
+                                                            }
+                                                        </script>
+                                                        <div class="col-sm-6 col-md-4 col-lg-4 mb-4">
+                                                            <a class="card card-dashboard text-center text-decoration-none h-100" onclick="openTab('tab-marketing-tab'); return false;">
+                                                                <img src="images/realestate-icon.png" class="card-img-top" alt="Marketing">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">S &amp; M</h5>
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                        <div class="col-sm-6 col-md-4 col-lg-4 mb-4">
+                                                            <a class="card card-dashboard text-center text-decoration-none h-100 tab-link" onclick="openTab('tab-properties-tab'); return false;">
+                                                                <img src="images/architecture.png" class="card-img-top" alt="Properties">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">Properties</h5>
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                        <div class="col-sm-6 col-md-4 col-lg-4 mb-4">
+                                                            <a class="card card-dashboard text-center text-decoration-none h-100" onclick="openTab('tab-leases-tab'); return false;">
+                                                                <img src="images/icon3.png" class="card-img-top" alt="Tenants">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">Tenants</h5>
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                        <div class="col-sm-6 col-md-4 col-lg-4 mb-4">
+                                                            <a class="card card-dashboard text-center text-decoration-none" onclick="openTab('tab-partners-tab'); return false;">
+                                                                <img src="images/real-estate-crm-software-support.png" class="card-img-top" alt="Partners">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">Partners</h5>
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                        <div class="col-sm-6 col-md-4 col-lg-4 mb-4">
+                                                            <a class="card card-dashboard text-center text-decoration-none h-100" onclick="openTab('tab-suppliers-tab'); return false;">
+                                                                <img src="images/supplier.png" class="card-img-top" alt="Suppliers">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">Suppliers</h5>
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                        <div class="col-sm-6 col-md-4 col-lg-4 mb-4">
+                                                            <a class="card card-dashboard text-center text-decoration-none h-100" onclick="openTab('tab-accounting-tab'); return false;">
+                                                                <img src="images/accounting.png" class="card-img-top" alt="Accounting">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">Accounting</h5>
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                        <div class="col-sm-6 col-md-4 col-lg-4 mb-4">
+                                                            <a class="card card-dashboard text-center text-decoration-none h-100" onclick="openTab('tab-system-tab'); return false;">
+                                                                <img src="images/setup.png" class="card-img-top" alt="System">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">System</h5>
+                                                                </div>
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            
+---
+
+                                                                <img src="images/realestate-icon.png" class="card-img-top" alt="Marketing">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">S &amp; M</h5>
+                                                                </div>
+                                                            
+---
+
+                                                                <img src="images/architecture.png" class="card-img-top" alt="Properties">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">Properties</h5>
+                                                                </div>
+                                                            
+---
+
+                                                                <img src="images/icon3.png" class="card-img-top" alt="Tenants">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">Tenants</h5>
+                                                                </div>
+                                                            
+---
+
+                                                                <img src="images/real-estate-crm-software-support.png" class="card-img-top" alt="Partners">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">Partners</h5>
+                                                                </div>
+                                                            
+---
+
+                                                                <img src="images/supplier.png" class="card-img-top" alt="Suppliers">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">Suppliers</h5>
+                                                                </div>
+                                                            
+---
+
+                                                                <img src="images/accounting.png" class="card-img-top" alt="Accounting">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">Accounting</h5>
+                                                                </div>
+                                                            
+---
+
+                                                                <img src="images/setup.png" class="card-img-top" alt="System">
+                                                                <div class="card-body">
+                                                                    <h5 class="card-title">System</h5>
+                                                                </div>
+                                                            
+---
+
+                                                                            <input type="hidden" name="field" value="By Name">
+                                                                            <div class="input-group mb-2">
+                                                                                <input type="text" name="key" autocomplete="off" class="form-control main-search" placeholder="Search...">
+                                                                                <button class="btn btn-danger" type="submit">
+                                                                                    <i class="fas fa-search"></i>
+                                                                                </button>
+                                                                            </div>
+                                                                        
+---
+
+                                                                                <input type="hidden" name="field" value="By Name">
+                                                                                <div class="input-group mb-2">
+                                                                                    <input type="text" name="key" autocomplete="off" class="form-control main-search" placeholder="Search...">
+                                                                                    <button class="btn btn-danger" type="submit">
+                                                                                        <i class="fas fa-search"></i>
+                                                                                    </button>
+                                                                                </div>
+                                                                            
+---
+
+                                                                                <input type="hidden" name="field" value="By Name">
+                                                                                <div class="input-group mb-2">
+                                                                                    <input type="text" name="key" autocomplete="off" class="form-control main-search" placeholder="Search...">
+                                                                                    <button class="btn btn-danger" type="submit">
+                                                                                        <i class="fas fa-search"></i>
+                                                                                    </button>
+                                                                                </div>
+                                                                            
+---
+
+                                                                                <input type="hidden" name="field" value="By Name">
+                                                                                <div class="input-group mb-2">
+                                                                                    <input type="text" name="key" autocomplete="off" class="form-control main-search" placeholder="Search...">
+                                                                                    <button class="btn btn-danger" type="submit">
+                                                                                        <i class="fas fa-search"></i>
+                                                                                    </button>
+                                                                                </div>
+                                                                            
+---
+
+                                                                                <input type="hidden" name="field" value="By Name">
+                                                                                <div class="input-group mb-2">
+                                                                                    <input type="text" name="key" autocomplete="off" class="form-control main-search" placeholder="Search...">
+                                                                                    <button class="btn btn-danger" type="submit">
+                                                                                        <i class="fas fa-search"></i>
+                                                                                    </button>
+                                                                                </div>
+                                                                            
+---
+
+                                                                            <div class="input-group mb-3">
+                                                                                <div class="awesomplete"><input type="text" id="gl_code" name="gl_code" class="form-control main-search" placeholder="Enter GL Code..." autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-owns="awesomplete_list_1" role="combobox"><ul hidden="" role="listbox" id="awesomplete_list_1" aria-label="Results List"></ul><span class="visually-hidden" role="status" aria-live="assertive" aria-atomic="true"></span></div>
+                                                                                <button class="btn btn-danger" type="submit" name="search">
+                                                                                    <i class="fas fa-search"></i>
+                                                                                </button>
+                                                                            </div>
+                                                                        
+---
+
+                                                        <input type="email" name="email" id="portalusername" required="">
+                                                        <input type="password" name="password" id="portalpass" required="">
+                                                    

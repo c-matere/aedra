@@ -67,11 +67,11 @@ export function PropertiesListClient({ properties, token, role }: PropertiesList
         <>
             {/* Table header */}
             <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-white/10 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                <div className="col-span-4">Property</div>
+                <div className="col-span-8 md:col-span-4">Property</div>
                 <div className="col-span-2 hidden md:block">Type</div>
-                <div className="col-span-2">Occupancy</div>
+                <div className="col-span-3 md:col-span-3 lg:col-span-2">Occupancy</div>
                 <div className="col-span-2 hidden lg:block">Revenue</div>
-                <div className="col-span-1">Status</div>
+                <div className="col-span-2 hidden md:block lg:col-span-1">Status</div>
                 <div className="col-span-1 text-right">Actions</div>
             </div>
 
@@ -93,7 +93,7 @@ export function PropertiesListClient({ properties, token, role }: PropertiesList
                             className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-white/5 transition-colors cursor-pointer group"
                         >
                             {/* Name + address */}
-                            <div className="col-span-4 flex items-center gap-3">
+                            <div className="col-span-8 md:col-span-4 flex items-center gap-3">
                                 <div className="h-9 w-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/20 transition-all">
                                     <Building2 className="h-4 w-4 text-neutral-400 group-hover:text-emerald-400 transition-colors" />
                                 </div>
@@ -109,13 +109,13 @@ export function PropertiesListClient({ properties, token, role }: PropertiesList
                                 {typeBadge(p.propertyType)}
                             </div>
                             {/* Occupancy */}
-                            <div className="col-span-2">
+                            <div className="col-span-3 md:col-span-3 lg:col-span-2">
                                 {total > 0 ? (
                                     <>
                                         <div className={`text-sm font-bold ${occupancyColor(occupied, total)}`}>
                                             {occupied}/{total}
                                         </div>
-                                        <div className="mt-1.5 h-1 w-full rounded-full bg-white/10 overflow-hidden">
+                                        <div className="mt-1.5 h-1 w-full rounded-full bg-white/10 overflow-hidden hidden sm:block">
                                             <div
                                                 className={`h-full rounded-full transition-all ${occupancyBar(occupied, total)}`}
                                                 style={{ width: `${(occupied / total) * 100}%` }}
@@ -138,7 +138,7 @@ export function PropertiesListClient({ properties, token, role }: PropertiesList
                                 )}
                             </div>
                             {/* Status */}
-                            <div className="col-span-1">
+                            <div className="col-span-2 hidden md:block lg:col-span-1">
                                 {statusBadge(p.status)}
                             </div>
                             {/* Actions */}

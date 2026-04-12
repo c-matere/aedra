@@ -19,7 +19,7 @@ import {
     Phone,
     Plus
 } from "lucide-react"
-import { AddInvoiceButton, AddPaymentButton, VacationNoticeButton, TerminateLeaseButton, CreateLeaseButton } from "./lease-actions"
+import { AddInvoiceButton, AddPaymentButton, VacationNoticeButton, TerminateLeaseButton, CreateLeaseButton, ViewStatementButton } from "./lease-actions"
 import { UserRole } from "@/lib/rbac"
 import {
     SlidePanel,
@@ -183,6 +183,7 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
                                                         <Badge variant={lease.status === 'ACTIVE' ? 'success' : 'secondary'}>
                                                             {lease.status}
                                                         </Badge>
+                                                        {lease.status === 'ACTIVE' && <ViewStatementButton leaseId={lease.id} />}
                                                     </div>
                                                 </div>
 

@@ -10,6 +10,7 @@ import type { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '../auth/roles.enum';
 import * as bcryptjs from 'bcryptjs';
+import { UnitStatus } from '@prisma/client';
 import { WhatsappService } from '../messaging/whatsapp.service';
 import {
   SENSITIVE_ACTIONS_REGISTRY,
@@ -62,6 +63,98 @@ export class AiWriteToolService {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
       String(value).trim(),
     );
+  }
+
+  private normalizeKenyanPhone(input?: string | null): string | undefined {
+    if (!input) return undefined;
+    const raw = String(input).trim();
+    if (!raw) return undefined;
+
+    // Keep valid-ish E.164 inputs as-is (but strip extra formatting).
+    if (raw.startsWith('+')) {
+      const digits = raw.replace(/\D/g, '');
+      if (digits.length >= 10 && digits.length <= 15) return `+${digits}`;
+      return raw;
+    }
+
+    const digits = raw.replace(/\D/g, '');
+    if (!digits) return undefined;
+
+    // Kenya patterns:
+    // - 2547xxxxxxxx / 2541xxxxxxxx  -> +254...
+    // - 07xxxxxxxx / 01xxxxxxxx      -> +254...
+    // - 7xxxxxxxx / 1xxxxxxxx        -> +254...
+    if (digits.startsWith('254') && digits.length === 12) return `+${digits}`;
+    if (digits.length === 10 && digits.startsWith('0')) {
+      const last9 = digits.slice(1);
+      if (last9.startsWith('7') || last9.startsWith('1')) return `+254${last9}`;
+    }
+    if (digits.length === 9 && (digits.startsWith('7') || digits.startsWith('1')))
+      return `+254${digits}`;
+
+    // Unknown format: return original.
+    return raw;
+  }
+
+  private isPlaceholderValue(value: any): boolean {
+    if (value === undefined || value === null) return true;
+    const raw = String(value).trim().toLowerCase();
+    if (!raw) return true;
+    return [
+      'unspecified',
+      'unknown',
+      'n/a',
+      'na',
+      'none',
+      'null',
+      'not provided',
+      'not_specified',
+      'not-specified',
+    ].includes(raw);
+  }
+
+  private extractUnitNumber(input: any): string | undefined {
+    if (!input) return undefined;
+    const raw = String(input).trim();
+    if (!raw || this.isPlaceholderValue(raw)) return undefined;
+
+    // Pattern: "Unit 1", "Unit #1", "unit-1"
+    const m = raw.match(/\bunit\s*#?\s*([a-z0-9-]{1,})\b/i);
+    if (m?.[1]) return m[1].trim();
+
+    // Fallback: if it's just a short alphanumeric string (e.g. "1", "A1", "B-102")
+    if (raw.length <= 6 && /^[a-z0-9-]+$/i.test(raw)) return raw;
+
+    return undefined;
+  }
+
+  private async tryResolveUnitIdByPropertyAndUnitNumber(args: any, companyId?: string): Promise<void> {
+    if (args?.unitId && this.isUuid(args.unitId)) return;
+
+    // If propertyId is provided but not a UUID (e.g. a name), try to resolve it first
+    if (args?.propertyId && !this.isUuid(args.propertyId)) {
+      const pRes = await this.resolutionService.resolveId('property', args.propertyId, companyId);
+      if (pRes?.id) args.propertyId = pRes.id;
+    }
+
+    if (!args?.propertyId || !this.isUuid(args.propertyId)) return;
+
+    const unitNumber =
+      this.extractUnitNumber(args?.unitName) ||
+      this.extractUnitNumber(args?.unitNumber) ||
+      this.extractUnitNumber(args?.unitId);
+    if (!unitNumber) return;
+
+    const unit = await this.prisma.unit.findFirst({
+      where: {
+        propertyId: args.propertyId,
+        unitNumber: { equals: unitNumber, mode: 'insensitive' },
+      },
+      select: { id: true },
+    });
+    if (unit) {
+      args.unitId = unit.id;
+    }
   }
 
   private parseNaturalDueDate(input: any): Date | null {
@@ -196,6 +289,45 @@ export class AiWriteToolService {
     return this.formatNotFoundError(entityType, searchTerm);
   }
 
+  private async resolveIdOrError(
+    entity:
+      | 'tenant'
+      | 'property'
+      | 'unit'
+      | 'company'
+      | 'landlord'
+      | 'lease'
+      | 'invoice',
+    identifier: any,
+    companyId?: string,
+  ): Promise<{ id?: string; error?: any }> {
+    const searchTerm = (identifier ?? '').toString().trim();
+    if (!searchTerm || this.isPlaceholderValue(searchTerm)) return {};
+
+    const resolved = await this.resolutionService.resolveId(
+      entity,
+      searchTerm,
+      companyId,
+    );
+
+    if (resolved?.id) return { id: resolved.id };
+
+    if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) {
+      return {
+        error: {
+          error: 'AMBIGUOUS_MATCH',
+          entity_type: entity,
+          search_term: searchTerm,
+          required_action: 'SELECT_FROM_LIST',
+          matches: resolved.candidates,
+          message: `I found multiple ${entity}s matching '${searchTerm}'. Which one did you mean?`,
+        },
+      };
+    }
+
+    return { error: this.formatNotFoundError(entity, searchTerm) };
+  }
+
   async executeWriteTool(
     name: string,
     args: any,
@@ -229,28 +361,61 @@ export class AiWriteToolService {
             args,
           );
           if (confirmation) return confirmation;
-          if (args?.propertyId) {
-            const resolvedPropId = await this.resolutionService.resolveId('property', args.propertyId, context.companyId);
-            if (resolvedPropId && typeof resolvedPropId === 'string') {
-                args.propertyId = resolvedPropId;
-            } else if (resolvedPropId && typeof resolvedPropId === 'object') {
-                return this.handleResolutionError(resolvedPropId, 'property', args.propertyId);
-            }
+
+          if (args?.phone) args.phone = this.normalizeKenyanPhone(args.phone);
+
+          const fallbackName = args.tenantName || context.registrationData?.tenantName || context.tenantName;
+          if (!args.firstName && fallbackName) {
+            const parts = fallbackName.trim().split(' ');
+            args.firstName = parts[0];
+            args.lastName = parts.length > 1 ? parts.slice(1).join(' ') : args.lastName;
+          }
+          if (!args.phone && context.registrationData?.tenantPhone) {
+            args.phone = this.normalizeKenyanPhone(context.registrationData.tenantPhone);
+          }
+          if (!args.firstName) {
+            return {
+              requires_clarification: true,
+              error: 'BLOCK_PREREQUISITE_MISSING',
+              message: 'Please provide the tenant\'s first name.',
+            };
           }
 
+
+          // Resolve unit (optional) first: it can be used to infer propertyId.
+          const unitSearchTerm = args?.unitId || args?.unitName || args?.unitNumber;
+          const unitResolved = await this.resolveIdOrError(
+            'unit',
+            unitSearchTerm,
+            context.companyId,
+          );
+          if (unitResolved.error) return unitResolved.error;
+          if (unitResolved.id) args.unitId = unitResolved.id;
+
+          const propResolved = await this.resolveIdOrError(
+            'property',
+            args?.propertyId,
+            context.companyId,
+          );
+          if (propResolved.error) return propResolved.error;
+          if (propResolved.id) args.propertyId = propResolved.id;
+          if (this.isPlaceholderValue(args?.propertyId)) delete args.propertyId;
+
           // If still no propertyId, try to resolve from unitId if provided
-          if (!args.propertyId && args.unitId) {
-            const resolvedUnitId = await this.resolutionService.resolveId('unit', args.unitId, context.companyId);
-            if (resolvedUnitId && typeof resolvedUnitId === 'string') {
-              const unit = await this.prisma.unit.findUnique({ where: { id: resolvedUnitId }, select: { propertyId: true } });
-              if (unit) args.propertyId = unit.propertyId;
-            }
+          if (!args.propertyId && args.unitId && this.isUuid(args.unitId)) {
+            const unit = await this.prisma.unit.findUnique({
+              where: { id: args.unitId },
+              select: { propertyId: true },
+            });
+            if (unit?.propertyId) args.propertyId = unit.propertyId;
           }
 
           if (!args.propertyId) {
-            return { 
-              error: 'BLOCK_PREREQUISITE_MISSING', 
-              message: 'Property Identification Failed. I need to know which property this tenant belongs to before I can verify the building management plan.' 
+            return {
+              requires_clarification: true,
+              error: 'BLOCK_PREREQUISITE_MISSING',
+              message:
+                'I need the property (e.g. "Adra") or a specific unit (e.g. "Adra Unit 1") before I can register this tenant.',
             };
           }
 
@@ -453,21 +618,42 @@ export class AiWriteToolService {
               propertyType: args.propertyType,
               companyId,
               landlordId: args.landlordId,
-              commissionPercentage: args.commissionPercentage,
-              description: args.description,
+              commissionPercentage: args.commissionPercentage || 10,
+              description: args.description || '',
             },
           });
-          const _vcLogP = await this.auditLog.logEntityChange('PROPERTY', property.id, null, property, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: property.name,
-          });
+
           await this.updateEmbedding(
             'PROPERTY',
             property.id,
             `${property.name} ${property.address}`,
+          );
+
+          // Automatically create units if unitCount is provided
+          if (args.unitCount && typeof args.unitCount === 'number' && args.unitCount > 0 && args.unitCount <= 100) {
+              const unitsToCreate = Array.from({ length: args.unitCount }, (_, i) => ({
+                  unitNumber: String(i + 1),
+                  propertyId: property.id,
+                  status: UnitStatus.VACANT,
+                  rentAmount: 0,
+                  companyId,
+              }));
+              await this.prisma.unit.createMany({ data: unitsToCreate });
+              this.logger.log(`[WriteTool] Created ${args.unitCount} units for property ${property.id}`);
+          }
+
+          const _vcLogP = await this.auditLog.logEntityChange(
+            'PROPERTY',
+            property.id,
+            null,
+            property,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: property.name,
+            },
           );
           return { ...property, _vc: this.auditLog.buildVcSummary(_vcLogP) };
         }
@@ -518,15 +704,97 @@ export class AiWriteToolService {
         }
 
         case 'create_lease': {
-          const [rTenant, rProp, rUnit] = await Promise.all([
-            this.resolutionService.resolveId('tenant', args?.tenantId, context.companyId),
-            this.resolutionService.resolveId('property', args?.propertyId, context.companyId),
-            args?.unitId ? this.resolutionService.resolveId('unit', args.unitId, context.companyId) : null,
-          ]);
+          const [tenantResolved, propResolved2, unitResolved2] =
+            await Promise.all([
+              this.resolveIdOrError('tenant', args?.tenantId, context.companyId),
+              this.resolveIdOrError(
+                'property',
+                args?.propertyId,
+                context.companyId,
+              ),
+              this.resolveIdOrError('unit', args?.unitId, context.companyId),
+            ]);
 
-          if (rTenant) args.tenantId = rTenant;
-          if (rProp) args.propertyId = rProp;
-          if (rUnit) args.unitId = rUnit;
+          if (tenantResolved.error) return tenantResolved.error;
+          if (tenantResolved.id) args.tenantId = tenantResolved.id;
+
+          if (propResolved2.error) return propResolved2.error;
+          if (propResolved2.id) args.propertyId = propResolved2.id;
+
+          if (unitResolved2.error) return unitResolved2.error;
+          if (unitResolved2.id) args.unitId = unitResolved2.id;
+
+          if (this.isPlaceholderValue(args?.tenantId)) delete args.tenantId;
+          if (this.isPlaceholderValue(args?.propertyId)) delete args.propertyId;
+          if (this.isPlaceholderValue(args?.unitId)) delete args.unitId;
+
+          // If propertyId is missing, infer it from the resolved unitId (if present).
+          if (!args.propertyId && args.unitId && this.isUuid(args.unitId)) {
+            const unit = await this.prisma.unit.findUnique({
+              where: { id: args.unitId },
+              select: { propertyId: true },
+            });
+            if (unit?.propertyId) args.propertyId = unit.propertyId;
+          }
+
+          // If unitId wasn't resolved but we do have propertyId + unitName, try a deterministic lookup.
+          await this.tryResolveUnitIdByPropertyAndUnitNumber(args, context.companyId);
+
+          if (!args.tenantId) {
+            return {
+              requires_clarification: true,
+              error: 'BLOCK_PREREQUISITE_MISSING',
+              message:
+                'Which tenant should this lease be created for? Please share the tenant full name or phone number.',
+            };
+          }
+
+          if (!args.propertyId) {
+            return {
+              requires_clarification: true,
+              error: 'BLOCK_PREREQUISITE_MISSING',
+              message:
+                'I need the property (e.g. "Adra") or a specific unit (e.g. "Adra Unit 1") to create the lease.',
+            };
+          }
+
+          if (args.rentAmount === undefined || args.rentAmount === null) {
+            return {
+              requires_clarification: true,
+              error: 'BLOCK_PREREQUISITE_MISSING',
+              message:
+                'What is the monthly rent amount for this lease (e.g. "10000")?',
+            };
+          }
+
+          const startDate = args.startDate ? new Date(args.startDate) : null;
+          if (!startDate || Number.isNaN(startDate.getTime())) {
+            return {
+              requires_clarification: true,
+              error: 'BLOCK_PREREQUISITE_MISSING',
+              message:
+                'What is the lease start date? (Example: "2026-04-01")',
+            };
+          }
+
+          const endDate = args.endDate ? new Date(args.endDate) : null;
+          if (!endDate || Number.isNaN(endDate.getTime())) {
+            return {
+              requires_clarification: true,
+              error: 'BLOCK_PREREQUISITE_MISSING',
+              message:
+                'What is the lease end date? (Example: "2027-03-31")',
+            };
+          }
+
+          if (endDate.getTime() <= startDate.getTime()) {
+            return {
+              requires_clarification: true,
+              error: 'VALIDATION_ERROR',
+              message:
+                'The lease end date must be after the start date. Please share the correct dates (e.g. start "2026-04-01", end "2027-03-31").',
+            };
+          }
 
           const planStatus = await this.checkPlanStatus(args.propertyId);
           if (!planStatus.allowed) {
@@ -550,8 +818,8 @@ export class AiWriteToolService {
               propertyId: args.propertyId,
               unitId: args.unitId,
               rentAmount: args.rentAmount,
-              startDate: new Date(args.startDate),
-              endDate: new Date(args.endDate),
+              startDate,
+              endDate,
               status: args.status || 'PENDING',
             },
           });
