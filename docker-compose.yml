@@ -38,6 +38,8 @@ services:
     depends_on:
       - postgres
       - redis
+    volumes:
+      - api_uploads:/app/uploads
     restart: always
 
   web:
@@ -57,3 +59,4 @@ services:
 
 volumes:
   pgdata:
+  api_uploads:
