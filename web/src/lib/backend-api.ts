@@ -71,6 +71,7 @@ export interface PropertyRecord {
   latitude?: number;
   longitude?: number;
   description?: string;
+  location?: string;
   commissionPercentage?: number;
   landlord?: {
     id: string;
