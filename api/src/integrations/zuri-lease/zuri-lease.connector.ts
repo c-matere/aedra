@@ -24,7 +24,7 @@ export class ZuriLeaseConnector implements IConnector {
   async connect(): Promise<void> {
     this.browser = await puppeteer.launch({
       headless: true,
-      executablePath: process.env.CHROME_PATH || '/home/chris/.cache/puppeteer/chrome/linux-146.0.7680.76/chrome-linux64/chrome',
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_PATH || puppeteer.executablePath(),
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-quic', '--window-size=1920,1080'],
       protocolTimeout: 120000,
     });
