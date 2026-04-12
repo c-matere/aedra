@@ -71,26 +71,72 @@ export class ZuriLeaseConnector implements IConnector {
   async listProperties(): Promise<string[]> {
     if (!this.page) throw new Error('Connector not connected');
     
-    await this.page.goto(this.getUrl('/SelectProperty'), {
-      waitUntil: 'networkidle2',
-      timeout: 60000,
-    });
+    const ids = new Set<string>();
 
-    const propertyIds = await this.page.evaluate(() => {
-        const links = Array.from(document.querySelectorAll('a'));
-        const ids = new Set<string>();
-        links.forEach(link => {
-            const href = link.getAttribute('href');
-            if (href && href.includes('property_id=')) {
-                const url = new URL(href, window.location.origin);
-                const id = url.searchParams.get('property_id');
-                if (id) ids.add(id);
-            }
+    // STRATEGY 1: Check current URL (might already be on a property dashboard)
+    const currentUrl = this.page.url();
+    if (currentUrl.includes('property_id=')) {
+        const urlObj = new URL(currentUrl);
+        const pid = urlObj.searchParams.get('property_id');
+        if (pid) {
+            console.log(`[Discovery] Found property ID in current URL: ${pid}`);
+            ids.add(pid);
+        }
+    }
+
+    // STRATEGY 2: Scrape the current page for ANY property links (Sidebar, Top nav, breadcrumbs)
+    const scanPage = async () => {
+        const found = await this.page!.evaluate(() => {
+            const links = Array.from(document.querySelectorAll('a, option, .nav-link'));
+            const discovered = new Set<string>();
+            links.forEach(el => {
+                const href = el.getAttribute('href') || (el as any).value || '';
+                if (href && href.includes('property_id=')) {
+                    try {
+                        const url = new URL(href, window.location.origin);
+                        const id = url.searchParams.get('property_id');
+                        if (id) discovered.add(id);
+                    } catch (e) {}
+                }
+            });
+            return Array.from(discovered);
         });
-        return Array.from(ids);
-    });
+        found.forEach(id => ids.add(id));
+    };
 
-    return propertyIds.sort();
+    console.log('[Discovery] Scanning dashboard for property links...');
+    await scanPage();
+
+    // STRATEGY 3: Attempt navigation to SelectProperty only if we have few/no results
+    if (ids.size === 0) {
+        console.log('[Discovery] No properties found on dashboard. Navigating to /SelectProperty...');
+        await this.page.goto(this.getUrl('/SelectProperty'), {
+            waitUntil: 'networkidle2',
+            timeout: 30000,
+        }).catch(e => console.warn(`[Discovery] SelectProperty navigation failed: ${e.message}`));
+        
+        await scanPage();
+    }
+
+    // STRATEGY 4: Check if we are in a "managed" view where the property ID is in a specific breadcrumb
+    if (ids.size === 0) {
+        const breadcrumbId = await this.page.evaluate(() => {
+            const breadcrumbs = Array.from(document.querySelectorAll('.breadcrumb-item, .breadcrumb a'));
+            for (const b of breadcrumbs) {
+                const href = b.getAttribute('href');
+                if (href && href.includes('property_id=')) {
+                    const id = new URL(href, window.location.origin).searchParams.get('property_id');
+                    if (id) return id;
+                }
+            }
+            return null;
+        });
+        if (breadcrumbId) ids.add(breadcrumbId);
+    }
+
+    const finalIds = Array.from(ids).sort();
+    console.log(`[Discovery] Final discovery results: ${finalIds.join(', ')} (${finalIds.length} found)`);
+    return finalIds;
   }
 
   async fetchData(params: { propertyId: string }): Promise<ZuriLeaseData> {
