@@ -42,7 +42,12 @@ export class ZuriLeaseConnector implements IConnector {
       Object.defineProperty(navigator, 'languages', { get: () => ['en-GB', 'en-US', 'en'] });
     });
 
-    this.page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+    this.page.on('console', msg => {
+      const text = msg.text();
+      // Suppress noisy authorization errors for modules the user doesn't have access to
+      if (text.includes('not authorised to view billing information')) return;
+      console.log('PAGE LOG:', text);
+    });
     await this.page.setViewport({ width: 1280, height: 800 });
 
     const loginUrl = this.getUrl('/login.jsp');
@@ -125,13 +130,49 @@ export class ZuriLeaseConnector implements IConnector {
             for (const b of breadcrumbs) {
                 const href = b.getAttribute('href');
                 if (href && href.includes('property_id=')) {
-                    const id = new URL(href, window.location.origin).searchParams.get('property_id');
-                    if (id) return id;
+                    try {
+                        const id = new URL(href, window.location.origin).searchParams.get('property_id');
+                        if (id) return id;
+                    } catch (e) {}
                 }
             }
             return null;
         });
         if (breadcrumbId) ids.add(breadcrumbId);
+    }
+
+    // STRATEGY 5: Explicit Search (Zuri Dashboard Search)
+    if (ids.size === 0) {
+        console.log('[Discovery] Trying strategy 5: Explicit Search via portfolio_dashboard.jsp...');
+        try {
+            await this.page.goto(this.getUrl('/portfolio_dashboard.jsp'), { waitUntil: 'networkidle2', timeout: 30000 });
+            
+            const hasSearch = await this.page.evaluate(() => !!document.querySelector('#propertySearchInput'));
+            if (hasSearch) {
+                console.log('[Discovery] Submitting empty property search...');
+                await this.page.type('#propertySearchInput', '');
+                await Promise.all([
+                    this.page.click('#propertySearchForm button[type="submit"]'),
+                    this.page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {})
+                ]);
+                await scanPage();
+            } else {
+                console.log('[Discovery] Property search input not found on portfolio dashboard.');
+            }
+        } catch (e) {
+            console.warn(`[Discovery] Strategy 5 failed: ${e.message}`);
+        }
+    }
+
+    // STRATEGY 6: Landlord List (Backup)
+    if (ids.size === 0) {
+        console.log('[Discovery] Trying strategy 6: Landlord list...');
+        try {
+            await this.page.goto(this.getUrl('/LoadListOfLandlords'), { waitUntil: 'networkidle2', timeout: 30000 });
+            await scanPage();
+        } catch (e) {
+            console.warn(`[Discovery] Strategy 6 failed: ${e.message}`);
+        }
     }
 
     const finalIds = Array.from(ids).sort();

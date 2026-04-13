@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { ZuriSyncCard } from "./zuri-sync-card";
 import { MpesaSyncCard } from "./mpesa-sync-card";
+import { JengaSyncCard } from "./jenga-sync-card";
 import { SmsSyncCard } from "./sms-sync-card";
 import { MapsSyncCard } from "./maps-sync-card";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -136,6 +137,7 @@ export default async function IntegrationsPage() {
           </h2>
           
           {company && <MpesaSyncCard company={company} token={sessionToken} />}
+          {company && <JengaSyncCard company={company} token={sessionToken} />}
           {company && <SmsSyncCard company={company} token={sessionToken} />}
         </div>
 

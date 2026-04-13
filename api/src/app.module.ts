@@ -33,6 +33,7 @@ import { TodoModule } from './todo/todo.module';
 import { RolesModule } from './roles/roles.module';
 import { StaffModule } from './staff/staff.module';
 import { ZuriLeaseModule } from './integrations/zuri-lease/zuri-lease.module';
+import { JengaModule } from './integrations/jenga/jenga.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
 import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor';
@@ -101,6 +102,7 @@ import { TenantContextInterceptor } from './common/interceptors/tenant-context.i
     RolesModule,
     StaffModule,
     ZuriLeaseModule,
+    JengaModule,
   ],
 
   controllers: [

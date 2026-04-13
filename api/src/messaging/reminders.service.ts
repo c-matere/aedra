@@ -25,6 +25,24 @@ export class RemindersService {
       propertyId,
     );
 
+    // Check if WhatsApp alerts are enabled for this company
+    const company = await this.prisma.company.findUnique({
+      where: { id: actor.companyId },
+      select: { waAlertsEnabled: true },
+    });
+
+    if (company && !company.waAlertsEnabled) {
+      this.logger.warn(
+        `WhatsApp alerts are disabled for company ${actor.companyId}. Skipping bulk reminders.`,
+      );
+      return {
+        success: false,
+        message: 'WhatsApp alerts are disabled in settings.',
+        totalSent: 0,
+        details: [],
+      };
+    }
+
     let totalSent = 0;
     const results: any[] = [];
 

@@ -25,6 +25,8 @@ import { NotificationsEditButton } from "./notifications-edit-button"
 import { BillingEditButton } from "./billing-edit-button"
 import { CompanySelector } from "./company-selector"
 import { ProfileEditButton } from "./profile-edit-button"
+import { SecurityEditButton } from "./security-edit-button"
+import { IntegrationsEditButton } from "./integrations-edit-button"
 
 export default async function SettingsPage({
     searchParams,
@@ -174,6 +176,80 @@ export default async function SettingsPage({
                                     <p className="text-sm font-black text-white">{company?.rentReminderDaysBefore ?? 3}d Prior</p>
                                 </div>
                             </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* 3. Security & Access */}
+                <Card className="bg-neutral-900 border-white/10 group overflow-hidden">
+                    <CardHeader className="pb-3 border-b border-white/5">
+                        <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                                    <Shield className="h-5 w-5 text-blue-400" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-base font-bold text-white">Security & Access</CardTitle>
+                                    <CardDescription className="text-xs text-neutral-500">Manege 2FA, IP allowlist, and WhatsApp OTP.</CardDescription>
+                                </div>
+                            </div>
+                            {company && (role === "SUPER_ADMIN" || role === "COMPANY_ADMIN") && (
+                                <SecurityEditButton company={company} token={sessionToken} />
+                            )}
+                        </div>
+                    </CardHeader>
+                    <CardContent className="pt-6 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-bold text-neutral-555 uppercase">WhatsApp OTP</p>
+                                <p className="text-sm font-medium text-white">{company?.waOtpEnabled ? "Active" : "Disabled"}</p>
+                            </div>
+                            <div className="space-y-1 text-right">
+                                <p className="text-[10px] font-bold text-neutral-555 uppercase">2FA Status</p>
+                                <p className="text-xs font-black text-blue-400 uppercase tracking-tighter">{company?.twoFactorAuthEnabled ? "Enabled" : "Off"}</p>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-bold text-neutral-555 uppercase">Password Policy</p>
+                            <p className="text-xs text-neutral-400 line-clamp-1 italic">{company?.passwordPolicy || "Default Policy"}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* 4. API & Integrations */}
+                <Card className="bg-neutral-900 border-white/10 group overflow-hidden">
+                    <CardHeader className="pb-3 border-b border-white/5">
+                        <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+                                    <Globe className="h-5 w-5 text-orange-400" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-base font-bold text-white">Integrations</CardTitle>
+                                    <CardDescription className="text-xs text-neutral-500">M-Pesa, SMS Gateway & WhatsApp API.</CardDescription>
+                                </div>
+                            </div>
+                            {company && (role === "SUPER_ADMIN" || role === "COMPANY_ADMIN") && (
+                                <IntegrationsEditButton company={company} token={sessionToken} />
+                            )}
+                        </div>
+                    </CardHeader>
+                    <CardContent className="pt-6 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-bold text-neutral-555 uppercase">SMS Provider</p>
+                                <p className="text-sm font-medium text-white">{company?.smsProvider || "None"}</p>
+                            </div>
+                            <div className="space-y-1 text-right">
+                                <p className="text-[10px] font-bold text-neutral-555 uppercase">WhatsApp API</p>
+                                <p className={`text-xs font-black uppercase tracking-tighter ${company?.waAccessToken ? "text-emerald-400" : "text-neutral-600"}`}>
+                                    {company?.waAccessToken ? "Configured" : "Missing Keys"}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-bold text-neutral-555 uppercase">M-Pesa Env</p>
+                            <p className="text-xs text-neutral-400 uppercase font-bold">{company?.mpesaEnvironment || "sandbox"}</p>
                         </div>
                     </CardContent>
                 </Card>

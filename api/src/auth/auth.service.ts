@@ -7,10 +7,93 @@ import { UserRole } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { createSessionToken } from './session-token';
+import { OtpService } from './otp.service';
+import { WhatsappService } from '../messaging/whatsapp.service';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly otpService: OtpService,
+    private readonly whatsappService: WhatsappService,
+  ) {}
+
+  async requestOtp(phone: string) {
+    if (!phone) {
+      throw new BadRequestException('Phone number is required.');
+    }
+
+    // Identify if the phone number belongs to a User, Landlord, or Tenant
+    const identified = await this.whatsappService.identifySenderByPhone(phone);
+    if (identified.role === 'UNIDENTIFIED') {
+      throw new BadRequestException('Phone number not registered.');
+    }
+
+    // Generate and send OTP
+    const code = await this.otpService.createOtp(phone);
+
+    // Check company preference for WhatsApp OTP
+    if (identified.companyId) {
+      const company = await this.prisma.company.findUnique({
+        where: { id: identified.companyId },
+        select: { waOtpEnabled: true },
+      });
+      if (company && !company.waOtpEnabled) {
+        throw new BadRequestException(
+          'WhatsApp OTP login is currently disabled by your organization.',
+        );
+      }
+    }
+
+    await this.whatsappService.sendOtp(phone, code, identified.companyId);
+
+    return { success: true, message: 'OTP sent successfully.' };
+  }
+
+  async loginWithOtp(phone: string, code: string) {
+    if (!phone || !code) {
+      throw new BadRequestException('Phone and code are required.');
+    }
+
+    const isValid = await this.otpService.verifyOtp(phone, code);
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid or expired OTP.');
+    }
+
+    // Identify user to create token
+    const identified = await this.whatsappService.identifySenderByPhone(phone);
+    
+    // For Tenants and Landlords, we might need to handle their identities specifically 
+    // but the identified object already contains id, role, and companyId.
+    
+    let email = '';
+    if (identified.role === 'TENANT') {
+      const tenant = await this.prisma.tenant.findUnique({ where: { id: identified.id } });
+      email = tenant?.email || `tenant_${identified.id}@aedra.app`;
+    } else if (identified.role === 'LANDLORD') {
+      const landlord = await this.prisma.landlord.findUnique({ where: { id: identified.id } });
+      email = landlord?.email || `landlord_${identified.id}@aedra.app`;
+    } else {
+      const user = await this.prisma.user.findUnique({ where: { id: identified.id } });
+      email = user?.email || 'N/A';
+    }
+
+    const accessToken = createSessionToken({
+      userId: identified.id,
+      role: identified.role as any,
+      companyId: identified.companyId ?? undefined,
+    });
+
+    return {
+      accessToken,
+      user: {
+        id: identified.id,
+        role: identified.role,
+        companyId: identified.companyId ?? undefined,
+        email: email,
+      },
+    };
+  }
 
   async login(email: string, password: string) {
     if (!email || typeof email !== 'string') {

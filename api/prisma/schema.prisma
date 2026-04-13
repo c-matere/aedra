@@ -69,6 +69,9 @@ model Company {
   waOwnerPhone               String?
   waPhoneNumberId            String?
   waVerifyToken              String?
+  waAlertsEnabled            Boolean                @default(true)
+  waOtpEnabled               Boolean                @default(true)
+  waPaymentConfirmationsEnabled Boolean             @default(true)
   africaTalkingApiKey        String?
   africaTalkingUsername      String?
   autoInvoicingEnabled       Boolean                @default(false)
@@ -92,6 +95,11 @@ model Company {
   zuriDomain                 String?
   zuriUsername               String?
   zuriPassword               String?
+  jengaMerchantCode          String?
+  jengaConsumerSecret        String?
+  jengaApiKey                String?
+  jengaPrivateKey            String?
+  jengaEnabled               Boolean                @default(false)
   authorizationRequests      AuthorizationRequest[]
   chatHistories              ChatHistory[]
   documents                  Document[]
@@ -609,6 +617,18 @@ model WhatsAppProfile {
   onboarded Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Otp {
+  id        String    @id @default(uuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([phone])
+  @@index([code])
 }
 
 model TodoItem {

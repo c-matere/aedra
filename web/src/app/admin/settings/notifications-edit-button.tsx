@@ -30,6 +30,8 @@ export function NotificationsEditButton({ company, token }: NotificationsEditBut
         leaseExpiryAlertDaysBefore: company.leaseExpiryAlertDaysBefore ?? 90,
         paymentReceiptsEnabled: company.paymentReceiptsEnabled ?? false,
         maintenanceUpdatesEnabled: company.maintenanceUpdatesEnabled ?? false,
+        waAlertsEnabled: company.waAlertsEnabled ?? true,
+        waPaymentConfirmationsEnabled: company.waPaymentConfirmationsEnabled ?? true,
     });
     const router = useRouter();
 
@@ -108,6 +110,27 @@ export function NotificationsEditButton({ company, token }: NotificationsEditBut
                         <Switch
                             checked={formData.maintenanceUpdatesEnabled}
                             onCheckedChange={(checked) => setFormData({ ...formData, maintenanceUpdatesEnabled: checked })}
+                        />
+                    </div>
+                    <div className="h-px bg-white/5 my-2" />
+                    <div className="flex items-center justify-between py-2">
+                        <div className="space-y-0.5">
+                            <label className="text-sm font-medium text-emerald-400">WhatsApp Alerts</label>
+                            <p className="text-xs text-neutral-500">Send property & rent alerts via WhatsApp.</p>
+                        </div>
+                        <Switch
+                            checked={formData.waAlertsEnabled}
+                            onCheckedChange={(checked) => setFormData({ ...formData, waAlertsEnabled: checked })}
+                        />
+                    </div>
+                    <div className="flex items-center justify-between py-2">
+                        <div className="space-y-0.5">
+                            <label className="text-sm font-medium text-emerald-400">WhatsApp Receipts</label>
+                            <p className="text-xs text-neutral-500">Send payment confirmations via WhatsApp.</p>
+                        </div>
+                        <Switch
+                            checked={formData.waPaymentConfirmationsEnabled}
+                            onCheckedChange={(checked) => setFormData({ ...formData, waPaymentConfirmationsEnabled: checked })}
                         />
                     </div>
                 </div>

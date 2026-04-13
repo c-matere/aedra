@@ -75,6 +75,15 @@ export class CompaniesController {
     return this.companiesService.testMaps(id, data);
   }
 
+  @Post(':id/test-jenga')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
+  async testJenga(
+    @Param('id') id: string,
+    @Body() data: UpdateCompanyDto,
+  ) {
+    return this.companiesService.testJenga(id, data);
+  }
+
   @Post(':id/logo')
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
   @UseInterceptors(

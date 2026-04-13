@@ -9,7 +9,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { ReportsModule } from '../reports/reports.module';
 import { MessagingModule } from '../messaging/messaging.module';
 import { PaymentsModule } from '../payments/payments.module';
-import { AuthService } from '../auth/auth.service';
+import { AuthModule } from '../auth/auth.module';
 import { UnitsModule } from '../units/units.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -90,11 +90,11 @@ import { FinancesModule } from '../finances/finances.module';
     forwardRef(() => TodoModule),
     CacheModule.register(),
     FinancesModule,
+    forwardRef(() => AuthModule),
   ],
   controllers: [AiController],
   providers: [
     AiService,
-    AuthService,
     EmbeddingsService,
     ResponsePipelineService,
     CriticService,

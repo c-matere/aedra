@@ -164,9 +164,12 @@ export class ReportsGeneratorService {
         const isLocal =
           url.includes('localhost') ||
           url.includes('127.0.0.1') ||
+          url.includes('aedra-api') || // Docker service name
           (process.env.API_URL && url.includes(process.env.API_URL));
 
-        if (isLocal || req.resourceType() === 'document') {
+        const isFont = url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com');
+
+        if (isLocal || isFont || req.resourceType() === 'document' || req.resourceType() === 'font') {
           req.continue();
         } else {
           this.logger.debug(`Aborting external request: ${url}`);

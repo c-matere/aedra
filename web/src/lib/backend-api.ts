@@ -269,6 +269,9 @@ export interface CompanyRecord {
   leaseExpiryAlertDaysBefore: number;
   paymentReceiptsEnabled: boolean;
   maintenanceUpdatesEnabled: boolean;
+  waAlertsEnabled: boolean;
+  waOtpEnabled: boolean;
+  waPaymentConfirmationsEnabled: boolean;
   // Integration settings
   smsProvider: string;
   africaTalkingUsername: string | null;
@@ -285,6 +288,11 @@ export interface CompanyRecord {
   zuriDomain: string | null;
   zuriUsername: string | null;
   zuriPassword: string | null;
+  jengaMerchantCode: string | null;
+  jengaConsumerSecret: string | null;
+  jengaApiKey: string | null;
+  jengaPrivateKey: string | null;
+  jengaEnabled: boolean;
 }
 
 export interface RoleRecord {
@@ -333,6 +341,9 @@ export interface UpdateCompanyPayload {
   leaseExpiryAlertDaysBefore?: number;
   paymentReceiptsEnabled?: boolean;
   maintenanceUpdatesEnabled?: boolean;
+  waAlertsEnabled?: boolean;
+  waOtpEnabled?: boolean;
+  waPaymentConfirmationsEnabled?: boolean;
   // Integration settings
   smsProvider?: string;
   africaTalkingUsername?: string | null;
@@ -349,6 +360,11 @@ export interface UpdateCompanyPayload {
   zuriDomain?: string;
   zuriUsername?: string;
   zuriPassword?: string;
+  jengaMerchantCode?: string;
+  jengaConsumerSecret?: string;
+  jengaApiKey?: string;
+  jengaPrivateKey?: string;
+  jengaEnabled?: boolean;
 }
 
 export interface CreatePropertyPayload {
@@ -1255,14 +1271,25 @@ export async function updateCompany(
 
 export async function testMpesaConnection(
   token: string,
-  id: string,
-  payload?: UpdateCompanyPayload,
+  companyId: string,
+  data: UpdateCompanyPayload,
 ): Promise<BackendRequestResult<{ success: boolean; message: string }>> {
-  return backendRequest<{ success: boolean; message: string }>(
-    `${TARGET_ENDPOINTS.companies}/${id}/test-mpesa`,
+  return backendPost<{ success: boolean; message: string }>(
+    `/companies/${companyId}/test-mpesa`,
+    data,
     token,
-    "POST",
-    payload,
+  );
+}
+
+export async function testJengaConnection(
+  token: string,
+  companyId: string,
+  data: UpdateCompanyPayload,
+): Promise<BackendRequestResult<{ success: boolean; message: string }>> {
+  return backendPost<{ success: boolean; message: string }>(
+    `/companies/${companyId}/test-jenga`,
+    data,
+    token,
   );
 }
 

@@ -30,6 +30,7 @@ export function SecurityEditButton({ company, token }: SecurityEditButtonProps) 
         passwordPolicy: company.passwordPolicy ?? "Min 8 chars + special character",
         twoFactorAuthEnabled: company.twoFactorAuthEnabled ?? false,
         ipAllowlist: company.ipAllowlist || "",
+        waOtpEnabled: company.waOtpEnabled ?? true,
     });
     const router = useRouter();
 
@@ -97,6 +98,16 @@ export function SecurityEditButton({ company, token }: SecurityEditButtonProps) 
                         <Switch
                             checked={formData.twoFactorAuthEnabled}
                             onCheckedChange={(checked) => setFormData({ ...formData, twoFactorAuthEnabled: checked })}
+                        />
+                    </div>
+                    <div className="flex items-center justify-between py-2">
+                        <div className="space-y-0.5">
+                            <label className="text-sm font-medium text-emerald-400">WhatsApp OTP Login</label>
+                            <p className="text-xs text-neutral-500">Allow staff to sign in using WhatsApp codes.</p>
+                        </div>
+                        <Switch
+                            checked={formData.waOtpEnabled}
+                            onCheckedChange={(checked) => setFormData({ ...formData, waOtpEnabled: checked })}
                         />
                     </div>
                     <div className="space-y-2">

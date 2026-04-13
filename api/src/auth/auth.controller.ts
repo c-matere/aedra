@@ -14,6 +14,8 @@ import type { RequestWithUser } from './request-with-user.interface';
 interface LoginBody {
   email?: string;
   password?: string;
+  phone?: string;
+  code?: string;
 }
 
 interface RegisterCompanyBody {
@@ -38,6 +40,16 @@ export class AuthController {
     }
 
     return this.authService.login(email, password);
+  }
+
+  @Post('request-otp')
+  async requestOtp(@Body() body: { phone: string }) {
+    return this.authService.requestOtp(body.phone);
+  }
+
+  @Post('login-otp')
+  async loginWithOtp(@Body() body: { phone: string; code: string }) {
+    return this.authService.loginWithOtp(body.phone, body.code);
   }
 
   @Post('register-company')

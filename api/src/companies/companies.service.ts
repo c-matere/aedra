@@ -15,6 +15,10 @@ const SENSITIVE_FIELDS = [
   'mapboxAccessToken',
   'waAccessToken',
   'zuriPassword',
+  'jengaMerchantCode',
+  'jengaConsumerSecret',
+  'jengaApiKey',
+  'jengaPrivateKey',
 ];
 
 export interface UpdateCompanyDto {
@@ -39,6 +43,9 @@ export interface UpdateCompanyDto {
   leaseExpiryAlertDaysBefore?: number;
   paymentReceiptsEnabled?: boolean;
   maintenanceUpdatesEnabled?: boolean;
+  waAlertsEnabled?: boolean;
+  waOtpEnabled?: boolean;
+  waPaymentConfirmationsEnabled?: boolean;
   // Integration settings
   smsProvider?: string;
   africaTalkingUsername?: string;
@@ -55,6 +62,12 @@ export interface UpdateCompanyDto {
   zuriDomain?: string;
   zuriUsername?: string;
   zuriPassword?: string;
+  // Jenga API
+  jengaMerchantCode?: string;
+  jengaConsumerSecret?: string;
+  jengaApiKey?: string;
+  jengaPrivateKey?: string;
+  jengaEnabled?: boolean;
 }
 
 @Injectable()
@@ -216,6 +229,40 @@ export class CompaniesService {
       }
     } catch (e) {
       return { success: false, message: `Network error connecting to Mapbox: ${(e as Error).message}` };
+    }
+  }
+
+  async testJenga(id: string, incoming: UpdateCompanyDto) {
+    const stored = await this.findOne(id);
+    const company = this.mergeDecryptedData(stored, incoming);
+
+    if (!company.jengaMerchantCode || !company.jengaApiKey) {
+      return { success: false, message: 'Missing Jenga credentials' };
+    }
+
+    try {
+      const url = 'https://api.jengaapi.io/authentication/v1/login';
+      const params = new URLSearchParams();
+      params.append('username', company.jengaMerchantCode);
+      params.append('password', company.jengaApiKey);
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Api-Key': company.jengaApiKey,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params,
+      });
+
+      if (res.ok) {
+        return { success: true, message: 'Jenga credentials verified (OAuth token generated)' };
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        return { success: false, message: `Jenga verification failed: ${errorData.message || res.statusText}` };
+      }
+    } catch (e) {
+      return { success: false, message: `Network error connecting to Jenga: ${(e as Error).message}` };
     }
   }
 }

@@ -884,6 +884,57 @@ export class WhatsappService {
   }
 
   /**
+   * Send an OTP code using a template.
+   */
+  async sendOtp(to: string, code: string, companyId?: string) {
+    return this.sendMessage({
+      companyId,
+      to,
+      templateName: 'otp_verification',
+      components: [
+        {
+          type: 'body',
+          parameters: [{ type: 'text', text: code }],
+        },
+        {
+          type: 'button',
+          index: '0',
+          sub_type: 'url',
+          parameters: [{ type: 'text', text: code }],
+        },
+      ],
+    });
+  }
+
+  /**
+   * Send a payment confirmation using a template.
+   */
+  async sendPaymentConfirmation(params: {
+    to: string;
+    tenantName: string;
+    amount: number;
+    unitNumber: string;
+    companyId?: string;
+  }) {
+    const { to, tenantName, amount, unitNumber, companyId } = params;
+    return this.sendMessage({
+      companyId,
+      to,
+      templateName: 'payment_confirmation',
+      components: [
+        {
+          type: 'body',
+          parameters: [
+            { type: 'text', text: tenantName },
+            { type: 'text', text: `KES ${amount.toLocaleString()}` },
+            { type: 'text', text: unitNumber },
+          ],
+        },
+      ],
+    });
+  }
+
+  /**
    * Verify Meta Webhook subscription.
    */
   async verifyWebhook(

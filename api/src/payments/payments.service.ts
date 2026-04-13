@@ -7,6 +7,7 @@ import {
 import { PaymentMethod, PaymentType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { FinancesService } from '../finances/finances.service';
+import { WhatsappService } from '../messaging/whatsapp.service';
 import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
 
 export interface CreatePaymentDto {
@@ -34,6 +35,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly financesService: FinancesService,
+    private readonly whatsappService: WhatsappService,
   ) {}
 
   async findAll(
@@ -184,11 +186,13 @@ export class PaymentsService {
         lease: {
           select: {
             id: true,
+            unit: { select: { unitNumber: true } },
             tenant: {
               select: {
                 id: true,
                 firstName: true,
                 lastName: true,
+                phone: true,
                 companyId: true,
               },
             },
@@ -203,6 +207,31 @@ export class PaymentsService {
         // Log error but don't fail the payment creation
         console.error('Failed to record commission:', err);
       });
+    }
+
+    // Send WhatsApp confirmation
+    if (payment.lease.tenant.phone && payment.lease.tenant.companyId) {
+      const company = await this.prisma.company.findUnique({
+        where: { id: payment.lease.tenant.companyId },
+        select: { waPaymentConfirmationsEnabled: true },
+      });
+
+      if (company?.waPaymentConfirmationsEnabled) {
+        this.whatsappService
+          .sendPaymentConfirmation({
+            to: payment.lease.tenant.phone,
+            tenantName: payment.lease.tenant.firstName,
+            amount: payment.amount,
+            unitNumber: payment.lease.unit?.unitNumber || 'N/A',
+            companyId: payment.lease.tenant.companyId,
+          })
+          .catch((err) => {
+            console.error(
+              '[WhatsApp] Failed to send payment confirmation:',
+              err,
+            );
+          });
+      }
     }
 
     return payment;

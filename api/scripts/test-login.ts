@@ -15,7 +15,7 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
     const prismaService = new PrismaService();
     // Patch prismaService for testing if needed... no, it should just connect in script too.
-    const authService = new AuthService(prismaService);
+    const authService = new AuthService(prismaService, null as any, null as any);
 
     const email = 'admin1@management.co.ke';
     const plainPassword = 'password123';

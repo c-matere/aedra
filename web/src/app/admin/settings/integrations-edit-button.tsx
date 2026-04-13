@@ -56,6 +56,10 @@ export function IntegrationsEditButton({ company, token }: IntegrationsEditButto
         zuriDomain: company.zuriDomain || "https://zuriproperties.co.ke",
         zuriUsername: company.zuriUsername || "",
         zuriPassword: company.zuriPassword || "",
+        waAccessToken: company.waAccessToken || "",
+        waPhoneNumberId: company.waPhoneNumberId || "",
+        waBusinessAccountId: company.waBusinessAccountId || "",
+        waVerifyToken: company.waVerifyToken || "",
     });
     const router = useRouter();
 
@@ -377,6 +381,51 @@ export function IntegrationsEditButton({ company, token }: IntegrationsEditButto
                                     className="bg-white/5 border-white/10"
                                 />
                             </div>
+                        </div>
+                    </div>
+
+                    <div className="h-px bg-white/5" />
+
+                    {/* WhatsApp Section */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-bold text-emerald-400 uppercase tracking-wider font-black underline underline-offset-4 decoration-emerald-500/30">WhatsApp (Meta Cloud API)</h4>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-medium text-neutral-300">Access Token (Permanent)</label>
+                            <Input
+                                type="password"
+                                value={formData.waAccessToken}
+                                onChange={(e) => setFormData({ ...formData, waAccessToken: e.target.value })}
+                                className="bg-white/5 border-white/10"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-neutral-300">Phone Number ID</label>
+                                <Input
+                                    value={formData.waPhoneNumberId}
+                                    onChange={(e) => setFormData({ ...formData, waPhoneNumberId: e.target.value })}
+                                    className="bg-white/5 border-white/10"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-neutral-300">Business Account ID</label>
+                                <Input
+                                    value={formData.waBusinessAccountId}
+                                    onChange={(e) => setFormData({ ...formData, waBusinessAccountId: e.target.value })}
+                                    className="bg-white/5 border-white/10"
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-medium text-neutral-300">Webhook Verify Token</label>
+                            <Input
+                                value={formData.waVerifyToken}
+                                onChange={(e) => setFormData({ ...formData, waVerifyToken: e.target.value })}
+                                className="bg-white/5 border-white/10"
+                                placeholder="Any string for meta verification"
+                            />
                         </div>
                     </div>
                 </div>
