@@ -270,4 +270,3 @@ export default async function IntegrationsPage({
     </div>
   );
 }
-}
