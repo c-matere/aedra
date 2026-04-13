@@ -129,20 +129,16 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                 const otherExpenses = (totals.expenses || 0) - maintenanceExpenses - utilityExpenses
                 const netLandlordShare = (totals.payments || 0) - commissionAmount - (totals.expenses || 0)
 
+                const landlordName = property.landlord 
+                    ? `${property.landlord.firstName} ${property.landlord.lastName}` 
+                    : "Not Assigned";
+
                 const csvRows = [
                     ["PROPERTY FINANCIAL REPORT", (propertyInfo.name || property.name).toUpperCase()],
+                    ["LANDLORD", landlordName],
                     ["ADDRESS", propertyInfo.address || property.address || "N/A"],
                     ["REPORT MONTH", data.month || "Current Month"],
                     ["GENERATED AT", new Date().toLocaleString()],
-                    [""],
-                    ["BUILDING SUMMARY (FOR THE MONTH)"],
-                    ["TOTAL RENT COLLECTED", `KES ${(totals.payments || 0).toLocaleString()}`],
-                    ["AGENT COMMISSION", `KES ${commissionAmount.toLocaleString()} (${propertyInfo.commissionPercentage || 0}%)`],
-                    ["MAINTENANCE & REPAIRS", `KES ${maintenanceExpenses.toLocaleString()}`],
-                    ["UTILITIES", `KES ${utilityExpenses.toLocaleString()}`],
-                    ["OTHER EXPENSES", `KES ${otherExpenses.toLocaleString()}`],
-                    ["-----------------------------------"],
-                    ["NET LANDLORD SHARE", `KES ${netLandlordShare.toLocaleString()}`],
                     [""],
                     ["UNIT BREAKDOWN"],
                     ["UNIT NUMBER", "TENANT", "STATUS", "EXPECTED RENT", "ACTUAL PAID", "BALANCE"],
@@ -153,7 +149,16 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                         tp.rentAmount || 0,
                         tp.paidThisMonth || 0,
                         (tp.rentAmount || 0) - (tp.paidThisMonth || 0)
-                    ]) || [])
+                    ]) || []),
+                    [""],
+                    ["BUILDING SUMMARY (FOR THE MONTH)"],
+                    ["TOTAL RENT COLLECTED", `KES ${(totals.payments || 0).toLocaleString()}`],
+                    ["AGENT COMMISSION", `KES ${commissionAmount.toLocaleString()} (${propertyInfo.commissionPercentage || 0}%)`],
+                    ["MAINTENANCE & REPAIRS", `KES ${maintenanceExpenses.toLocaleString()}`],
+                    ["UTILITIES", `KES ${utilityExpenses.toLocaleString()}`],
+                    ["OTHER EXPENSES", `KES ${otherExpenses.toLocaleString()}`],
+                    ["----------------------------------"],
+                    ["NET LANDLORD SHARE", `KES ${netLandlordShare.toLocaleString()}`],
                 ]
 
                 const escapeCSV = (val: any) => {

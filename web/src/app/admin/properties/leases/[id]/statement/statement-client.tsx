@@ -176,13 +176,13 @@ export default function StatementClient({ token, leaseId }: { token: string, lea
                     <div className="space-y-4">
                         <h3 className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 border-b border-neutral-100 pb-1">Ledger Summary</h3>
                         <div className="space-y-2">
-                            <div className="flex justify-between items-center bg-neutral-50 p-2 rounded">
-                                <span className="text-[10px] text-neutral-500 uppercase">Opening Balance</span>
-                                <span className="text-xs font-bold font-mono">KES {openingBalance.toLocaleString()}</span>
+                            <div className="flex justify-between items-center bg-neutral-50 p-1.5 rounded">
+                                <span className="text-[9px] text-neutral-500 uppercase">Opening Balance</span>
+                                <span className="text-[11px] font-bold font-mono">KES {openingBalance.toLocaleString()}</span>
                             </div>
-                            <div className="flex justify-between items-center bg-neutral-900 text-white p-2 rounded">
-                                <span className="text-[10px] text-neutral-300 uppercase">Current Closing</span>
-                                <span className="text-xs font-bold font-mono">KES {closingBalance.toLocaleString()}</span>
+                            <div className="flex justify-between items-center bg-neutral-900 text-white p-1.5 rounded">
+                                <span className="text-[9px] text-neutral-300 uppercase">Current Closing</span>
+                                <span className="text-[11px] font-bold font-mono">KES {closingBalance.toLocaleString()}</span>
                             </div>
                             <p className="text-[9px] text-neutral-400 text-right italic">Sorted by date from {range.start !== "1970-01-01T00:00:00.000Z" ? format(new Date(range.start), "dd-MMM-yy") : "Start"} to {format(new Date(range.end), "dd-MMM-yy")}</p>
                         </div>
@@ -202,24 +202,26 @@ export default function StatementClient({ token, leaseId }: { token: string, lea
                                 <th className="py-3 px-2 text-[10px] font-black uppercase tracking-tight text-neutral-900 text-right w-28 bg-neutral-50">Balance</th>
                             </tr>
                         </thead>
-                        <tbody className="text-xs">
+                        <tbody className="text-[10px]">
                             {Object.entries(groupedLedger).map(([month, items]) => (
                                 <React.Fragment key={month}>
                                     <tr className="bg-neutral-50/50">
-                                        <td colSpan={6} className="py-2 px-2 text-[10px] font-black text-neutral-400 uppercase tracking-widest border-b border-neutral-100">{month}</td>
+                                        <td colSpan={6} className="py-1.5 px-2 text-[9px] font-black text-neutral-400 uppercase tracking-widest border-b border-neutral-100">{month}</td>
                                     </tr>
                                     {items.map((item, idx) => (
                                         <tr key={item.id} className="border-b border-neutral-50 group hover:bg-neutral-50/30 transition-colors">
-                                            <td className="py-3 px-2 font-mono text-neutral-500">{format(new Date(item.date), "dd-MMM-yyyy")}</td>
-                                            <td className="py-3 px-2 font-mono text-[10px]">{item.code}</td>
-                                            <td className="py-3 px-2 text-neutral-600 leading-relaxed font-medium">{item.description}</td>
-                                            <td className={`py-3 px-2 text-right tabular-nums ${item.debit > 0 ? 'text-neutral-900' : 'text-neutral-300'}`}>
+                                            <td className="py-2 px-2 font-mono text-neutral-500 whitespace-nowrap">{format(new Date(item.date), "dd-MMM-yyyy")}</td>
+                                            <td className="py-2 px-2 font-mono text-[9px] whitespace-nowrap">{item.code}</td>
+                                            <td className="py-2 px-2 text-neutral-600 font-medium truncate max-w-[200px] whitespace-nowrap overflow-hidden" title={item.description}>
+                                                {item.description}
+                                            </td>
+                                            <td className={`py-2 px-2 text-right tabular-nums ${item.debit > 0 ? 'text-neutral-900' : 'text-neutral-300'}`}>
                                                 {item.debit > 0 ? item.debit.toLocaleString() + ".00" : "-"}
                                             </td>
-                                            <td className={`py-3 px-2 text-right tabular-nums ${item.credit > 0 ? 'text-neutral-900' : 'text-neutral-300'}`}>
+                                            <td className={`py-2 px-2 text-right tabular-nums ${item.credit > 0 ? 'text-neutral-900' : 'text-neutral-300'}`}>
                                                 {item.credit > 0 ? item.credit.toLocaleString() + ".00" : "-"}
                                             </td>
-                                            <td className={`py-3 px-2 text-right tabular-nums font-bold bg-neutral-50 group-hover:bg-neutral-100 transition-colors ${item.balance > 0 ? 'text-neutral-900' : 'text-red-600'}`}>
+                                            <td className={`py-2 px-2 text-right tabular-nums font-bold bg-neutral-50 group-hover:bg-neutral-100 transition-colors ${item.balance > 0 ? 'text-neutral-900' : 'text-red-600'}`}>
                                                 {item.balance.toLocaleString() + ".00"}
                                             </td>
                                         </tr>
@@ -236,12 +238,12 @@ export default function StatementClient({ token, leaseId }: { token: string, lea
                         <h4 className="text-[10px] font-black uppercase tracking-widest text-neutral-400 px-1 border-l-2 border-neutral-200">Invoice Summary</h4>
                         <div className="space-y-1.5 px-1">
                             {summaries.invoices.map(s => (
-                                <div key={s.type} className="flex justify-between text-xs py-1 border-b border-neutral-50">
+                                <div key={s.type} className="flex justify-between text-[10px] py-1 border-b border-neutral-50">
                                     <span className="text-neutral-500 font-medium">{s.type.replace(/_/g, " ")}</span>
                                     <span className="font-bold tabular-nums">{s.amount.toLocaleString()}.00</span>
                                 </div>
                             ))}
-                            <div className="flex justify-between text-xs py-2 bg-neutral-900 text-white px-2 mt-2 rounded shadow-lg shadow-neutral-900/10">
+                            <div className="flex justify-between text-[10px] py-2 bg-neutral-900 text-white px-2 mt-2 rounded shadow-lg shadow-neutral-900/10">
                                 <span className="font-bold">Total Debits</span>
                                 <span className="font-black tabular-nums">{summaries.invoices.reduce((a,b) => a+b.amount, 0).toLocaleString()}.00</span>
                             </div>
@@ -252,12 +254,12 @@ export default function StatementClient({ token, leaseId }: { token: string, lea
                         <h4 className="text-[10px] font-black uppercase tracking-widest text-neutral-400 px-1 border-l-2 border-neutral-200">Payment Summary</h4>
                         <div className="space-y-1.5 px-1">
                             {summaries.payments.map(s => (
-                                <div key={s.type} className="flex justify-between text-xs py-1 border-b border-neutral-50">
+                                <div key={s.type} className="flex justify-between text-[10px] py-1 border-b border-neutral-50">
                                     <span className="text-neutral-500 font-medium">{s.type.replace(/_/g, " ")}</span>
                                     <span className="font-bold tabular-nums">{s.amount.toLocaleString()}.00</span>
                                 </div>
                             ))}
-                            <div className="flex justify-between text-xs py-2 bg-neutral-900 text-white px-2 mt-2 rounded shadow-lg shadow-neutral-900/10">
+                            <div className="flex justify-between text-[10px] py-2 bg-neutral-900 text-white px-2 mt-2 rounded shadow-lg shadow-neutral-900/10">
                                 <span className="font-bold">Total Credits</span>
                                 <span className="font-black tabular-nums">{summaries.payments.reduce((a,b) => a+b.amount, 0).toLocaleString()}.00</span>
                             </div>
@@ -272,15 +274,15 @@ export default function StatementClient({ token, leaseId }: { token: string, lea
                                 <span className="text-xs font-black text-green-600 bg-green-50 px-2 py-0.5 rounded leading-none uppercase">Secured</span>
                              </div>
                              <div className="space-y-2">
-                                <div className="flex justify-between text-[11px] border-b border-neutral-200/50 pb-1">
+                                <div className="flex justify-between text-[10px] border-b border-neutral-200/50 pb-1">
                                     <span className="text-neutral-500">L/L Held</span>
                                     <span className="font-bold">KES {lease.deposit?.toLocaleString()}</span>
                                 </div>
-                                <div className="flex justify-between text-[11px] border-b border-neutral-200/50 pb-1">
+                                <div className="flex justify-between text-[10px] border-b border-neutral-200/50 pb-1">
                                     <span className="text-neutral-500">Agent Held</span>
                                     <span className="font-bold">KES 0.00</span>
                                 </div>
-                                <div className="flex justify-between text-[11px] font-bold text-neutral-900 pt-1">
+                                <div className="flex justify-between text-[10px] font-bold text-neutral-900 pt-1">
                                     <span>Refundable</span>
                                     <span className="font-black">KES {lease.deposit?.toLocaleString()}</span>
                                 </div>

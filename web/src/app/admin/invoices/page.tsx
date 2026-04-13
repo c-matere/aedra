@@ -84,7 +84,7 @@ export default async function InvoicesPage({
                   <p className="text-xs text-neutral-400">
                     KSH {invoice.amount.toLocaleString()} • Due {new Date(invoice.dueDate).toLocaleDateString()}
                   </p>
-                  <p className="text-xs text-neutral-500 mt-1 italic">
+                  <p className="text-[10px] text-neutral-500 mt-1 italic truncate max-w-2xl" title={invoice.description}>
                     {invoice.description}
                   </p>
                 </div>
