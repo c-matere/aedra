@@ -293,6 +293,10 @@ export interface CompanyRecord {
   jengaApiKey: string | null;
   jengaPrivateKey: string | null;
   jengaEnabled: boolean;
+  waAccessToken: string | null;
+  waPhoneNumberId: string | null;
+  waBusinessAccountId: string | null;
+  waVerifyToken: string | null;
 }
 
 export interface RoleRecord {
@@ -330,7 +334,6 @@ export interface UpdateCompanyPayload {
   address?: string;
   logo?: string | null;
   pinNumber?: string;
-  waAccessToken?: string;
   // Security settings
   sessionDurationHours?: number;
   passwordPolicy?: string;
@@ -344,6 +347,10 @@ export interface UpdateCompanyPayload {
   waAlertsEnabled?: boolean;
   waOtpEnabled?: boolean;
   waPaymentConfirmationsEnabled?: boolean;
+  waAccessToken?: string | null;
+  waPhoneNumberId?: string | null;
+  waBusinessAccountId?: string | null;
+  waVerifyToken?: string | null;
   // Integration settings
   smsProvider?: string;
   africaTalkingUsername?: string | null;
