@@ -64,7 +64,9 @@ export class ReportsController {
       endDate ? new Date(endDate) : undefined,
     );
 
-    const fileName = `statement_${data.tenant.firstName}_${data.tenant.lastName}_${new Date().toISOString().split('T')[0]}.pdf`;
+    const sanitizedFirstName = data.tenant.firstName.replace(/[^a-z0-9]/gi, '_');
+    const sanitizedLastName = data.tenant.lastName.replace(/[^a-z0-9]/gi, '_');
+    const fileName = `statement_${sanitizedFirstName}_${sanitizedLastName}_${new Date().toISOString().split('T')[0]}.pdf`;
     const url = await this.reportsGenerator.generateTenantStatementPdf(
       data,
       fileName,

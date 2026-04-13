@@ -168,8 +168,9 @@ export class ReportsGeneratorService {
           (process.env.API_URL && url.includes(process.env.API_URL));
 
         const isFont = url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com');
+        const isCdn = url.includes('cdnjs.cloudflare.com');
 
-        if (isLocal || isFont || req.resourceType() === 'document' || req.resourceType() === 'font') {
+        if (isLocal || isFont || isCdn || req.resourceType() === 'document' || req.resourceType() === 'font') {
           req.continue();
         } else {
           this.logger.debug(`Aborting external request: ${url}`);

@@ -13,7 +13,7 @@ export class CriticService {
   private readonly logger = new Logger(CriticService.name);
   private genAI: GoogleGenerativeAI;
   private criticModelName =
-    (process.env.GEMINI_MODEL || '').trim() || 'gemini-2.5-flash'; // Default to Gemini 2.5 Flash for critiquing
+    (process.env.GEMINI_MODEL || '').trim() || 'gemini-1.5-flash'; // Default to Gemini 1.5 Flash for critiquing
 
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY || 'dummy-key';

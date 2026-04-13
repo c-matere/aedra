@@ -19,7 +19,7 @@ import { AiEntityResolutionService } from './ai-entity-resolution.service';
 @Injectable()
 export class AiReportToolService {
   private readonly logger = new Logger(AiReportToolService.name);
-  private readonly modelName = 'gemini-2.5-pro'; // Core model
+  private readonly modelName = 'gemini-1.5-pro'; // Core model
 
   constructor(
     private readonly prisma: PrismaService,
@@ -707,7 +707,7 @@ export class AiReportToolService {
 
           return {
             message: `PDF report generated successfully.`,
-            url: `/documents/files/${fileName}`,
+            url: this.reportsGenerator.getFileUrl(fileName),
             insightsSummary: (insights.execSummary || '').slice(0, 500) + '...',
           };
         }

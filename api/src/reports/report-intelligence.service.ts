@@ -22,7 +22,7 @@ export class ReportIntelligenceService {
     private readonly groq: Groq,
   ) {
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-    this.modelName = 'gemini-2.5-pro';
+    this.modelName = 'gemini-1.5-pro';
   }
 
   /**
