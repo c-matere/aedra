@@ -722,7 +722,11 @@ export function backendBaseUrl(): string {
 export function getLogoUrl(logo?: string | null): string | null {
   if (!logo) return null;
   if (logo.startsWith("http")) return logo;
-  const base = backendBaseUrl();
+  
+  // For assets like logos, we ALWAYS want the public/client-resolvable URL.
+  // backendBaseUrl() might return an internal Docker URL if running on the server.
+  const base = process.env.NEXT_PUBLIC_AEDRA_API_URL || backendBaseUrl();
+  
   const normalizedLogo = logo.startsWith("/") ? logo : "/" + logo;
   return `${base}${normalizedLogo}`;
 }
