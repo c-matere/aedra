@@ -27,7 +27,10 @@ import {
   Plug,
   BarChart3,
   Settings,
+  Shield,
+  ChevronRight,
 } from "lucide-react"
+import { SidebarItem } from "./sidebar-item"
 
 const ICON_MAP: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -49,12 +52,14 @@ const ICON_MAP: Record<string, LucideIcon> = {
   integrations: Plug,
   reports: BarChart3,
   settings: Settings,
+  rbac: Shield,
 }
 
 export interface NavItem {
   href: string
   label: string
   iconKey: keyof typeof ICON_MAP
+  color?: string
 }
 
 export interface NavGroup {
@@ -86,29 +91,31 @@ export function MobileSidebar({ groups }: { groups: NavGroup[] }) {
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <nav className="flex flex-1 flex-col gap-6 overflow-y-auto pr-2 scrollbar-hide">
+            <nav className="flex flex-1 flex-col gap-6 overflow-y-auto pr-2 scrollbar-hide py-4">
               {groups.map((group, groupIdx) => (
-                <div key={groupIdx} className="flex flex-col gap-2">
-                  <h3 className="px-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                    {group.title}
-                  </h3>
+                <div key={groupIdx} className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between px-3">
+                    <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-500">
+                      {group.title}
+                    </h3>
+                    <ChevronRight className="h-3 w-3 text-neutral-600 rotate-90" />
+                  </div>
+                  
                   <div className="flex flex-col gap-1">
                     {group.items.map((item) => {
                       const Icon = ICON_MAP[item.iconKey] ?? LayoutDashboard
                       const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href))
+                      
                       return (
-                        <Link
+                        <SidebarItem
                           key={item.href}
                           href={item.href}
+                          label={item.label}
+                          icon={Icon}
+                          isActive={isActive}
+                          color={item.color}
                           onClick={() => setOpen(false)}
-                          className={cn(
-                            "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                            isActive ? "bg-white/10 text-white" : "text-neutral-400 hover:bg-white/5 hover:text-white"
-                          )}
-                        >
-                          <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-white" : "text-neutral-400")} />
-                          <span className="truncate">{item.label}</span>
-                        </Link>
+                        />
                       )
                     })}
                   </div>

@@ -61,25 +61,25 @@ export default async function AdminLayout({
     }
 
     const navItems: NavDefinition[] = [
-        { href: "/admin", label: "Dashboard", icon: LayoutDashboard, iconKey: "dashboard" },
-        { href: "/admin/properties", label: "Properties", icon: Building2, iconKey: "properties" },
-        { href: "/admin/tenants", label: "Tenants", icon: Users, iconKey: "tenants" },
-        { href: "/admin/landlords", label: "Landlords", icon: Handshake, iconKey: "landlords" },
-        { href: "/admin/leases", label: "Leases", icon: FileText, iconKey: "leases" },
-        { href: "/admin/maintenance", label: "Maintenance", icon: Wrench, iconKey: "maintenance" },
-        { href: "/admin/payments", label: "Payments", icon: CreditCard, iconKey: "payments" },
-        { href: "/admin/invoices", label: "Invoices", icon: FileSpreadsheet, iconKey: "invoices" },
-        { href: "/admin/expenses", label: "Expenses", icon: Receipt, iconKey: "expenses" },
-        { href: "/admin/office-finance", label: "Office Finance", icon: Wallet, iconKey: "officeFinance" },
-        { href: "/admin/staff", label: "Staff", icon: UsersRound, iconKey: "staff" },
-        { href: "/admin/documents", label: "Documents", icon: FolderOpen, iconKey: "documents" },
-        { href: "/admin/vendors", label: "Vendors", icon: BriefcaseBusiness, iconKey: "vendors" },
-        { href: "/admin/notifications", label: "Notifications", icon: Bell, iconKey: "notifications" },
-        { href: "/admin/reports", label: "Reports", icon: BarChart3, iconKey: "reports" },
-        { href: "/admin/integrations", label: "Integrations", icon: Plug, iconKey: "integrations" },
-        { href: "/admin/rbac", label: "Access Control", icon: Shield, iconKey: "rbac" },
-        { href: "/admin/support", label: "Support", icon: LifeBuoy, iconKey: "support" },
-        { href: "/admin/settings", label: "Settings", icon: Settings, iconKey: "settings" },
+        { href: "/admin", label: "Dashboard", icon: LayoutDashboard, iconKey: "dashboard", color: "indigo" },
+        { href: "/admin/properties", label: "Properties", icon: Building2, iconKey: "properties", color: "blue" },
+        { href: "/admin/tenants", label: "Tenants", icon: Users, iconKey: "tenants", color: "blue" },
+        { href: "/admin/landlords", label: "Landlords", icon: Handshake, iconKey: "landlords", color: "blue" },
+        { href: "/admin/leases", label: "Leases", icon: FileText, iconKey: "leases", color: "blue" },
+        { href: "/admin/maintenance", label: "Maintenance", icon: Wrench, iconKey: "maintenance", color: "blue" },
+        { href: "/admin/payments", label: "Payments", icon: CreditCard, iconKey: "payments", color: "emerald" },
+        { href: "/admin/invoices", label: "Invoices", icon: FileSpreadsheet, iconKey: "invoices", color: "emerald" },
+        { href: "/admin/expenses", label: "Expenses", icon: Receipt, iconKey: "expenses", color: "emerald" },
+        { href: "/admin/office-finance", label: "Office Finance", icon: Wallet, iconKey: "officeFinance", color: "emerald" },
+        { href: "/admin/staff", label: "Staff", icon: UsersRound, iconKey: "staff", color: "amber" },
+        { href: "/admin/documents", label: "Documents", icon: FolderOpen, iconKey: "documents", color: "amber" },
+        { href: "/admin/vendors", label: "Vendors", icon: BriefcaseBusiness, iconKey: "vendors", color: "amber" },
+        { href: "/admin/notifications", label: "Notifications", icon: Bell, iconKey: "notifications", color: "amber" },
+        { href: "/admin/reports", label: "Reports", icon: BarChart3, iconKey: "reports", color: "purple" },
+        { href: "/admin/integrations", label: "Integrations", icon: Plug, iconKey: "integrations", color: "purple" },
+        { href: "/admin/rbac", label: "Access Control", icon: Shield, iconKey: "rbac", color: "purple" },
+        { href: "/admin/support", label: "Support", icon: LifeBuoy, iconKey: "support", color: "purple" },
+        { href: "/admin/settings", label: "Settings", icon: Settings, iconKey: "settings", color: "purple" },
     ]
 
     const accessibleNavItems = navItems.filter((item) => canAccessRoute(role, item.href))
@@ -110,10 +110,11 @@ export default async function AdminLayout({
     // Explicitly strip non-serializable components (icons) before passing to Client Components
     const serializableGroups = groups.map(group => ({
         title: group.title,
-        items: group.items.map(({ href, label, iconKey }) => ({
+        items: group.items.map(({ href, label, iconKey, color }) => ({
             href,
             label,
             iconKey,
+            color,
         }))
     }))
 

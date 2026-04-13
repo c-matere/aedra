@@ -22,11 +22,14 @@ import {
     Plug,
     BarChart3,
     Settings,
+    Shield,
+    ChevronRight,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { SidebarItem } from "./sidebar-item"
 
 const ICON_MAP: Record<string, LucideIcon> = {
     dashboard: LayoutDashboard,
@@ -48,12 +51,14 @@ const ICON_MAP: Record<string, LucideIcon> = {
     integrations: Plug,
     reports: BarChart3,
     settings: Settings,
+    rbac: Shield,
 }
 
 export interface SidebarNavItem {
     href: string
     label: string
     iconKey: string
+    color?: string
 }
 
 export interface SidebarNavGroup {
@@ -65,30 +70,30 @@ export function SidebarNav({ groups }: { groups: SidebarNavGroup[] }) {
     const pathname = usePathname()
 
     return (
-        <nav className="flex flex-1 flex-col gap-6 px-4 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+        <nav className="flex flex-1 flex-col gap-8 px-4 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent py-4">
             {groups.map((group, groupIdx) => (
-                <div key={groupIdx} className="flex flex-col gap-2">
-                    <h3 className="px-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                        {group.title}
-                    </h3>
+                <div key={groupIdx} className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between px-3 group/header cursor-default">
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-neutral-500 group-hover/header:text-neutral-400 transition-colors">
+                            {group.title}
+                        </h3>
+                        <ChevronRight className="h-3 w-3 text-neutral-600 group-hover/header:text-neutral-400 transition-colors rotate-90" />
+                    </div>
+                    
                     <div className="flex flex-col gap-1">
                         {group.items.map((item) => {
                             const Icon = ICON_MAP[item.iconKey] ?? LayoutDashboard
                             const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href))
 
                             return (
-                                <Link key={item.href} href={item.href}>
-                                    <Button
-                                        variant="ghost"
-                                        className={cn(
-                                            "w-full justify-start gap-3 transition-colors h-9 px-3",
-                                            isActive ? "bg-white/10 text-white font-medium shadow-sm" : "text-neutral-400 hover:bg-white/5 hover:text-white"
-                                        )}
-                                    >
-                                        <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-white" : "text-neutral-400")} />
-                                        <span className="truncate">{item.label}</span>
-                                    </Button>
-                                </Link>
+                                <SidebarItem 
+                                    key={item.href}
+                                    href={item.href}
+                                    label={item.label}
+                                    icon={Icon}
+                                    isActive={isActive}
+                                    color={item.color}
+                                />
                             )
                         })}
                     </div>

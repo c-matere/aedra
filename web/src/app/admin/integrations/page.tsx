@@ -26,6 +26,7 @@ import { SmsSyncCard } from "./sms-sync-card";
 import { MapsSyncCard } from "./maps-sync-card";
 import { WhatsAppSyncCard } from "./whatsapp-sync-card";
 import { CompanySelector } from "../settings/company-selector";
+import { IntegrationsContainer, FadeIn } from "./integrations-client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -91,18 +92,22 @@ export default async function IntegrationsPage({
   );
 
   return (
-    <div className="flex flex-col gap-8 pb-10">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-8 pb-10 relative">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-emerald-500/5 pointer-events-none -z-10 blur-3xl opacity-50" />
+      
+      <FadeIn className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between relative z-10">
         <div className="space-y-1">
-          <h1 className="text-3xl font-black text-white tracking-tight drop-shadow-md flex items-center gap-3">
-            <Plug className="h-8 w-8 text-blue-400" />
-            Integrations Hub
+          <h1 className="text-4xl font-black text-white tracking-tighter drop-shadow-2xl flex items-center gap-4">
+            <div className="h-12 w-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shadow-lg shadow-blue-500/10">
+                <Plug className="h-7 w-7 text-blue-400" />
+            </div>
+            Integrations <span className="text-neutral-500">Hub</span>
           </h1>
-          <p className="text-neutral-400 text-sm font-medium">
+          <p className="text-neutral-400 text-sm font-medium ml-1">
             Operational sync health and 3rd-party service configuration.
           </p>
         </div>
-      </div>
+      </FadeIn>
 
       {role === "SUPER_ADMIN" && allCompanies.length > 0 && (
         <CompanySelector 
@@ -174,49 +179,43 @@ export default async function IntegrationsPage({
         </div>
       ) : (
         <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="space-y-6">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <Smartphone className="h-5 w-5 text-emerald-500" />
+            <FadeIn delay={0.1} className="space-y-6">
+                <h2 className="text-sm font-black text-neutral-500 uppercase tracking-widest flex items-center gap-2 px-6">
+                    <Smartphone className="h-4 w-4 text-emerald-500" />
                     Financial & Communications
                 </h2>
-                
-                {company && <MpesaSyncCard company={company} token={sessionToken} />}
-                {company && <JengaSyncCard company={company} token={sessionToken} />}
-                {company && <SmsSyncCard company={company} token={sessionToken} />}
-                {company && <WhatsAppSyncCard company={company} token={sessionToken} />}
-                </div>
+                <IntegrationsContainer>
+                    {company && <MpesaSyncCard company={company} token={sessionToken} />}
+                    {company && <JengaSyncCard company={company} token={sessionToken} />}
+                    {company && <SmsSyncCard company={company} token={sessionToken} />}
+                    {company && <WhatsAppSyncCard company={company} token={sessionToken} />}
+                </IntegrationsContainer>
+            </FadeIn>
 
-                <div className="space-y-6">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <MapIcon className="h-5 w-5 text-blue-500" />
-                    Geo-Services
+            <FadeIn delay={0.2} className="space-y-6 pt-8">
+                <h2 className="text-sm font-black text-neutral-500 uppercase tracking-widest flex items-center gap-2 px-6">
+                    <MapIcon className="h-4 w-4 text-blue-500" />
+                    Property & Geo-Services
                 </h2>
-                
-                {company && <MapsSyncCard company={company} token={sessionToken} />}
+                <IntegrationsContainer>
+                    {company && <MapsSyncCard company={company} token={sessionToken} />}
+                    {company && <ZuriSyncCard company={company} token={sessionToken} />}
+                    <Card className="bg-white/[0.02] border border-dashed border-white/5 backdrop-blur-md flex flex-col items-center justify-center p-12 text-center gap-4 hover:bg-white/5 transition-colors group rounded-[2.5rem]">
+                        <div className="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Plug className="h-8 w-8 text-neutral-600" />
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-base font-bold text-neutral-400">Add Another Connector</p>
+                            <p className="text-xs text-neutral-600">ERP, SCADA, or legacy sources.</p>
+                        </div>
+                        <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-neutral-500 hover:text-white mt-4">
+                            Browse Marketplace
+                        </Button>
+                    </Card>
+                </IntegrationsContainer>
+            </FadeIn>
 
-                <h2 className="text-xl font-black text-white flex items-center gap-2 pt-4">
-                    <History className="h-5 w-5 text-purple-500" />
-                    Property Management Sync
-                </h2>
-                {company && <ZuriSyncCard company={company} token={sessionToken} />}
-                
-                <Card className="bg-white/[0.02] border-dashed border-white/10 flex flex-col items-center justify-center p-8 text-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center">
-                        <Plug className="h-6 w-6 text-neutral-600" />
-                    </div>
-                    <div className="space-y-1">
-                        <p className="text-sm font-bold text-neutral-400">Add Another Connector</p>
-                        <p className="text-xs text-neutral-600">ERP, SCADA, or legacy data source.</p>
-                    </div>
-                    <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-neutral-500">
-                        Browse Marketplace
-                    </Button>
-                </Card>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-8">
                 <Card className="bg-neutral-900 border-white/10 overflow-hidden">
                     <CardHeader className="border-b border-white/5">
                         <CardTitle className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
