@@ -16,7 +16,8 @@ import {
   Map as MapIcon,
   CreditCard,
   History,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import { ZuriSyncCard } from "./zuri-sync-card";
 import { MpesaSyncCard } from "./mpesa-sync-card";
@@ -29,6 +30,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 function capitalize(value: string) {
+  if (!value) return "";
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 }
 
@@ -94,7 +96,7 @@ export default async function IntegrationsPage({
         <div className="space-y-1">
           <h1 className="text-3xl font-black text-white tracking-tight drop-shadow-md flex items-center gap-3">
             <Plug className="h-8 w-8 text-blue-400" />
-            Integrations
+            Integrations Hub
           </h1>
           <p className="text-neutral-400 text-sm font-medium">
             Operational sync health and 3rd-party service configuration.
@@ -109,11 +111,12 @@ export default async function IntegrationsPage({
         />
       )}
 
+      {/* Global & Company Health Overview */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card className="bg-white/5 border-white/10 hover:bg-white/[0.07] transition-all group">
           <CardHeader className="pb-2">
             <CardTitle className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
-              <CreditCard className="h-3 w-3 text-emerald-400" /> Payments Processed
+              <CreditCard className="h-3 w-3 text-emerald-400" /> Payments Logged
             </CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-black text-white group-hover:translate-x-1 transition-transform">
@@ -123,7 +126,7 @@ export default async function IntegrationsPage({
         <Card className="bg-white/5 border-white/10 hover:bg-white/[0.07] transition-all group">
           <CardHeader className="pb-2">
             <CardTitle className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
-              <Activity className="h-3 w-3 text-blue-400" /> Maintenance Tickets
+              <Activity className="h-3 w-3 text-blue-400" /> Maintenance Volume
             </CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-black text-white group-hover:translate-x-1 transition-transform">
@@ -133,13 +136,14 @@ export default async function IntegrationsPage({
         <Card className="bg-white/5 border-white/10 hover:bg-white/[0.07] transition-all group">
           <CardHeader className="pb-2">
             <CardTitle className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
-              <Database className="h-3 w-3 text-purple-400" /> API Gateway Status
+              <Database className="h-3 w-3 text-purple-400" /> Gateway Integrity
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm font-semibold text-neutral-200">
-            {paymentsResult.error || maintenanceResult.error ? (
-              <span className="text-red-400">
-                {paymentsResult.error || maintenanceResult.error}
+            {paymentsResult.error || maintenanceResult.error || companyResult.error ? (
+              <span className="text-red-400 flex items-center gap-2">
+                <AlertCircle className="h-3 w-3" />
+                {companyResult.error || paymentsResult.error || maintenanceResult.error}
               </span>
             ) : (
               <span className="flex items-center gap-2 text-emerald-400">
@@ -150,129 +154,120 @@ export default async function IntegrationsPage({
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="space-y-6">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Smartphone className="h-5 w-5 text-emerald-500" />
-            Financial & Communications
-          </h2>
-          
-          {company && <MpesaSyncCard company={company} token={sessionToken} />}
-          {company && <JengaSyncCard company={company} token={sessionToken} />}
-          {company && <SmsSyncCard company={company} token={sessionToken} />}
-          {company && <WhatsAppSyncCard company={company} token={sessionToken} />}
+      {!effectiveCompanyId && role === "SUPER_ADMIN" ? (
+        <Card className="bg-blue-500/5 border-blue-500/20 p-12 flex flex-col items-center text-center gap-4">
+            <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center">
+                <Plug className="h-8 w-8 text-blue-400" />
+            </div>
+            <div className="space-y-2 max-w-md">
+                <h3 className="text-lg font-bold text-white">Central Config Required</h3>
+                <p className="text-neutral-400 text-sm leading-relaxed">
+                    As a platform administrator, you can manage integration syncs for any company. 
+                    Please select a specific company from the dropdown to begin auditing or configuring ports.
+                </p>
+            </div>
+        </Card>
+      ) : !company && !companyResult.error ? (
+        <div className="p-12 text-center text-neutral-500">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-sm font-medium">Resolving tenant configuration...</p>
         </div>
+      ) : (
+        <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Smartphone className="h-5 w-5 text-emerald-500" />
+                    Financial & Communications
+                </h2>
+                
+                {company && <MpesaSyncCard company={company} token={sessionToken} />}
+                {company && <JengaSyncCard company={company} token={sessionToken} />}
+                {company && <SmsSyncCard company={company} token={sessionToken} />}
+                {company && <WhatsAppSyncCard company={company} token={sessionToken} />}
+                </div>
 
-        <div className="space-y-6">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <MapIcon className="h-5 w-5 text-blue-500" />
-            Geo-Services
-          </h2>
-          
-          {company && <MapsSyncCard company={company} token={sessionToken} />}
-        </div>
-      </div>
+                <div className="space-y-6">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <MapIcon className="h-5 w-5 text-blue-500" />
+                    Geo-Services
+                </h2>
+                
+                {company && <MapsSyncCard company={company} token={sessionToken} />}
 
-      <div className="space-y-6">
-          <h2 className="text-xl font-black text-white flex items-center gap-2">
-            <History className="h-5 w-5 text-purple-500" />
-            Property Management & Historical Sync
-          </h2>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {company && <ZuriSyncCard company={company} token={sessionToken} />}
-            
-            <Card className="bg-white/[0.02] border-dashed border-white/10 flex flex-col items-center justify-center p-8 text-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center">
-                <Plug className="h-6 w-6 text-neutral-600" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-bold text-neutral-400">Add Another Connector</p>
-                <p className="text-xs text-neutral-600">ERP, SCADA, or legacy data source.</p>
-              </div>
-              <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-neutral-500">
-                Browse Marketplace
-              </Button>
-            </Card>
-          </div>
-      </div>
+                <h2 className="text-xl font-black text-white flex items-center gap-2 pt-4">
+                    <History className="h-5 w-5 text-purple-500" />
+                    Property Management Sync
+                </h2>
+                {company && <ZuriSyncCard company={company} token={sessionToken} />}
+                
+                <Card className="bg-white/[0.02] border-dashed border-white/10 flex flex-col items-center justify-center p-8 text-center gap-4">
+                    <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center">
+                        <Plug className="h-6 w-6 text-neutral-600" />
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-sm font-bold text-neutral-400">Add Another Connector</p>
+                        <p className="text-xs text-neutral-600">ERP, SCADA, or legacy data source.</p>
+                    </div>
+                    <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-neutral-500">
+                        Browse Marketplace
+                    </Button>
+                </Card>
+                </div>
+            </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-neutral-300">Payments Processed</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold text-emerald-400">
-            {payments.length}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-neutral-300">Maintenance Tickets</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold text-white">
-            {maintenance.length}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-neutral-300">Last API Status</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-neutral-200">
-            {paymentsResult.error || maintenanceResult.error ? (
-              <span className="text-red-400">
-                {paymentsResult.error || maintenanceResult.error}
-              </span>
-            ) : (
-              "Connected to Payments & Maintenance APIs"
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <Card className="bg-neutral-900 border-white/10 overflow-hidden">
+                    <CardHeader className="border-b border-white/5">
+                        <CardTitle className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
+                            <History className="h-4 w-4 text-neutral-400" /> Payment Methods Mix
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                        {Object.entries(paymentMethodCounts).length > 0 ? (
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                {Object.entries(paymentMethodCounts).map(([method, count]) => (
+                                    <div key={method} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col">
+                                        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-tight">{capitalize(method)}</span>
+                                        <span className="text-2xl font-black text-white">{count}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="py-10 text-center text-neutral-600 font-medium italic text-xs">
+                                No processed payments found for this channel.
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm text-neutral-300">Payment Methods</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {Object.entries(paymentMethodCounts).length ? (
-            Object.entries(paymentMethodCounts).map(([method, count]) => (
-              <div
-                key={method}
-                className="flex items-center justify-between rounded border border-white/10 bg-white/5 px-3 py-2"
-              >
-                <p className="text-sm text-white">{capitalize(method)}</p>
-                <p className="text-sm font-medium text-white">{count}</p>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-neutral-400">No payment captures yet.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm text-neutral-300">Maintenance Status Sync</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {Object.entries(maintenanceStatusCounts).length ? (
-            Object.entries(maintenanceStatusCounts).map(([status, count]) => (
-              <div
-                key={status}
-                className="flex items-center justify-between rounded border border-white/10 bg-white/5 px-3 py-2"
-              >
-                <p className="text-sm text-white">{capitalize(status)}</p>
-                <p className="text-sm font-medium text-white">{count}</p>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-neutral-400">
-              {maintenanceResult.error || "No maintenance tickets logged yet."}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+                <Card className="bg-neutral-900 border-white/10 overflow-hidden">
+                    <CardHeader className="border-b border-white/5">
+                        <CardTitle className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
+                            <Activity className="h-4 w-4 text-neutral-400" /> Maintenance Status Distribution
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                        {Object.entries(maintenanceStatusCounts).length > 0 ? (
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                {Object.entries(maintenanceStatusCounts).map(([status, count]) => (
+                                    <div key={status} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col">
+                                        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-tight">{capitalize(status)}</span>
+                                        <span className="text-2xl font-black text-white">{count}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="py-10 text-center text-neutral-600 font-medium italic text-xs">
+                                No maintenance history available for this node.
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+        </>
+      )}
     </div>
   );
+}
 }
