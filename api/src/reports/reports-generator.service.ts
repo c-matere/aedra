@@ -819,7 +819,7 @@ export class ReportsGeneratorService {
     return `${normalizedBase}${normalizedLogo}`;
   }
 
-  private getFileUrl(fileName: string): string {
+  public getFileUrl(fileName: string): string {
     const baseUrl =
       process.env.FILE_BASE_URL ||
       process.env.PUBLIC_URL ||
