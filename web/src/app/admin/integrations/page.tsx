@@ -2,9 +2,11 @@ import {
   listMaintenanceRequests,
   listPayments,
   fetchMe,
-  getCompany
+  getCompany,
+  listCompanies
 } from "@/lib/backend-api";
 import { getRoleFromCookie, getSessionTokenFromCookie } from "@/lib/cookie-utils";
+import Link from "next/link";
 import { 
   Plug, 
   Activity, 
@@ -21,6 +23,8 @@ import { MpesaSyncCard } from "./mpesa-sync-card";
 import { JengaSyncCard } from "./jenga-sync-card";
 import { SmsSyncCard } from "./sms-sync-card";
 import { MapsSyncCard } from "./maps-sync-card";
+import { WhatsAppSyncCard } from "./whatsapp-sync-card";
+import { CompanySelector } from "../settings/company-selector";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -28,33 +32,43 @@ function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 }
 
-export default async function IntegrationsPage() {
+export default async function IntegrationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const role = await getRoleFromCookie();
   const token = await getSessionTokenFromCookie();
   const sessionToken = token || "";
+  const resolvedSearchParams = await searchParams;
+  const queryCompanyId = resolvedSearchParams.companyId as string | undefined;
   
-  let paymentsResult, maintenanceResult, meResult;
-  try {
-    [paymentsResult, maintenanceResult, meResult] = await Promise.all([
-      listPayments(sessionToken),
-      listMaintenanceRequests(sessionToken),
-      fetchMe(sessionToken)
-    ]);
-  } catch (error) {
-    console.error("[IntegrationsPage] Data fetch error:", error);
+  const meResult = await fetchMe(sessionToken);
+  const userCompanyId = meResult.data?.user?.companyId;
+  const effectiveCompanyId = (role === "SUPER_ADMIN" && queryCompanyId) ? queryCompanyId : userCompanyId;
+
+  const [paymentsResult, maintenanceResult, companyResult, allCompaniesResult] = await Promise.all([
+    listPayments(sessionToken),
+    listMaintenanceRequests(sessionToken),
+    effectiveCompanyId ? getCompany(sessionToken, effectiveCompanyId) : Promise.resolve({ data: null, error: "No company selected", status: 200 }),
+    role === "SUPER_ADMIN" ? listCompanies(sessionToken) : Promise.resolve({ data: null, error: null, status: 200 })
+  ]);
+
+  if (!meResult.data) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
         <AlertCircle className="h-12 w-12 text-red-500" />
-        <h2 className="text-xl font-bold text-white">Interface Sync Failure</h2>
-        <p className="text-neutral-400">We couldn't connect to the integration heartbeat. Please check your network or try again.</p>
-        <Button onClick={() => window.location.reload()} variant="outline" className="border-white/10 text-white">Retry Connection</Button>
+        <h2 className="text-xl font-bold text-white">Authentication Sync Failure</h2>
+        <p className="text-neutral-400">We couldn't verify your platform identity. Please sign in again.</p>
+        <Button variant="outline" className="border-white/10 text-white" asChild>
+            <Link href="/login">Return to Login</Link>
+        </Button>
       </div>
     );
   }
 
-  const companyId = meResult.data?.user?.companyId;
-  const companyResult = companyId ? await getCompany(sessionToken, companyId) : { data: null, error: null };
   const company = companyResult.data;
+  const allCompanies = allCompaniesResult.data || [];
 
   const payments = paymentsResult.data?.data ?? [];
   const maintenance = maintenanceResult.data?.data ?? [];
@@ -87,6 +101,13 @@ export default async function IntegrationsPage() {
           </p>
         </div>
       </div>
+
+      {role === "SUPER_ADMIN" && allCompanies.length > 0 && (
+        <CompanySelector 
+          companies={allCompanies} 
+          currentCompanyId={effectiveCompanyId || ""} 
+        />
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card className="bg-white/5 border-white/10 hover:bg-white/[0.07] transition-all group">
@@ -139,6 +160,7 @@ export default async function IntegrationsPage() {
           {company && <MpesaSyncCard company={company} token={sessionToken} />}
           {company && <JengaSyncCard company={company} token={sessionToken} />}
           {company && <SmsSyncCard company={company} token={sessionToken} />}
+          {company && <WhatsAppSyncCard company={company} token={sessionToken} />}
         </div>
 
         <div className="space-y-6">

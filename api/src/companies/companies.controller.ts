@@ -84,6 +84,15 @@ export class CompaniesController {
     return this.companiesService.testJenga(id, data);
   }
 
+  @Post(':id/test-whatsapp')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
+  async testWhatsApp(
+    @Param('id') id: string,
+    @Body() data: UpdateCompanyDto,
+  ) {
+    return this.companiesService.testWhatsApp(id, data);
+  }
+
   @Post(':id/logo')
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
   @UseInterceptors(

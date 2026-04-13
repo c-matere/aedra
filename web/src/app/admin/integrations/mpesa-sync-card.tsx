@@ -115,9 +115,22 @@ export function MpesaSyncCard({ company, token }: MpesaSyncCardProps) {
                 {!isEditing ? (
                     <div className="space-y-6 animate-in fade-in duration-500">
                         <div className="flex items-start gap-4">
-                            <div className="h-14 w-14 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center p-2 group-hover:bg-emerald-500/10 transition-colors duration-500">
-                                <img src="/mpesa-logo.png" className="h-full w-auto object-contain grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" alt="M-Pesa" />
-                            </div>
+                        <div className="h-14 w-14 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center p-2 group-hover:bg-emerald-500/10 transition-colors duration-500">
+                            <img 
+                                src="/mpesa-logo.png" 
+                                className="h-full w-auto object-contain grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" 
+                                alt="M-Pesa" 
+                                onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    const parent = e.currentTarget.parentElement;
+                                    if (parent) {
+                                        const icon = document.createElement('div');
+                                        icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card text-emerald-400"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10"/></svg>';
+                                        parent.appendChild(icon.firstChild!);
+                                    }
+                                }}
+                            />
+                        </div>
                             <div className="flex-1 space-y-1">
                                 <h4 className="text-sm font-bold text-white">Lipa Na M-Pesa Online</h4>
                                 <p className="text-[11px] text-neutral-500 leading-relaxed">

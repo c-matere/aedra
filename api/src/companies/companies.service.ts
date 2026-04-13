@@ -265,4 +265,34 @@ export class CompaniesService {
       return { success: false, message: `Network error connecting to Jenga: ${(e as Error).message}` };
     }
   }
+
+  async testWhatsApp(id: string, incoming: UpdateCompanyDto) {
+    const stored = await this.findOne(id);
+    const company = this.mergeDecryptedData(stored, incoming);
+
+    if (!company.waAccessToken || !company.waPhoneNumberId) {
+      return { success: false, message: 'Missing WhatsApp (Meta) credentials' };
+    }
+
+    try {
+      const url = `https://graph.facebook.com/v21.0/${company.waPhoneNumberId}`;
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${company.waAccessToken}`,
+        },
+      });
+
+      if (res.ok) {
+        return { success: true, message: 'WhatsApp API credentials verified' };
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        return { 
+          success: false, 
+          message: `WhatsApp verification failed: ${errorData.error?.message || res.statusText}` 
+        };
+      }
+    } catch (e) {
+      return { success: false, message: `Network error connecting to Meta: ${(e as Error).message}` };
+    }
+  }
 }

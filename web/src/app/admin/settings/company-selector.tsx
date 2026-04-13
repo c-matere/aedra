@@ -15,9 +15,10 @@ import { Building2, Loader2 } from "lucide-react";
 interface CompanySelectorProps {
     companies: CompanyRecord[];
     currentCompanyId: string;
+    path?: string;
 }
 
-export function CompanySelector({ companies, currentCompanyId }: CompanySelectorProps) {
+export function CompanySelector({ companies, currentCompanyId, path }: CompanySelectorProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [isPending, startTransition] = useTransition();
@@ -26,8 +27,10 @@ export function CompanySelector({ companies, currentCompanyId }: CompanySelector
         const params = new URLSearchParams(searchParams.toString());
         params.set("companyId", companyId);
         
+        const targetPath = path || window.location.pathname;
+        
         startTransition(() => {
-            router.push(`/admin/settings?${params.toString()}`);
+            router.push(`${targetPath}?${params.toString()}`);
         });
     };
 

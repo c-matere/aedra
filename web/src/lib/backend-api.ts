@@ -1300,6 +1300,18 @@ export async function testJengaConnection(
   );
 }
 
+export async function testWhatsAppConnection(
+  token: string,
+  companyId: string,
+  data: UpdateCompanyPayload,
+): Promise<BackendRequestResult<{ success: boolean; message: string }>> {
+  return backendPost<{ success: boolean; message: string }>(
+    `/companies/${companyId}/test-whatsapp`,
+    data,
+    token,
+  );
+}
+
 export async function testSmsConnection(
   token: string,
   id: string,
