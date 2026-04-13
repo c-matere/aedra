@@ -65,6 +65,9 @@ GEMINI_API_KEY="$GEMINI_API_KEY"
 GROQ_API_KEY="${GROQ_API_KEY:-dummy-key}"
 META_VERIFY_TOKEN="$META_VERIFY_TOKEN"
 META_API_TOKEN="$META_API_TOKEN"
+API_URL="https://aedra.homeet.site/api"
+FILE_BASE_URL="https://aedra.homeet.site/api"
+INTERNAL_API_URL="http://aedra-api:4001"
 EOF
   echo "✅ api/.env created."
 else
@@ -78,6 +81,13 @@ else
     META_VERIFY_TOKEN=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16 ; echo '')
     echo "META_VERIFY_TOKEN=\"$META_VERIFY_TOKEN\"" >> api/.env
     echo "✅ Added missing META_VERIFY_TOKEN to existing api/.env."
+  fi
+  # Ensure API_URL exists in existing .env
+  if ! grep -q "API_URL=" api/.env; then
+    echo "API_URL=\"https://aedra.homeet.site/api\"" >> api/.env
+    echo "FILE_BASE_URL=\"https://aedra.homeet.site/api\"" >> api/.env
+    echo "INTERNAL_API_URL=\"http://aedra-api:4001\"" >> api/.env
+    echo "✅ Added missing API_URL/FILE_BASE_URL to existing api/.env."
   fi
 fi
 

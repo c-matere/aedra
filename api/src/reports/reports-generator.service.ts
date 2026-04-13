@@ -813,7 +813,7 @@ export class ReportsGeneratorService {
   private resolveLogoUrl(logo: string | null): string | null {
     if (!logo) return null;
     if (logo.startsWith('http')) return logo;
-    const baseUrl = process.env.API_URL || 'http://localhost:4001';
+    const baseUrl = process.env.INTERNAL_API_URL || process.env.API_URL || 'http://localhost:4001';
     const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const normalizedLogo = logo.startsWith('/') ? logo : '/' + logo;
     return `${normalizedBase}${normalizedLogo}`;
