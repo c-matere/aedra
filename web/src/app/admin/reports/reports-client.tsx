@@ -141,11 +141,10 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                     ["GENERATED AT", new Date().toLocaleString()],
                     [""],
                     ["UNIT BREAKDOWN"],
-                    ["UNIT NUMBER", "TENANT", "STATUS", "EXPECTED RENT", "ACTUAL PAID", "BALANCE"],
+                    ["UNIT NUMBER", "TENANT", "EXPECTED RENT", "ACTUAL PAID", "BALANCE"],
                     ...(data.tenantPayments.map(tp => [
                         tp.unit,
                         tp.name,
-                        "OCCUPIED",
                         tp.rentAmount || 0,
                         tp.paidThisMonth || 0,
                         (tp.rentAmount || 0) - (tp.paidThisMonth || 0)

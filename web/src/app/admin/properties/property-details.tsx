@@ -108,11 +108,10 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                     ["GENERATED AT", new Date().toLocaleString()],
                     [""],
                     ["UNIT BREAKDOWN"],
-                    ["UNIT NUMBER", "TENANT", "STATUS", "EXPECTED RENT", "ACTUAL PAID", "BALANCE"],
+                    ["UNIT NUMBER", "TENANT", "EXPECTED RENT", "ACTUAL PAID", "BALANCE"],
                     ...(data.tenantPayments.map(tp => [
                         tp.unit,
                         tp.name,
-                        "OCCUPIED",
                         tp.rentAmount || 0,
                         tp.paidThisMonth || 0,
                         (tp.rentAmount || 0) - (tp.paidThisMonth || 0)
@@ -125,11 +124,10 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                     if (!occupiedUnitNumbers.has(u.unitNumber)) {
                         csvRows.push([
                             u.unitNumber,
-                            "N/A",
-                            u.status,
-                            u.rentAmount || 0,
-                            0,
-                            0
+                            "VACANT",
+                            "VACANT",
+                            "VACANT",
+                            "VACANT"
                         ])
                     }
                 })
