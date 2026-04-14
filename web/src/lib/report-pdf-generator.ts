@@ -109,12 +109,12 @@ export async function generateFinancialStatementPdf(
         head: [[
             'UNIT', 
             'TENANT', 
-            'INV', 
-            'RECD', 
-            'BAL', 
-            'REMT', 
-            'FEE+VAT', 
-            'PAY'
+            'INVOICE AMOUNT', 
+            'CURRENT COLLECTION', 
+            'OUTSTANDING BALANCE', 
+            'AMOUNT REMITTED', 
+            'MANAGEMENT FEE + VAT', 
+            'AMOUNT PAYABLE'
         ]],
         body: tableRows,
         theme: 'striped',
@@ -126,8 +126,8 @@ export async function generateFinancialStatementPdf(
             lineColor: [200, 200, 200]
         },
         styles: { 
-            fontSize: 7.5, 
-            cellPadding: 2.5, 
+            fontSize: 7, 
+            cellPadding: 2, 
             font: 'helvetica',
             lineWidth: 0.1,
             lineColor: [230, 230, 230]
