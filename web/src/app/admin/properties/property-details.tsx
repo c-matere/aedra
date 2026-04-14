@@ -124,10 +124,10 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                     if (!occupiedUnitNumbers.has(u.unitNumber)) {
                         csvRows.push([
                             u.unitNumber,
-                            "VACANT",
-                            "VACANT",
-                            "VACANT",
-                            "VACANT"
+                            "",
+                            "",
+                            "",
+                            ""
                         ])
                     }
                 })

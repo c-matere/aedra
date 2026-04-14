@@ -148,7 +148,24 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                         tp.rentAmount || 0,
                         tp.paidThisMonth || 0,
                         (tp.rentAmount || 0) - (tp.paidThisMonth || 0)
-                    ]) || []),
+                    ]) || [])
+                ]
+
+                // Add vacant units to the breakdown
+                const occupiedUnitNumbers = new Set(data.tenantPayments.map(tp => tp.unit))
+                property.units?.forEach(u => {
+                    if (!occupiedUnitNumbers.has(u.unitNumber)) {
+                        csvRows.push([
+                            u.unitNumber,
+                            "",
+                            "",
+                            "",
+                            ""
+                        ])
+                    }
+                })
+
+                csvRows.push(
                     [""],
                     ["BUILDING SUMMARY (FOR THE MONTH)"],
                     ["TOTAL RENT COLLECTED", `KES ${(totals.payments || 0).toLocaleString()}`],
@@ -158,7 +175,7 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                     ["OTHER EXPENSES", `KES ${otherExpenses.toLocaleString()}`],
                     ["-----------------------------------"],
                     ["NET LANDLORD SHARE", `KES ${netLandlordShare.toLocaleString()}`],
-                ]
+                )
 
                 const escapeCSV = (val: any) => {
                     const s = String(val ?? "");
