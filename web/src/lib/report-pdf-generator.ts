@@ -1,9 +1,9 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { PortfolioReportData } from './backend-api';
 
 export function generateFinancialStatementPdf(data: PortfolioReportData, landlordName: string, propertyUnits?: any[]) {
-    const doc = new jsPDF() as any;
+    const doc = new jsPDF();
     const property = data.property;
     const totals = data.totals;
 
@@ -62,7 +62,7 @@ export function generateFinancialStatementPdf(data: PortfolioReportData, landlor
         });
     }
 
-    doc.autoTable({
+    autoTable(doc, {
         startY: 75,
         head: [['UNIT NUMBER', 'TENANT', 'EXPECTED RENT', 'ACTUAL PAID', 'BALANCE']],
         body: tableRows,
@@ -77,7 +77,7 @@ export function generateFinancialStatementPdf(data: PortfolioReportData, landlor
     });
 
     // --- Building Summary Section ---
-    const finalY = doc.lastAutoTable.finalY + 15;
+    const finalY = (doc as any).lastAutoTable.finalY + 15;
     
     if (finalY > 250) {
         doc.addPage();
@@ -110,7 +110,7 @@ export function generateFinancialStatementPdf(data: PortfolioReportData, landlor
         ["NET LANDLORD SHARE", `KES ${netLandlordShare.toLocaleString()}`]
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
         startY: summaryStartY + 5,
         body: summaryData,
         theme: 'plain',
