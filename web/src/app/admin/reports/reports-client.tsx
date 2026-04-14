@@ -198,6 +198,12 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                 document.body.removeChild(link)
                 URL.revokeObjectURL(url)
             } else if (format === 'FINANCIAL_PDF') {
+                const reportRes = await getPortfolioReport(token, property.id)
+                if (reportRes.error || !reportRes.data) {
+                    alert(`Failed to fetch financial data: ${reportRes.error || "Unknown error"}`)
+                    return
+                }
+
                 const landlordName = property.landlord 
                     ? `${property.landlord.firstName} ${property.landlord.lastName}` 
                     : "Not Assigned";
