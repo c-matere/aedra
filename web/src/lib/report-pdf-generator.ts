@@ -34,7 +34,7 @@ export async function generateFinancialStatementPdf(
         }
     }
 
-    // Company Info (Top Left, below logo if exists)
+    // Company Info (Top Left)
     doc.setFontSize(9);
     doc.setTextColor(100, 100, 100);
     const startY = company?.logo ? 45 : margin;
@@ -44,10 +44,10 @@ export async function generateFinancialStatementPdf(
     doc.text(company?.email || "", margin, startY + 12);
 
     // Report Title & Meta (Top Right)
-    doc.setFontSize(14);
+    doc.setFontSize(16);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
-    doc.text("PROPERTY FINANCIAL STATEMENT", rightAlignX, margin + 5, { align: 'right' });
+    doc.text("REMITTANCE REPORT", rightAlignX, margin + 5, { align: 'right' });
     
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
@@ -57,8 +57,15 @@ export async function generateFinancialStatementPdf(
 
     // --- 2. Unit Breakdown Table ---
     const tableRows: any[] = [];
-    const vatRate = 0.16; // Standard VAT in Kenya
+    const vatRate = 0.16;
     const commissionPct = property.commissionPercentage || 0;
+
+    let sumInvoice = 0;
+    let sumCollection = 0;
+    let sumOutstanding = 0;
+    let sumRemitted = 0;
+    let sumFeeVat = 0;
+    let sumPayable = 0;
 
     // Occupied Units
     data.tenantPayments.forEach(tp => {
@@ -72,6 +79,13 @@ export async function generateFinancialStatementPdf(
         
         const amountRemitted = currentCollection; 
         const amountPayable = currentCollection - totalDeduction;
+
+        sumInvoice += invoiceAmt;
+        sumCollection += currentCollection;
+        sumOutstanding += outstanding;
+        sumRemitted += amountRemitted;
+        sumFeeVat += totalDeduction;
+        sumPayable += amountPayable;
 
         tableRows.push([
             tp.unit,
@@ -109,18 +123,35 @@ export async function generateFinancialStatementPdf(
         head: [[
             'UNIT', 
             'TENANT', 
-            'INVOICE AMOUNT', 
-            'CURRENT COLLECTION', 
-            'OUTSTANDING BALANCE', 
-            'AMOUNT REMITTED', 
-            'MANAGEMENT FEE + VAT', 
-            'AMOUNT PAYABLE'
+            'INVOICE AMT', 
+            'COLLECTION', 
+            'BALANCE', 
+            'REMITTED', 
+            'FEE + VAT', 
+            'PAYABLE'
         ]],
         body: tableRows,
+        foot: [[
+            'TOTALS',
+            '',
+            sumInvoice.toLocaleString(),
+            sumCollection.toLocaleString(),
+            sumOutstanding.toLocaleString(),
+            sumRemitted.toLocaleString(),
+            sumFeeVat.toLocaleString(),
+            sumPayable.toLocaleString()
+        ]],
         theme: 'striped',
         headStyles: { 
             fillColor: [255, 255, 255], 
             textColor: [0, 0, 0], 
+            fontStyle: 'bold',
+            lineWidth: 0.1,
+            lineColor: [200, 200, 200]
+        },
+        footStyles: {
+            fillColor: [245, 245, 245],
+            textColor: [0, 0, 0],
             fontStyle: 'bold',
             lineWidth: 0.1,
             lineColor: [200, 200, 200]
@@ -133,59 +164,14 @@ export async function generateFinancialStatementPdf(
             lineColor: [230, 230, 230]
         },
         columnStyles: {
+            0: { cellWidth: 15 },
+            1: { cellWidth: 45 }, // Increased name column width
             2: { halign: 'right' },
             3: { halign: 'right' },
             4: { halign: 'right' },
             5: { halign: 'right' },
             6: { halign: 'right' },
             7: { halign: 'right', fontStyle: 'bold' }
-        }
-    });
-
-    // --- 3. Summary Section ---
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    
-    // Check for page overflow
-    const checkSpace = (y: number) => {
-        if (y > 240) {
-            doc.addPage();
-            return 20;
-        }
-        return y;
-    };
-
-    const summaryY = checkSpace(finalY);
-
-    const commissionAmount = ((totals.payments || 0) * commissionPct) / 100;
-    const totalVat = commissionAmount * vatRate;
-    const totalDeductions = commissionAmount + totalVat + (totals.expenses || 0);
-    const netLandlordShare = (totals.payments || 0) - totalDeductions;
-
-    const summaryData = [
-        ["TOTAL RENT COLLECTED", `KES ${(totals.payments || 0).toLocaleString()}`],
-        ["TOTAL MANAGEMENT FEE", `KES ${commissionAmount.toLocaleString()}`],
-        ["TOTAL VAT (16%)", `KES ${totalVat.toLocaleString()}`],
-        ["BUILDING EXPENSES", `KES ${(totals.expenses || 0).toLocaleString()}`],
-        ["TOTAL DEDUCTIONS", `KES ${totalDeductions.toLocaleString()}`],
-        ["NET AMOUNT PAYABLE", `KES ${netLandlordShare.toLocaleString()}`]
-    ];
-
-    autoTable(doc, {
-        startY: summaryY,
-        body: summaryData,
-        theme: 'plain',
-        margin: { left: pageWidth - 104 }, // Align to the right side (60+40 + metadata margins)
-        styles: { fontSize: 8.5, cellPadding: 2 },
-        columnStyles: {
-            0: { fontStyle: 'bold', cellWidth: 55 },
-            1: { halign: 'right', cellWidth: 35 }
-        },
-        didParseCell: (dataCell: any) => {
-            if (dataCell.row.index === 5) { // Net Amount Payable
-                dataCell.cell.styles.fontStyle = 'bold';
-                dataCell.cell.styles.fontSize = 10;
-                dataCell.cell.styles.textColor = [0, 0, 0];
-            }
         }
     });
 
@@ -203,7 +189,7 @@ export async function generateFinancialStatementPdf(
         );
     }
 
-    // Save
-    const filename = `${property.name.replace(/\s+/g, '_')}_Statement_${data.month.replace(/\s+/g, '_')}.pdf`;
+    const filename = `${property.name.replace(/\s+/g, '_')}_Remittance_Report_${data.month.replace(/\s+/g, '_')}.pdf`;
     doc.save(filename);
 }
+
