@@ -8,10 +8,12 @@ export async function generateFinancialStatementPdf(
     company: CompanyRecord | null,
     propertyUnits?: any[]
 ) {
-    const doc = new jsPDF('landscape'); // Landscape fits more columns better
+    const doc = new jsPDF('p', 'mm', 'a4'); 
     const property = data.property;
     const totals = data.totals;
     const margin = 14;
+    const pageWidth = doc.internal.pageSize.width;
+    const rightAlignX = pageWidth - margin;
 
     // --- Helper: Load Image ---
     const loadImage = (url: string): Promise<HTMLImageElement | null> => {
@@ -42,16 +44,16 @@ export async function generateFinancialStatementPdf(
     doc.text(company?.email || "", margin, startY + 12);
 
     // Report Title & Meta (Top Right)
-    doc.setFontSize(16);
+    doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
-    doc.text("PROPERTY FINANCIAL STATEMENT", 280, margin + 5, { align: 'right' });
+    doc.text("PROPERTY FINANCIAL STATEMENT", rightAlignX, margin + 5, { align: 'right' });
     
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(`PROPERTY: ${property.name.toUpperCase()}`, 280, margin + 12, { align: 'right' });
-    doc.text(`LANDLORD: ${landlordName.toUpperCase()}`, 280, margin + 17, { align: 'right' });
-    doc.text(`MONTH: ${data.month.toUpperCase()}`, 280, margin + 22, { align: 'right' });
+    doc.text(`PROPERTY: ${property.name.toUpperCase()}`, rightAlignX, margin + 12, { align: 'right' });
+    doc.text(`LANDLORD: ${landlordName.toUpperCase()}`, rightAlignX, margin + 17, { align: 'right' });
+    doc.text(`MONTH: ${data.month.toUpperCase()}`, rightAlignX, margin + 22, { align: 'right' });
 
     // --- 2. Unit Breakdown Table ---
     const tableRows: any[] = [];
@@ -74,12 +76,12 @@ export async function generateFinancialStatementPdf(
         tableRows.push([
             tp.unit,
             tp.name,
-            `KES ${invoiceAmt.toLocaleString()}`,
-            `KES ${currentCollection.toLocaleString()}`,
-            `KES ${outstanding.toLocaleString()}`,
-            `KES ${amountRemitted.toLocaleString()}`,
-            `KES ${totalDeduction.toLocaleString()}`,
-            `KES ${amountPayable.toLocaleString()}`
+            invoiceAmt.toLocaleString(),
+            currentCollection.toLocaleString(),
+            outstanding.toLocaleString(),
+            amountRemitted.toLocaleString(),
+            totalDeduction.toLocaleString(),
+            amountPayable.toLocaleString()
         ]);
     });
 
@@ -107,12 +109,12 @@ export async function generateFinancialStatementPdf(
         head: [[
             'UNIT', 
             'TENANT', 
-            'INVOICE AMT', 
-            'COLLECTION', 
-            'OUTSTANDING', 
-            'REMITTED', 
-            'FEE + VAT', 
-            'PAYABLE'
+            'INV', 
+            'RECD', 
+            'BAL', 
+            'REMT', 
+            'FEE+VAT', 
+            'PAY'
         ]],
         body: tableRows,
         theme: 'striped',
@@ -124,8 +126,8 @@ export async function generateFinancialStatementPdf(
             lineColor: [200, 200, 200]
         },
         styles: { 
-            fontSize: 8, 
-            cellPadding: 3, 
+            fontSize: 7.5, 
+            cellPadding: 2.5, 
             font: 'helvetica',
             lineWidth: 0.1,
             lineColor: [230, 230, 230]
@@ -141,11 +143,11 @@ export async function generateFinancialStatementPdf(
     });
 
     // --- 3. Summary Section ---
-    const finalY = (doc as any).lastAutoTable.finalY + 15;
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
     
     // Check for page overflow
     const checkSpace = (y: number) => {
-        if (y > 180) {
+        if (y > 240) {
             doc.addPage();
             return 20;
         }
@@ -172,16 +174,16 @@ export async function generateFinancialStatementPdf(
         startY: summaryY,
         body: summaryData,
         theme: 'plain',
-        margin: { left: 180 }, // Align to the right side
-        styles: { fontSize: 9, cellPadding: 2 },
+        margin: { left: pageWidth - 104 }, // Align to the right side (60+40 + metadata margins)
+        styles: { fontSize: 8.5, cellPadding: 2 },
         columnStyles: {
-            0: { fontStyle: 'bold', cellWidth: 60 },
-            1: { halign: 'right', cellWidth: 40 }
+            0: { fontStyle: 'bold', cellWidth: 55 },
+            1: { halign: 'right', cellWidth: 35 }
         },
         didParseCell: (dataCell: any) => {
             if (dataCell.row.index === 5) { // Net Amount Payable
                 dataCell.cell.styles.fontStyle = 'bold';
-                dataCell.cell.styles.fontSize = 11;
+                dataCell.cell.styles.fontSize = 10;
                 dataCell.cell.styles.textColor = [0, 0, 0];
             }
         }
