@@ -46,7 +46,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { RecurringExpenses } from "./recurring-expenses"
-import { ListTodo, Settings } from "lucide-react"
+import { ListTodo, Settings, Printer } from "lucide-react"
+import { generateFinancialStatementPdf } from "@/lib/report-pdf-generator"
 
 interface PropertyDetailsPanelProps {
     propertyId: string | null
@@ -63,7 +64,7 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
     const [isGenerating, setIsGenerating] = useState(false)
     const [view, setView] = useState<'DETAILS' | 'RECURRING'>('DETAILS')
 
-    const handleGenerateReport = async (format: 'PDF' | 'CSV') => {
+    const handleGenerateReport = async (format: 'PDF' | 'CSV' | 'FINANCIAL_PDF') => {
         if (!property) return
         setIsGenerating(true)
 
@@ -164,6 +165,18 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                 link.click()
                 document.body.removeChild(link)
                 URL.revokeObjectURL(url)
+            } else if (format === 'FINANCIAL_PDF') {
+                const reportRes = await getPortfolioReport(token, property.id)
+                if (reportRes.error || !reportRes.data) {
+                    alert(`Failed to fetch financial data: ${reportRes.error || "Unknown error"}`)
+                    return
+                }
+
+                const landlordName = property.landlord 
+                    ? `${property.landlord.firstName} ${property.landlord.lastName}` 
+                    : "Not Assigned";
+                
+                generateFinancialStatementPdf(reportRes.data, landlordName, property.units)
             } else if (format === 'PDF') {
                 const reportRes = await getMcKinseyReport(token, property.id)
                 if (reportRes.error || !reportRes.data) {
@@ -454,6 +467,16 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-xs underline-offset-1">Portable Document (PDF)</span>
                                                 <span className="text-[9px] text-neutral-500">Best for printing & sharing</span>
+                                            </div>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onClick={() => handleGenerateReport('FINANCIAL_PDF')}
+                                            className="flex items-center gap-2 p-3 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer rounded-lg transition-colors"
+                                        >
+                                            <Printer className="h-4 w-4 text-emerald-500" />
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-xs">Print Statement (PDF)</span>
+                                                <span className="text-[9px] text-neutral-500">Professional printable version</span>
                                             </div>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem

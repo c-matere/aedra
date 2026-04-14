@@ -16,8 +16,10 @@ import {
     FileDown,
     Building2,
     PieChart as PieChartIcon,
-    BarChart3
+    BarChart3,
+    Printer
 } from "lucide-react"
+import { generateFinancialStatementPdf } from "@/lib/report-pdf-generator"
 import type {
     ReportSummary,
     ReportOccupancy,
@@ -97,7 +99,7 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
         setIsGeneratingSystem(false)
     }
 
-    const handleGenerateEntityReport = async (format: 'PDF' | 'CSV') => {
+    const handleGenerateEntityReport = async (format: 'PDF' | 'CSV' | 'FINANCIAL_PDF') => {
         if (!selectedPropertyId) return
         const property = properties.find(p => p.id === selectedPropertyId)
         if (!property) return
@@ -195,6 +197,12 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                 link.click()
                 document.body.removeChild(link)
                 URL.revokeObjectURL(url)
+            } else if (format === 'FINANCIAL_PDF') {
+                const landlordName = property.landlord 
+                    ? `${property.landlord.firstName} ${property.landlord.lastName}` 
+                    : "Not Assigned";
+                
+                generateFinancialStatementPdf(reportRes.data, landlordName, property.units)
             } else if (format === 'PDF') {
                 const reportRes = await getMcKinseyReport(token, property.id)
                 if (reportRes.error || !reportRes.data) {
@@ -349,24 +357,35 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                                     </SelectContent>
                                 </Select>
 
-                                <div className="grid grid-cols-2 gap-3">
-                                    <Button 
-                                        variant="outline" 
-                                        disabled={!selectedPropertyId || isGeneratingEntity}
-                                        onClick={() => handleGenerateEntityReport('PDF')}
-                                        className="border-white/10 bg-white/5 hover:bg-emerald-500/10 hover:text-emerald-400 text-xs font-bold rounded-xl h-14"
-                                    >
-                                        <FileText className="h-4 w-4 mr-2 text-emerald-500" />
-                                        PDF Report
-                                    </Button>
+                                 <div className="flex flex-col gap-3">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <Button 
+                                            variant="outline" 
+                                            disabled={!selectedPropertyId || isGeneratingEntity}
+                                            onClick={() => handleGenerateEntityReport('PDF')}
+                                            className="border-white/10 bg-white/5 hover:bg-emerald-500/10 hover:text-emerald-400 text-xs font-bold rounded-xl h-14"
+                                        >
+                                            <FileText className="h-4 w-4 mr-2 text-emerald-500" />
+                                            AI Report
+                                        </Button>
+                                        <Button 
+                                            variant="outline"
+                                            disabled={!selectedPropertyId || isGeneratingEntity}
+                                            onClick={() => handleGenerateEntityReport('CSV')}
+                                            className="border-white/10 bg-white/5 hover:bg-emerald-500/10 hover:text-emerald-400 text-xs font-bold rounded-xl h-14"
+                                        >
+                                            <FileDown className="h-4 w-4 mr-2 text-emerald-500" />
+                                            CSV Ledger
+                                        </Button>
+                                    </div>
                                     <Button 
                                         variant="outline"
                                         disabled={!selectedPropertyId || isGeneratingEntity}
-                                        onClick={() => handleGenerateEntityReport('CSV')}
-                                        className="border-white/10 bg-white/5 hover:bg-emerald-500/10 hover:text-emerald-400 text-xs font-bold rounded-xl h-14"
+                                        onClick={() => handleGenerateEntityReport('FINANCIAL_PDF')}
+                                        className="w-full border-white/10 bg-white/5 hover:bg-emerald-500/10 hover:text-emerald-400 text-xs font-bold rounded-xl h-14"
                                     >
-                                        <FileDown className="h-4 w-4 mr-2 text-emerald-500" />
-                                        CSV Ledger
+                                        <Printer className="h-4 w-4 mr-2 text-emerald-500" />
+                                        Print Statement (PDF)
                                     </Button>
                                 </div>
                                 {isGeneratingEntity && (
