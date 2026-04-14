@@ -29,12 +29,9 @@ import type {
 import {
     getPortfolioReport,
     getMcKinseyReport,
-    backendBaseUrl,
-    fetchMe,
     getCompany,
-    getLogoUrl
-} from '@/lib/backend-api'
-import { urlToBase64 } from "@/lib/utils"
+    backendBaseUrl
+} from "@/lib/backend-api"
 import {
     BarChart,
     Bar,
@@ -208,27 +205,23 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                     return
                 }
 
-                // --- Fetch Company Branding ---
-                let branding = { companyName: "Aedra Management", logoBase64: "" };
-                const meRes = await fetchMe(token);
-                if (meRes.data?.user.companyId) {
-                    const companyRes = await getCompany(token, meRes.data.user.companyId);
-                    if (companyRes.data) {
-                        branding.companyName = companyRes.data.name;
-                        if (companyRes.data.logo) {
-                            const fullLogoUrl = getLogoUrl(companyRes.data.logo);
-                            if (fullLogoUrl) {
-                                branding.logoBase64 = await urlToBase64(fullLogoUrl);
-                            }
-                        }
-                    }
-                }
-
                 const landlordName = property.landlord 
                     ? `${property.landlord.firstName} ${property.landlord.lastName}` 
                     : "Not Assigned";
                 
-                generateFinancialStatementPdf(reportRes.data, landlordName, property.units, branding)
+                // Fetch Company Info for branding
+                const userString = localStorage.getItem("aedra_user");
+                const user = userString ? JSON.parse(userString) : null;
+                let companyData = null;
+                
+                if (user?.companyId) {
+                    const companyRes = await getCompany(token, user.companyId);
+                    if (companyRes.data) {
+                        companyData = companyRes.data;
+                    }
+                }
+                
+                await generateFinancialStatementPdf(reportRes.data, landlordName, companyData, property.units)
             } else if (format === 'PDF') {
                 const reportRes = await getMcKinseyReport(token, property.id)
                 if (reportRes.error || !reportRes.data) {
