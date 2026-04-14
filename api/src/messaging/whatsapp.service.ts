@@ -109,7 +109,7 @@ export class WhatsappService {
       last9, // 712345678
     ];
 
-    this.logger.log(`Identifying sender for phone: ${phone} (last9: ${last9})`);
+    this.logger.log(`Identifying sender for phone: ${phone} (last9: ${last9}). Checking formats: ${JSON.stringify(possibleFormats)}`);
 
     // 1. Check Users (Admins/Staff)
     const user = await this.prisma.user.findFirst({

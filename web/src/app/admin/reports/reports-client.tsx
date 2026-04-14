@@ -157,7 +157,7 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                     ["MAINTENANCE & REPAIRS", `KES ${maintenanceExpenses.toLocaleString()}`],
                     ["UTILITIES", `KES ${utilityExpenses.toLocaleString()}`],
                     ["OTHER EXPENSES", `KES ${otherExpenses.toLocaleString()}`],
-                    ["----------------------------------"],
+                    ["-----------------------------------"],
                     ["NET LANDLORD SHARE", `KES ${netLandlordShare.toLocaleString()}`],
                 ]
 

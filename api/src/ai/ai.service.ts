@@ -455,27 +455,10 @@ export class AiService implements OnModuleInit {
         entities: { ...(plan.entities || {}) }
       };
 
-      const isPlaceholderValue = (value: any): boolean => {
-        if (value === undefined || value === null) return true;
-        const raw = String(value).trim().toLowerCase();
-        if (!raw) return true;
-        return [
-          'unspecified',
-          'unknown',
-          'n/a',
-          'na',
-          'none',
-          'null',
-          'not provided',
-          'not_specified',
-          'not-specified',
-        ].includes(raw);
-      };
-
       const scrubPlaceholders = (obj: any, keys: string[]) => {
         if (!obj || typeof obj !== 'object') return;
         for (const k of keys) {
-          if (k in obj && isPlaceholderValue(obj[k])) delete obj[k];
+          if (k in obj && this.isPlaceholder(obj[k])) delete obj[k];
         }
       };
 
@@ -976,13 +959,17 @@ export class AiService implements OnModuleInit {
     // Additive merge: only update if the new entity has a truthy value
     if (plan.entities) {
       for (const [key, value] of Object.entries(plan.entities)) {
-        if (!value) continue;
+        if (!value || this.isPlaceholder(value)) continue;
         
-        // Normalize keys for Property Onboarding
+        // Normalize keys for Property/Company Onboarding
         let targetKey = key;
-        if (key === 'name' || key === 'propName') targetKey = 'propertyName';
+        if (key === 'name' || key === 'propName' || key === 'company') targetKey = 'companyName';
         if (key === 'address' || key === 'propAddress') targetKey = 'propertyAddress';
         if (key === 'units' || key === 'count') targetKey = 'unitCount';
+        if (key === 'first_name' || key === 'fname' || key === 'adminFirst') targetKey = 'firstName';
+        if (key === 'last_name' || key === 'lname' || key === 'adminLast') targetKey = 'lastName';
+        if (key === 'adminEmail' || key === 'userEmail') targetKey = 'email';
+        if (key === 'pass' || key === 'adminPassword') targetKey = 'password';
         
         newData[targetKey] = value as string;
       }
@@ -1972,5 +1959,32 @@ export class AiService implements OnModuleInit {
     ];
 
     this.logger.log(`\n--- [DECISION TRACE: ${trace.id}] ---\n${tableHeader}\n${tableDivider}\n${rows.join('\n')}\n---`);
+  }
+
+  private isPlaceholder(value: any): boolean {
+    if (value === undefined || value === null) return true;
+    const raw = String(value).trim().toLowerCase();
+    if (!raw) return true;
+    const placeholders = [
+      'unspecified',
+      'unknown',
+      'n/a',
+      'na',
+      'none',
+      'null',
+      'undefined',
+      'string',
+      'number',
+      'boolean',
+      'not provided',
+      'not_specified',
+      'not-specified',
+      '?',
+      '1.23',
+    ];
+    if (placeholders.includes(raw)) return true;
+    // Catch angle-bracket placeholders like <name>, <unit>, etc.
+    if (raw.startsWith('<') && raw.endsWith('>')) return true;
+    return false;
   }
 }

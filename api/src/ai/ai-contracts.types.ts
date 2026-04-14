@@ -14,6 +14,7 @@ export enum AiIntent {
   MAINTENANCE = 'MAINTENANCE',
   REVENUE_REPORT = 'REVENUE_REPORT',
   FINANCIAL_MANAGEMENT = 'FINANCIAL_MANAGEMENT',
+  REGISTER_COMPANY = 'REGISTER_COMPANY',
 }
 
 export enum OperationalIntent {
@@ -38,6 +39,11 @@ export interface Interpretation {
     date?: string;
     property_name?: string;
     issue_details?: string;
+    email?: string;
+    password?: string;
+    firstName?: string;
+    lastName?: string;
+    companyName?: string;
   };
   proposedValues?: {
     amount?: number;
@@ -67,6 +73,11 @@ export interface UnifiedPlan {
     tenantId?: string;      // pre-hydrated or resolved
     unitId?: string;        // pre-hydrated or resolved
     propertyId?: string;    // pre-hydrated or resolved
+    email?: string;
+    password?: string;
+    firstName?: string;
+    lastName?: string;
+    companyName?: string;
   };
   steps: Array<{
     tool: string;

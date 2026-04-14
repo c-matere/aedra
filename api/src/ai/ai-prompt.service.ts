@@ -69,12 +69,12 @@ export class AiPromptService {
       "intent": "MAINTENANCE_REQUEST" | "TENANT_COMPLAINT" | "PAYMENT_PROMISE" | "PAYMENT_DECLARATION" | "FINANCIAL_QUERY" | "FINANCIAL_REPORTING" | "ONBOARDING" | "GENERAL_QUERY" | "DISPUTE" | "EMERGENCY" | "UTILITY_OUTAGE" | "REVENUE_REPORT",
       "priority": "NORMAL" | "HIGH" | "EMERGENCY",
       "language": "en" | "sw" | "mixed",
-      "immediateResponse": "string (MANDATORY for EMERGENCY: Safety instructions or urgent acknowledgement)",
-      "entities": { "tenantName": "string", "unitNumber": "string", "issueDescription": "string", "amount": number, "date": "string", "propertyName": "string", "propertyAddress": "string", "unitCount": number },
+      "immediateResponse": "<acknowledgment or safety instructions>",
+      "entities": { "tenantName": "<name>", "unitNumber": "<unit>", "issueDescription": "<description>", "amount": <number>, "date": "<ISO_date>", "propertyName": "<name>", "propertyAddress": "<address>", "unitCount": <number> },
       "steps": [
-        { "tool": "string", "args": {}, "dependsOn": "string (optional tool name)", "required": boolean }
+        { "tool": "<tool_name>", "args": {}, "dependsOn": "<previous_tool_name>", "required": <boolean> }
       ],
-      "planReasoning": "string"
+      "planReasoning": "<rationale>"
     }
 
     ALLOWED TOOLS: log_maintenance_issue, get_unit_details, send_notification, get_tenant_arrears (own only).
@@ -1089,7 +1089,7 @@ throw lastError;
           responseMimeType: schema ? 'application/json' : ((prompt.includes('{') && prompt.includes('}')) || (systemInstruction?.includes('JSON')) ? 'application/json' : 'text/plain'),
           responseSchema: schema || undefined,
         },
-        tools: tools ? [{ functionDeclarations: tools }] : undefined,
+        tools: (tools && tools.length > 0) ? [{ functionDeclarations: tools }] : undefined,
       });
 
     const contents = history.length > 0 ? [

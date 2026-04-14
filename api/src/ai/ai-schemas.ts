@@ -22,7 +22,8 @@ export const UNIFIED_PLAN_SCHEMA = {
         'DISPUTE',
         'EMERGENCY',
         'UTILITY_OUTAGE',
-        'REVENUE_REPORT'
+        'REVENUE_REPORT',
+        'REGISTER_COMPANY'
       ],
     },
     priority: {
@@ -48,6 +49,11 @@ export const UNIFIED_PLAN_SCHEMA = {
         issueDescription: { type: SchemaType.STRING, description: 'Brief summary of the maintenance/issue' },
         unitCount: { type: SchemaType.NUMBER },
         propertyAddress: { type: SchemaType.STRING },
+        email: { type: SchemaType.STRING },
+        password: { type: SchemaType.STRING },
+        firstName: { type: SchemaType.STRING },
+        lastName: { type: SchemaType.STRING },
+        companyName: { type: SchemaType.STRING },
       },
     },
     steps: {
