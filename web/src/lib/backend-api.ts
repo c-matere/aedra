@@ -60,6 +60,7 @@ export interface PaginatedResponse<T> {
 
 export interface PropertyRecord {
   id: string;
+  companyId: string;
   name: string;
   address?: string;
   propertyType?: string;

@@ -177,13 +177,10 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                     ? `${property.landlord.firstName} ${property.landlord.lastName}` 
                     : "Not Assigned";
                 
-                // Fetch Company Info for branding
-                const userString = localStorage.getItem("aedra_user");
-                const user = userString ? JSON.parse(userString) : null;
+                // Fetch Company Info for branding (using Property's Company ID, not User's)
                 let companyData = null;
-                
-                if (user?.companyId) {
-                    const companyRes = await getCompany(token, user.companyId);
+                if (property?.companyId) {
+                    const companyRes = await getCompany(token, property.companyId);
                     if (companyRes.data) {
                         companyData = companyRes.data;
                     }

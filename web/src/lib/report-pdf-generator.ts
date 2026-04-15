@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { PortfolioReportData, CompanyRecord } from './backend-api';
+import { PortfolioReportData, CompanyRecord, getLogoUrl } from './backend-api';
 
 export async function generateFinancialStatementPdf(
     data: PortfolioReportData, 
@@ -27,7 +27,7 @@ export async function generateFinancialStatementPdf(
     };
 
     // --- 1. Branding Header ---
-    const logoUrl = company?.logo || "/aedra logo.png";
+    const logoUrl = getLogoUrl(company?.logo) || "/aedra logo.png";
     const logo = await loadImage(logoUrl);
     if (logo) {
         doc.addImage(logo, 'PNG', margin, margin, 25, 25);
