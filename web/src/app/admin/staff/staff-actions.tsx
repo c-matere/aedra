@@ -81,7 +81,6 @@ export function AddStaffButton({ role, customRoles }: { role: UserRole | null; c
     const res = await createInvitationAction({
       email,
       firstName,
-      firstName,
       lastName,
       role: selectedRole,
       roleId,
