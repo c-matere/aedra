@@ -635,6 +635,7 @@ export interface InvitationRecord {
   companyId?: string;
   expiresAt: string;
   usedAt?: string;
+  createdAt: string;
   company?: {
     id: string;
     name: string;
