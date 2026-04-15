@@ -7,7 +7,7 @@ import {
 } from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { listProperties, type PropertyRecord } from "@/lib/backend-api"
+import { listProperties, fetchReportSummary, fetchReportOccupancy, type PropertyRecord } from "@/lib/backend-api"
 import { getRoleFromCookie, getSessionTokenFromCookie } from "@/lib/cookie-utils"
 import { AddPropertyButton } from "./property-actions"
 import { PropertiesListClient } from "./properties-list-client"
@@ -27,13 +27,21 @@ export default async function PropertiesPage({
     const page = resolvedParams.page ? parseInt(resolvedParams.page, 10) : 1
     const search = resolvedParams.search || ""
 
-    const propertiesResult = await listProperties(sessionToken, { page, search })
+    const [propertiesResult, summaryResult, occupancyResult] = await Promise.all([
+        listProperties(sessionToken, { page, search }),
+        fetchReportSummary(sessionToken),
+        fetchReportOccupancy(sessionToken),
+    ])
+
     const propertiesData = propertiesResult.data
     const properties: PropertyRecord[] = propertiesData?.data ?? []
     const meta = propertiesData?.meta
 
-    const totalUnitsTotal = properties.reduce((s, p) => s + (p.totalUnits ?? 0), 0)
-    const totalOccupiedTotal = properties.reduce((s, p) => s + (p.occupiedUnits ?? 0), 0)
+    const portfolioSummary = summaryResult.data
+    const portfolioOccupancy = occupancyResult.data
+
+    const totalUnitsTotal = portfolioSummary?.units || 0
+    const totalOccupiedTotal = portfolioOccupancy?.OCCUPIED || 0
     const occupancyRatePortfolio = totalUnitsTotal > 0 ? Math.round((totalOccupiedTotal / totalUnitsTotal) * 100) : 0
 
     const onSearchAction = async (formData: FormData) => {

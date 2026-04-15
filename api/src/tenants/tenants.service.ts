@@ -89,8 +89,10 @@ export class TenantsService {
       this.prisma.tenant.findMany({
         where,
         include: {
+          property: true,
           leases: {
             where: { status: 'ACTIVE' },
+            include: { unit: true },
             take: 1,
             orderBy: { createdAt: 'desc' },
           },
@@ -102,8 +104,20 @@ export class TenantsService {
       this.prisma.tenant.count({ where }),
     ]);
 
+    const mappedData = data.map((tenant) => {
+      const activeLease = tenant.leases?.[0];
+      return {
+        ...tenant,
+        propertyName: tenant.property?.name,
+        unitNumber: activeLease?.unit?.unitNumber,
+        rentAmount: activeLease?.rentAmount,
+        leaseEnd: activeLease?.endDate,
+        status: activeLease?.status,
+      };
+    });
+
     return {
-      data,
+      data: mappedData,
       meta: {
         total,
         page,
