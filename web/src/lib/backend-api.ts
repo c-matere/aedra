@@ -89,6 +89,7 @@ export interface PropertyRecord {
     bedrooms?: number;
     bathrooms?: number;
   }[];
+  responsibleStaff?: UserRecord[];
 }
 
 export interface TenantRecord {
@@ -600,6 +601,7 @@ export interface CreateUserPayload {
   lastName: string;
   phone?: string;
   role?: UserRole;
+  roleId?: string;
   companyId?: string;
   permissions?: string[];
   isActive?: boolean;
@@ -612,6 +614,7 @@ export interface UpdateUserPayload {
   lastName?: string;
   phone?: string;
   role?: UserRole;
+  roleId?: string;
   companyId?: string;
   permissions?: string[];
   isActive?: boolean;
@@ -631,6 +634,7 @@ export interface InvitationRecord {
   firstName?: string;
   lastName?: string;
   role: UserRole;
+  roleId?: string;
   token: string;
   companyId?: string;
   expiresAt: string;
@@ -1558,7 +1562,7 @@ export async function registerCompany(
 
 export async function createInvitation(
   token: string,
-  payload: { email: string; role: UserRole; firstName?: string; lastName?: string },
+  payload: { email: string; role: UserRole; roleId?: string; firstName?: string; lastName?: string },
 ): Promise<BackendRequestResult<InvitationRecord>> {
   return backendRequest<InvitationRecord>(TARGET_ENDPOINTS.invite, token, "POST", payload);
 }

@@ -15,7 +15,7 @@ import {
   SlidePanelTrigger,
 } from "@/components/ui/slide-panel"
 import { createUserAction, deleteUserAction, updateUserAction, createInvitationAction } from "@/lib/actions"
-import type { UserRecord } from "@/lib/backend-api"
+import type { UserRecord, RoleRecord } from "@/lib/backend-api"
 import type { UserRole } from "@/lib/rbac"
 import { getWhatsAppInviteLink } from "@/lib/whatsapp"
 import { StaffPropertyScoping } from "./staff-scoping"
@@ -45,7 +45,7 @@ function fullName(user: UserRecord) {
   return `${user.firstName} ${user.lastName}`.trim()
 }
 
-export function AddStaffButton({ role }: { role: UserRole | null }) {
+export function AddStaffButton({ role, customRoles }: { role: UserRole | null; customRoles: RoleRecord[] }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -67,13 +67,24 @@ export function AddStaffButton({ role }: { role: UserRole | null }) {
     const firstName = String(formData.get("firstName") || "")
     const lastName = String(formData.get("lastName") || "")
     const email = String(formData.get("email") || "")
-    const selectedRole = String(formData.get("role") || "COMPANY_STAFF") as UserRole
+    const roleValue = String(formData.get("role") || "COMPANY_STAFF")
+    
+    let selectedRole = "COMPANY_STAFF" as UserRole
+    let roleId = undefined
+
+    if (USER_ROLES.includes(roleValue as any)) {
+      selectedRole = roleValue as UserRole
+    } else {
+      roleId = roleValue
+    }
 
     const res = await createInvitationAction({
       email,
       firstName,
+      firstName,
       lastName,
       role: selectedRole,
+      roleId,
     })
 
     if (res.error) {
@@ -133,8 +144,17 @@ export function AddStaffButton({ role }: { role: UserRole | null }) {
             <div className="space-y-2">
               <label className="text-xs text-neutral-400 uppercase font-bold">Role</label>
               <select name="role" defaultValue="COMPANY_STAFF" className="h-10 w-full rounded-md border border-white/10 bg-white/5 px-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-white/20">
-                <option value="COMPANY_ADMIN">Company Admin</option>
-                <option value="COMPANY_STAFF">Company Staff</option>
+                <optgroup label="System Roles" className="bg-neutral-900">
+                  <option value="COMPANY_ADMIN">Company Admin</option>
+                  <option value="COMPANY_STAFF">Company Staff</option>
+                </optgroup>
+                {customRoles.length > 0 && (
+                  <optgroup label="Custom Roles" className="bg-neutral-900">
+                    {customRoles.map((cr) => (
+                      <option key={cr.id} value={cr.id}>{cr.name}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
 
@@ -188,13 +208,16 @@ export function AddStaffButton({ role }: { role: UserRole | null }) {
   )
 }
 
-export function StaffRowActions({ role, user }: { role: UserRole | null; user: UserRecord }) {
+export function StaffRowActions({ role, user, customRoles }: { role: UserRole | null; user: UserRecord; customRoles: RoleRecord[] }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [scopingOpen, setScopingOpen] = useState(false)
+
+  const isProtected = user.role === "COMPANY_ADMIN" && role !== "SUPER_ADMIN"
+  const canModify = canMutate(role) && !isProtected
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -208,9 +231,13 @@ export function StaffRowActions({ role, user }: { role: UserRole | null; user: U
     const lastName = String(formData.get("lastName") || "")
     const email = String(formData.get("email") || "")
     const phone = String(formData.get("phone") || "")
-    const selectedRole = String(formData.get("role") || user.role) as UserRole
+    const phone = String(formData.get("phone") || "")
+    const roleValue = String(formData.get("role") || user.role)
     const password = String(formData.get("password") || "")
     const isActive = formData.get("isActive") === "on"
+
+    let selectedRole = (USER_ROLES.includes(roleValue as any) ? roleValue : "COMPANY_STAFF") as UserRole
+    let roleId = USER_ROLES.includes(roleValue as any) ? undefined : roleValue
 
     const selectedPermissions = ALL_PERMISSIONS
       .filter(p => formData.get(`perm_${p.id}`) === "on")
@@ -222,6 +249,7 @@ export function StaffRowActions({ role, user }: { role: UserRole | null; user: U
       email,
       phone: phone || undefined,
       role: selectedRole,
+      roleId,
       permissions: selectedPermissions,
       password: password || undefined,
       isActive,
@@ -254,8 +282,8 @@ export function StaffRowActions({ role, user }: { role: UserRole | null; user: U
 
   return (
     <div className="relative">
-      <Button variant="ghost" size="icon" disabled={loading || !canMutate(role)} onClick={() => setMenuOpen((value) => !value)}>
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+      <Button variant="ghost" size="icon" disabled={loading || !canModify} onClick={() => setMenuOpen((value) => !value)}>
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4 font-bold" />}
       </Button>
 
       {menuOpen ? (
@@ -294,10 +322,19 @@ export function StaffRowActions({ role, user }: { role: UserRole | null; user: U
             <Input name="email" type="email" defaultValue={user.email} required />
             <Input name="phone" defaultValue={user.phone || ""} />
             <Input name="password" type="password" placeholder="Leave blank to keep current password" />
-            <select name="role" defaultValue={user.role} className="h-10 w-full rounded-md border border-white/10 bg-white/5 px-3 text-sm text-white">
-              {USER_ROLES.map((itemRole) => (
-                <option key={itemRole} value={itemRole}>{itemRole}</option>
-              ))}
+            <select name="role" defaultValue={user.roleId || user.role} className="h-10 w-full rounded-md border border-white/10 bg-white/5 px-3 text-sm text-white">
+              <optgroup label="System Roles" className="bg-neutral-900">
+                {USER_ROLES.map((itemRole) => (
+                  <option key={itemRole} value={itemRole}>{itemRole}</option>
+                ))}
+              </optgroup>
+              {customRoles.length > 0 && (
+                <optgroup label="Custom Roles" className="bg-neutral-900">
+                  {customRoles.map((cr) => (
+                    <option key={cr.id} value={cr.id}>{cr.name}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
 
             <div className="space-y-2 pt-2">
@@ -321,7 +358,7 @@ export function StaffRowActions({ role, user }: { role: UserRole | null; user: U
               Account active
             </label>
 
-            <Button type="submit" disabled={loading || !canMutate(role)} className="w-full">
+            <Button type="submit" disabled={loading || !canModify} className="w-full">
               Save Changes
             </Button>
           </form>

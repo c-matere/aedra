@@ -108,6 +108,18 @@ export class PropertiesService {
               rentAmount: true,
             },
           },
+          assignments: {
+            select: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  role: true,
+                },
+              },
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -128,13 +140,16 @@ export class PropertiesService {
         .filter((u) => u.status === 'OCCUPIED' || u.status === 'VACATING')
         .reduce((sum, u) => sum + (u.rentAmount || 0), 0);
 
-      const { units, ...rest } = p;
+      const responsibleStaff = p.assignments.map((a) => a.user);
+
+      const { units, assignments, ...rest } = p;
       return {
         ...rest,
         totalUnits,
         occupiedUnits,
         vacatingUnits,
         monthlyRevenue,
+        responsibleStaff,
       };
     });
 

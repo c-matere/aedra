@@ -173,9 +173,9 @@ export class UsersService {
 
     if (
       actor.role !== UserRole.SUPER_ADMIN &&
-      existing.role === UserRole.SUPER_ADMIN
+      existing.role === UserRole.COMPANY_ADMIN
     ) {
-      throw new ForbiddenException('Only Super Admin can modify Super Admins.');
+      throw new ForbiddenException('Only Super Admin can modify Company Admins.');
     }
 
     const nextData = this.enforceWritePolicy(actor, { ...data });
@@ -211,9 +211,10 @@ export class UsersService {
     if (
       actor.role !== UserRole.SUPER_ADMIN &&
       (existing.companyId !== actor.companyId ||
-        existing.role === UserRole.SUPER_ADMIN)
+        existing.role === UserRole.SUPER_ADMIN ||
+        existing.role === UserRole.COMPANY_ADMIN)
     ) {
-      throw new ForbiddenException('You cannot delete this user.');
+      throw new ForbiddenException('You cannot delete this user (Admins are protected).');
     }
 
     return this.prisma.user.delete({ where: { id } });
@@ -254,6 +255,7 @@ export class UsersService {
     data: {
       email: string;
       role: UserRole;
+      roleId?: string;
       firstName?: string;
       lastName?: string;
     },
@@ -272,6 +274,7 @@ export class UsersService {
         firstName: data.firstName,
         lastName: data.lastName,
         role: data.role,
+        roleId: data.roleId,
         token,
         companyId: actor.companyId ?? undefined,
         expiresAt,
@@ -316,6 +319,7 @@ export class UsersService {
           firstName: data.firstName || inv.firstName || '',
           lastName: data.lastName || inv.lastName || '',
           role: inv.role,
+          roleId: inv.roleId,
           companyId: inv.companyId,
           isActive: true,
         },

@@ -97,11 +97,31 @@ export function PropertiesListClient({ properties, token, role }: PropertiesList
                                 <div className="h-9 w-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/20 transition-all">
                                     <Building2 className="h-4 w-4 text-neutral-400 group-hover:text-emerald-400 transition-colors" />
                                 </div>
-                                <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-neutral-100 truncate group-hover:text-emerald-400 transition-colors">{p.name}</p>
-                                    <p className="text-xs text-neutral-500 flex items-center gap-1 truncate font-medium">
-                                        <MapPin className="h-3 w-3" />{p.address ?? "—"}
-                                    </p>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-semibold text-neutral-100 truncate group-hover:text-emerald-400 transition-colors uppercase tracking-tight">{p.name}</p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                        <p className="text-[10px] text-neutral-500 flex items-center gap-1 truncate font-medium">
+                                            <MapPin className="h-2.5 w-2.5" />{p.address ?? "—"}
+                                        </p>
+                                        {p.responsibleStaff && p.responsibleStaff.length > 0 && (
+                                            <div className="flex -space-x-1.5 ml-auto">
+                                                {p.responsibleStaff.slice(0, 3).map((staff, idx) => (
+                                                    <div 
+                                                        key={staff.id} 
+                                                        title={`${staff.firstName} ${staff.lastName}`}
+                                                        className="h-4.5 w-4.5 rounded-full border border-neutral-900 bg-neutral-800 flex items-center justify-center text-[8px] font-bold text-neutral-300 ring-1 ring-white/10"
+                                                    >
+                                                        {staff.firstName[0]}{staff.lastName[0]}
+                                                    </div>
+                                                ))}
+                                                {p.responsibleStaff.length > 3 && (
+                                                    <div className="h-4.5 w-4.5 rounded-full border border-neutral-900 bg-neutral-800 flex items-center justify-center text-[8px] font-bold text-neutral-500 ring-1 ring-white/10">
+                                                        +{p.responsibleStaff.length - 3}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             {/* Type */}

@@ -18,6 +18,7 @@ import {
     listInvitations, 
     getCompany, 
     fetchMe, 
+    listRoles,
     type UserRecord 
 } from "@/lib/backend-api"
 import { getRoleFromCookie, getSessionTokenFromCookie } from "@/lib/cookie-utils"
@@ -42,10 +43,11 @@ export default async function StaffAndAccessPage({
     const search = resolvedParams.search || ""
     const activeTab = resolvedParams.tab || "directory"
 
-    const [usersResult, invitationsRes, meResult] = await Promise.all([
+    const [usersResult, invitationsRes, meResult, rolesRes] = await Promise.all([
         listUsers(sessionToken, { page, search }),
         listInvitations(sessionToken),
-        fetchMe(sessionToken)
+        fetchMe(sessionToken),
+        listRoles(sessionToken)
     ])
 
     const usersData = usersResult.data
@@ -56,6 +58,7 @@ export default async function StaffAndAccessPage({
     const companyId = meResult.data?.user?.companyId
     const companyResult = companyId ? await getCompany(sessionToken, companyId) : { data: null }
     const company = companyResult.data
+    const customRoles = rolesRes.data ?? []
 
     const onSearchAction = async (formData: FormData) => {
         "use server"
@@ -93,7 +96,7 @@ export default async function StaffAndAccessPage({
                         <SecurityEditButton company={company} token={sessionToken} />
                     )}
                     {activeTab === "directory" && (
-                        <AddStaffButton role={role} />
+                        <AddStaffButton role={role} customRoles={customRoles} />
                     )}
                 </div>
             </div>
@@ -210,7 +213,7 @@ export default async function StaffAndAccessPage({
                                             </div>
                                         </div>
                                         <div className="ml-4">
-                                            <StaffRowActions role={role} user={user} />
+                                            <StaffRowActions role={role} user={user} customRoles={customRoles} />
                                         </div>
                                     </div>
                                 ))}

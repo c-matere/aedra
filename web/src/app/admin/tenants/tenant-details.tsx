@@ -180,20 +180,24 @@ export function TenantDetailsPanel({ tenantId, token, onClose }: TenantDetailsPa
                             <div className="space-y-2">
                                 {leases.length > 0 ? (
                                     leases.map((lease) => (
-                                        <div key={lease.id} className="group p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all flex items-center justify-between">
+                                        <div 
+                                            key={lease.id} 
+                                            onClick={() => window.open(`/admin/properties/leases/${lease.id}/statement`, '_blank')}
+                                            className="group p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-white/10 transition-all flex items-center justify-between cursor-pointer active:scale-[0.98]"
+                                        >
                                             <div className="flex items-center gap-4">
                                                 <div className={`h-10 w-10 rounded-xl flex items-center justify-center border ${lease.status === 'ACTIVE' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-neutral-500/10 border-white/5 text-neutral-500'}`}>
                                                     <FileText className="h-5 w-5" />
                                                 </div>
                                                 <div>
                                                     <div className="flex items-center gap-2">
-                                                        <p className="text-sm font-bold text-white">Lease #{lease.id.slice(0, 5)}</p>
+                                                        <p className="text-sm font-bold text-white uppercase tracking-tight">Lease #{lease.id.slice(0, 5)}</p>
                                                         {lease.status === 'ACTIVE' && (
                                                             <span className="text-[8px] font-black bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded uppercase tracking-widest">Active</span>
                                                         )}
                                                     </div>
                                                     <p className="text-[10px] text-neutral-500 mt-0.5 uppercase font-bold tracking-tighter">
-                                                        {lease.startDate ? new Date(lease.startDate).toLocaleDateString() : 'N/A'} — {lease.endDate ? new Date(lease.endDate).toLocaleDateString() : 'N/A'}
+                                                        {lease.startDate ? new Date(lease.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'} — {lease.endDate ? new Date(lease.endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -202,7 +206,7 @@ export function TenantDetailsPanel({ tenantId, token, onClose }: TenantDetailsPa
                                                     <p className="text-xs font-black text-white">KES {lease.rentAmount?.toLocaleString()}</p>
                                                     <p className="text-[9px] text-neutral-600 uppercase font-black">Monthly Rent</p>
                                                 </div>
-                                                <ChevronRight className="h-4 w-4 text-neutral-700 group-hover:text-white transition-colors" />
+                                                <ChevronRight className="h-4 w-4 text-neutral-700 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
                                             </div>
                                         </div>
                                     ))

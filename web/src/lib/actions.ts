@@ -343,7 +343,7 @@ export async function registerCompanyAction(payload: RegisterCompanyPayload) {
     return result;
 }
 
-export async function createInvitationAction(payload: { email: string; role: UserRole; firstName?: string; lastName?: string }) {
+export async function createInvitationAction(payload: { email: string; role: UserRole; roleId?: string; firstName?: string; lastName?: string }) {
     const token = await getSessionTokenFromCookie();
     return createInvitation(token!, payload);
 }
