@@ -35,13 +35,37 @@ export async function generateFinancialStatementPdf(
     }
 
     // Company Info (Top Left)
-    doc.setFontSize(9);
-    doc.setTextColor(100, 100, 100);
     const startY = company?.logo ? 45 : margin;
+    doc.setFontSize(9);
+    doc.setTextColor(40, 40, 40);
+    doc.setFont("helvetica", "bold");
     doc.text(company?.name || "AEDRA MANAGEMENT", margin, startY);
-    doc.text(company?.address || "", margin, startY + 4);
-    doc.text(company?.phone || "", margin, startY + 8);
-    doc.text(company?.email || "", margin, startY + 12);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    
+    let currentInfoY = startY + 4;
+    if (company?.address) {
+        doc.text(company.address, margin, currentInfoY);
+        currentInfoY += 4;
+    }
+    if (company?.phone) {
+        doc.text(`TEL: ${company.phone}`, margin, currentInfoY);
+        currentInfoY += 4;
+    }
+    if (company?.email) {
+        doc.text(`EMAIL: ${company.email}`, margin, currentInfoY);
+        currentInfoY += 4;
+    }
+    if (company?.pinNumber) {
+        doc.setFont("helvetica", "bold");
+        doc.text(`PIN: ${company.pinNumber}`, margin, currentInfoY);
+        currentInfoY += 4;
+    }
+
+    const headerFinalY = Math.max(currentInfoY, startY + 20);
+
 
     // Report Title & Meta (Top Right)
     doc.setFontSize(16);
@@ -119,7 +143,7 @@ export async function generateFinancialStatementPdf(
     }
 
     autoTable(doc, {
-        startY: startY + 25,
+        startY: headerFinalY + 5,
         head: [[
             'UNIT', 
             'TENANT', 

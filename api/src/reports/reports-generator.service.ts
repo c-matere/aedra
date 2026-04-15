@@ -299,8 +299,9 @@ export class ReportsGeneratorService {
             <div class="section-label">From</div>
             <p class="name">${company.name}</p>
             <p>${company.address || ''}</p>
-            <p>${company.email || ''}</p>
-            <p>${company.phone || ''}</p>
+            <p>EMAIL: ${company.email || ''}</p>
+            <p>TEL: ${company.phone || ''}</p>
+            ${company.pinNumber ? `<p style="font-weight: 700; margin-top: 5px;">PIN: ${company.pinNumber}</p>` : ''}
           </div>
           <div class="address-box">
             <div class="section-label">Bill To</div>
@@ -392,8 +393,12 @@ export class ReportsGeneratorService {
       <body>
         <div class="receipt-container">
           <div class="header">
-            <div>
-              ${company.logo ? `<img src="${company.logo}" class="logo" />` : '<div style="width:40px; height:40px; background:#eee;"></div>'}
+            <div style="font-size: 10px; color: #666;">
+              ${company.logo ? `<img src="${company.logo}" class="logo" style="margin-bottom: 10px;" />` : '<div style="width:40px; height:40px; background:#eee; margin-bottom: 10px;"></div>'}
+              <p style="font-weight: 700; color: #111; font-size: 12px; margin: 0;">${company.name}</p>
+              <p style="margin: 2px 0;">${company.address || ''}</p>
+              <p style="margin: 2px 0;">TEL: ${company.phone || ''}</p>
+              ${company.pinNumber ? `<p style="margin: 2px 0; font-weight: 600;">PIN: ${company.pinNumber}</p>` : ''}
             </div>
             <div class="metadata">
               <h1 class="receipt-label">Receipt</h1>
@@ -1000,8 +1005,8 @@ export class ReportsGeneratorService {
             </div>
           </div>
           <div class="meta-info">
-            <p>TEL: ${company.phone || 'N/A'}</p>
-            <p>${company.email || ''}</p>
+            <p>TEL: ${company.phone || ''}</p>
+            <p>EMAIL: ${company.email || ''}</p>
             ${company.pinNumber ? `<p style="margin-top: 8px; font-weight: bold;">PIN: ${company.pinNumber}</p>` : ''}
           </div>
         </div>
