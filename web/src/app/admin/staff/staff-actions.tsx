@@ -231,7 +231,6 @@ export function StaffRowActions({ role, user, customRoles }: { role: UserRole | 
     const lastName = String(formData.get("lastName") || "")
     const email = String(formData.get("email") || "")
     const phone = String(formData.get("phone") || "")
-    const phone = String(formData.get("phone") || "")
     const roleValue = String(formData.get("role") || user.role)
     const password = String(formData.get("password") || "")
     const isActive = formData.get("isActive") === "on"
