@@ -98,7 +98,7 @@ export function PropertiesListClient({ properties, token, role }: PropertiesList
                                     <Building2 className="h-4 w-4 text-neutral-400 group-hover:text-emerald-400 transition-colors" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-white truncate group-hover:text-emerald-400 transition-colors">{p.name}</p>
+                                    <p className="text-sm font-semibold text-neutral-100 truncate group-hover:text-emerald-400 transition-colors">{p.name}</p>
                                     <p className="text-xs text-neutral-500 flex items-center gap-1 truncate font-medium">
                                         <MapPin className="h-3 w-3" />{p.address ?? "—"}
                                     </p>
@@ -130,8 +130,8 @@ export function PropertiesListClient({ properties, token, role }: PropertiesList
                             <div className="col-span-2 hidden lg:block">
                                 {p.monthlyRevenue ? (
                                     <>
-                                        <p className="text-sm font-bold text-white tracking-tight">KES {p.monthlyRevenue.toLocaleString()}</p>
-                                        <p className="text-[10px] text-neutral-500 uppercase tracking-tighter">/ month</p>
+                                        <p className="text-sm font-bold text-neutral-100 tracking-tight">KES {p.monthlyRevenue.toLocaleString()}</p>
+                                        <p className="text-[10px] text-neutral-500 uppercase tracking-[0.1em] font-bold mt-0.5">/ month</p>
                                     </>
                                 ) : (
                                     <span className="text-sm text-neutral-600">—</span>

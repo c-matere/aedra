@@ -289,7 +289,7 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
             {/* Header section */}
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
-                    <h1 className="text-3xl font-black text-white tracking-tight drop-shadow-md flex items-center gap-3">
+                    <h1 className="text-3xl font-bold text-neutral-100 tracking-tight drop-shadow-md flex items-center gap-3">
                         <BarChart3 className="h-8 w-8 text-emerald-400" />
                         Business Intelligence
                     </h1>
@@ -301,7 +301,7 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                     variant="glass"
                     onClick={handleSystemExport}
                     disabled={isGeneratingSystem}
-                    className="bg-emerald-500 text-black font-black border-none shadow-lg shadow-emerald-500/10"
+                    className="bg-emerald-500 text-black font-bold border-none shadow-lg shadow-emerald-500/10"
                 >
                     {isGeneratingSystem ? (
                         <>
@@ -333,7 +333,7 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-black text-white group-hover:translate-x-1 transition-transform">{stat.value}</div>
+                            <div className="text-2xl font-bold text-neutral-100 group-hover:translate-x-0.5 transition-transform">{stat.value}</div>
                         </CardContent>
                     </Card>
                 ))}
@@ -456,8 +456,8 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                         {/* Tenant Statement Center */}
                         <Card className="bg-neutral-900 border-white/10">
                             <CardHeader>
-                                <CardTitle className="text-sm font-bold text-neutral-300">Tenant Statement Center</CardTitle>
-                                <CardDescription className="text-[10px] text-neutral-500 uppercase font-black tracking-tight mt-1">Select tenant to generate ledger</CardDescription>
+                                <CardTitle className="text-sm font-semibold text-neutral-300 uppercase tracking-wider">Tenant Statement Center</CardTitle>
+                                <CardDescription className="text-[10px] text-neutral-500 uppercase font-bold tracking-tight mt-1">Select tenant to generate ledger</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>

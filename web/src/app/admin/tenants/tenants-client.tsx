@@ -97,8 +97,8 @@ export function TenantsClient({ tenants, properties, meta, role, token, search, 
                         <Users className="h-4 w-4 text-neutral-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-black text-white group-hover:translate-x-1 transition-transform">{meta?.total ?? tenants.length}</div>
-                        <p className="text-[10px] text-neutral-600 uppercase font-black mt-1">across all properties</p>
+                        <div className="text-2xl font-bold text-neutral-100 group-hover:translate-x-0.5 transition-transform">{meta?.total ?? tenants.length}</div>
+                        <p className="text-[10px] text-neutral-600 uppercase font-bold tracking-wider mt-1">across all properties</p>
                     </CardContent>
                 </Card>
                 <Card className="bg-white/5 border-white/10 group">
@@ -107,8 +107,8 @@ export function TenantsClient({ tenants, properties, meta, role, token, search, 
                         <UserCheck className="h-4 w-4 text-emerald-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-black text-emerald-400 group-hover:translate-x-1 transition-transform">{active}</div>
-                        <p className="text-[10px] text-neutral-600 uppercase font-black mt-1">in good standing</p>
+                        <div className="text-2xl font-bold text-emerald-400 group-hover:translate-x-0.5 transition-transform">{active}</div>
+                        <p className="text-[10px] text-neutral-600 uppercase font-bold tracking-wider mt-1">in good standing</p>
                     </CardContent>
                 </Card>
                 <Card className="bg-white/5 border-white/10 group">
@@ -117,8 +117,8 @@ export function TenantsClient({ tenants, properties, meta, role, token, search, 
                         <CalendarDays className="h-4 w-4 text-red-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className={`text-2xl font-black group-hover:translate-x-1 transition-transform ${expiring > 0 ? "text-red-400" : "text-white"}`}>{expiring}</div>
-                        <p className="text-[10px] text-neutral-600 uppercase font-black mt-1">leases ending within 90 days</p>
+                        <div className={`text-2xl font-bold group-hover:translate-x-0.5 transition-transform ${expiring > 0 ? "text-red-400" : "text-white"}`}>{expiring}</div>
+                        <p className="text-[10px] text-neutral-600 uppercase font-bold tracking-wider mt-1">leases ending within 90 days</p>
                     </CardContent>
                 </Card>
             </div>
@@ -132,7 +132,7 @@ export function TenantsClient({ tenants, properties, meta, role, token, search, 
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-white/5 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+                    <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-white/5 text-[10px] font-bold uppercase tracking-[0.15em] text-neutral-500">
                         <div className="col-span-4">Tenant Identity</div>
                         <div className="col-span-3 hidden md:block">Current Placement</div>
                         <div className="col-span-3">Financial Standing</div>
@@ -151,7 +151,7 @@ export function TenantsClient({ tenants, properties, meta, role, token, search, 
                                         {initials(t.firstName, t.lastName)}
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="text-sm font-black text-white group-hover:text-blue-400 transition-colors truncate">{t.firstName} {t.lastName}</p>
+                                        <p className="text-sm font-bold text-neutral-100 group-hover:text-blue-400 transition-colors truncate">{t.firstName} {t.lastName}</p>
                                         <p className="text-[11px] text-neutral-500 flex items-center gap-1.5 mt-0.5">
                                             <Mail className="h-3 w-3" /> {t.email || "No email"}
                                         </p>
@@ -166,7 +166,7 @@ export function TenantsClient({ tenants, properties, meta, role, token, search, 
                                 </div>
 
                                 <div className="col-span-3">
-                                    <p className="text-sm font-black text-white">KES {t.rentAmount?.toLocaleString() || "—"}</p>
+                                    <p className="text-sm font-bold text-neutral-100">KES {t.rentAmount?.toLocaleString() || "—"}</p>
                                     <div className="mt-1 flex items-center gap-2">
                                         {statusBadge(t.status)}
                                     </div>

@@ -67,7 +67,7 @@ export default async function PropertiesPage({
             {/* Page header */}
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
-                    <h1 className="text-3xl font-bold tracking-tight text-white drop-shadow-md">
+                    <h1 className="text-3xl font-bold tracking-tight text-neutral-100 drop-shadow-md">
                         Properties
                     </h1>
                     <p className="text-neutral-400 text-sm font-medium">
@@ -99,7 +99,7 @@ export default async function PropertiesPage({
                         <Building2 className="h-4 w-4 text-neutral-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-white">{meta?.total ?? properties.length}</div>
+                        <div className="text-2xl font-bold text-neutral-100">{meta?.total ?? properties.length}</div>
                         <p className="text-xs text-neutral-400 mt-1">across Mombasa County</p>
                     </CardContent>
                 </Card>
@@ -109,7 +109,7 @@ export default async function PropertiesPage({
                         <Home className="h-4 w-4 text-neutral-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-white">{totalUnitsTotal > 0 ? totalUnitsTotal : "—"}</div>
+                        <div className="text-2xl font-bold text-neutral-100">{totalUnitsTotal > 0 ? totalUnitsTotal : "—"}</div>
                         <p className="text-xs text-neutral-400 mt-1">
                             {totalUnitsTotal > 0 ? `${totalOccupiedTotal} currently occupied` : "No unit data in current view"}
                         </p>
