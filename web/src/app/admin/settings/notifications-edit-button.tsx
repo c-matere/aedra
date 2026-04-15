@@ -133,6 +133,7 @@ export function NotificationsEditButton({ company, token }: NotificationsEditBut
                             checked={formData.waPaymentConfirmationsEnabled}
                             onCheckedChange={(checked) => setFormData({ ...formData, waPaymentConfirmationsEnabled: checked })}
                         />
+                    </div>
                     <div className="flex items-center justify-between py-2">
                         <div className="space-y-0.5">
                             <label className="text-sm font-medium text-emerald-400">WhatsApp Invoices</label>
