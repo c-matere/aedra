@@ -233,7 +233,8 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                     alert(`Failed to generate McKinsey report: ${reportRes.error || "Unknown error"}`)
                     return
                 }
-                const absoluteUrl = `${backendBaseUrl()}${reportRes.data.url}`
+                const url = reportRes.data.url
+                const absoluteUrl = url.startsWith('http') ? url : `${backendBaseUrl()}${url}`
                 window.open(absoluteUrl, '_blank')
             }
         } catch (err) {
@@ -262,7 +263,8 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                 alert(`Failed to generate tenant statement: ${res.error || "Unknown error"}`)
                 return
             }
-            const absoluteUrl = `${backendBaseUrl()}${res.data.url}`
+            const url = res.data.url
+            const absoluteUrl = url.startsWith('http') ? url : `${backendBaseUrl()}${url}`
             window.open(absoluteUrl, '_blank')
         } catch (err) {
             console.error("Tenant statement error:", err)
