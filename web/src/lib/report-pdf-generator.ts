@@ -27,15 +27,14 @@ export async function generateFinancialStatementPdf(
     };
 
     // --- 1. Branding Header ---
-    if (company?.logo) {
-        const logo = await loadImage(company.logo);
-        if (logo) {
-            doc.addImage(logo, 'PNG', margin, margin, 25, 25);
-        }
+    const logoUrl = company?.logo || "/aedra logo.png";
+    const logo = await loadImage(logoUrl);
+    if (logo) {
+        doc.addImage(logo, 'PNG', margin, margin, 25, 25);
     }
 
     // Company Info (Top Left)
-    const startY = company?.logo ? 45 : margin;
+    const startY = 45; // Always reserve space for logo since we have a fallback
     doc.setFontSize(9);
     doc.setTextColor(40, 40, 40);
     doc.setFont("helvetica", "bold");
@@ -46,23 +45,26 @@ export async function generateFinancialStatementPdf(
     doc.setTextColor(100, 100, 100);
     
     let currentInfoY = startY + 4;
-    if (company?.address) {
-        doc.text(company.address, margin, currentInfoY);
-        currentInfoY += 4;
-    }
-    if (company?.phone) {
-        doc.text(`TEL: ${company.phone}`, margin, currentInfoY);
-        currentInfoY += 4;
-    }
-    if (company?.email) {
-        doc.text(`EMAIL: ${company.email}`, margin, currentInfoY);
-        currentInfoY += 4;
-    }
+    
+    // Always show these block but fallback to Aedra defaults if company data is missing
+    const address = company?.address || "P.O BOX 80000-80100, MOMBASA, KENYA";
+    doc.text(address, margin, currentInfoY);
+    currentInfoY += 4;
+
+    const phone = company?.phone || "Property Management Office";
+    doc.text(`TEL: ${phone}`, margin, currentInfoY);
+    currentInfoY += 4;
+
+    const email = company?.email || "support@aedra.co.ke";
+    doc.text(`EMAIL: ${email}`, margin, currentInfoY);
+    currentInfoY += 4;
+
     if (company?.pinNumber) {
         doc.setFont("helvetica", "bold");
         doc.text(`PIN: ${company.pinNumber}`, margin, currentInfoY);
         currentInfoY += 4;
     }
+
 
     const headerFinalY = Math.max(currentInfoY, startY + 20);
 

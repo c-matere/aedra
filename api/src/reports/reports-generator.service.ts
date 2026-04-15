@@ -245,6 +245,11 @@ export class ReportsGeneratorService {
   }
 
   private renderInvoiceHtml(invoice: any, company: any): string {
+    const name = company?.name || 'AEDRA MANAGEMENT';
+    const address = company?.address || 'P.O BOX 80000-80100, MOMBASA, KENYA';
+    const email = company?.email || 'support@aedra.co.ke';
+    const phone = company?.phone || 'Property Management Office';
+
     const formattedAmount = new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(invoice.amount);
     const dueDate = new Date(invoice.dueDate).toLocaleDateString();
     
@@ -297,10 +302,10 @@ export class ReportsGeneratorService {
         <div class="addresses">
           <div class="address-box">
             <div class="section-label">From</div>
-            <p class="name">${company.name}</p>
-            <p>${company.address || ''}</p>
-            <p>EMAIL: ${company.email || ''}</p>
-            <p>TEL: ${company.phone || ''}</p>
+            <p class="name">${name}</p>
+            <p>${address}</p>
+            <p>EMAIL: ${email}</p>
+            <p>TEL: ${phone}</p>
             ${company.pinNumber ? `<p style="font-weight: 700; margin-top: 5px;">PIN: ${company.pinNumber}</p>` : ''}
           </div>
           <div class="address-box">
@@ -394,10 +399,10 @@ export class ReportsGeneratorService {
         <div class="receipt-container">
           <div class="header">
             <div style="font-size: 10px; color: #666;">
-              ${company.logo ? `<img src="${company.logo}" class="logo" style="margin-bottom: 10px;" />` : '<div style="width:40px; height:40px; background:#eee; margin-bottom: 10px;"></div>'}
-              <p style="font-weight: 700; color: #111; font-size: 12px; margin: 0;">${company.name}</p>
-              <p style="margin: 2px 0;">${company.address || ''}</p>
-              <p style="margin: 2px 0;">TEL: ${company.phone || ''}</p>
+              ${company.logo ? `<img src="${company.logo}" class="logo" style="margin-bottom: 10px;" />` : `<img src="${this.resolveLogoUrl(null)}" class="logo" style="margin-bottom: 10px;" />`}
+              <p style="font-weight: 700; color: #111; font-size: 12px; margin: 0;">${company.name || 'AEDRA MANAGEMENT'}</p>
+              <p style="margin: 2px 0;">${company.address || 'P.O BOX 80000-80100, MOMBASA, KENYA'}</p>
+              <p style="margin: 2px 0;">TEL: ${company.phone || 'Property Management Office'}</p>
               ${company.pinNumber ? `<p style="margin: 2px 0; font-weight: 600;">PIN: ${company.pinNumber}</p>` : ''}
             </div>
             <div class="metadata">
@@ -816,11 +821,12 @@ export class ReportsGeneratorService {
   }
 
   private resolveLogoUrl(logo: string | null): string | null {
-    if (!logo) return null;
-    if (logo.startsWith('http')) return logo;
+    const defaultLogo = '/aedra logo.png';
+    const logoToResolve = logo || defaultLogo;
+    if (logoToResolve.startsWith('http')) return logoToResolve;
     const baseUrl = process.env.INTERNAL_API_URL || process.env.API_URL || 'http://localhost:4001';
     const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const normalizedLogo = logo.startsWith('/') ? logo : '/' + logo;
+    const normalizedLogo = logoToResolve.startsWith('/') ? logoToResolve : '/' + logoToResolve;
     return `${normalizedBase}${normalizedLogo}`;
   }
 
@@ -952,9 +958,7 @@ export class ReportsGeneratorService {
     const fmt = (n: number) => new Intl.NumberFormat('en-KE', { minimumFractionDigits: 2 }).format(n);
     const dt = (dStr: string) => new Date(dStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-    const logoHtml = company.logo 
-      ? `<img src="${this.resolveLogoUrl(company.logo)}" style="max-height: 80px; max-width: 200px; filter: grayscale(100%);" />`
-      : `<div style="width: 80px; height: 80px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 32px; color: #d1d5db;">${company.name.charAt(0)}</div>`;
+    const logoHtml = `<img src="${this.resolveLogoUrl(company.logo || null)}" style="max-height: 80px; max-width: 200px; filter: grayscale(100%);" />`;
 
     return `
       <!DOCTYPE html>
@@ -1000,13 +1004,13 @@ export class ReportsGeneratorService {
           <div style="display: flex; gap: 20px; align-items: center;">
             ${logoHtml}
             <div class="company-info">
-              <h1>${company.name}</h1>
-              <p>${company.address || ''}</p>
+              <h1>${company.name || 'AEDRA MANAGEMENT'}</h1>
+              <p>${company.address || 'P.O BOX 80000-80100, MOMBASA, KENYA'}</p>
             </div>
           </div>
           <div class="meta-info">
-            <p>TEL: ${company.phone || ''}</p>
-            <p>EMAIL: ${company.email || ''}</p>
+            <p>TEL: ${company.phone || 'Property Management Office'}</p>
+            <p>EMAIL: ${company.email || 'support@aedra.co.ke'}</p>
             ${company.pinNumber ? `<p style="margin-top: 8px; font-weight: bold;">PIN: ${company.pinNumber}</p>` : ''}
           </div>
         </div>
