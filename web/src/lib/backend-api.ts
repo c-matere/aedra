@@ -246,6 +246,7 @@ export interface UserRecord {
   lastName: string;
   phone?: string;
   role: UserRole;
+  roleId?: string;
   permissions: string[];
   companyId?: string;
   isActive: boolean;

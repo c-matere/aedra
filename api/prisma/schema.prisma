@@ -129,6 +129,7 @@ model Role {
   companyId   String?
   company     Company? @relation(fields: [companyId], references: [id])
   users       User[]
+  invitations Invitation[]
 
   @@unique([name, companyId])
   @@index([companyId])
@@ -467,6 +468,7 @@ model Invitation {
   role      UserRole  @default(COMPANY_STAFF)
   token     String    @unique
   companyId String?
+  roleId    String?
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
@@ -474,9 +476,11 @@ model Invitation {
   firstName String?
   lastName  String?
   company   Company?  @relation(fields: [companyId], references: [id])
+  customRole Role?    @relation(fields: [roleId], references: [id])
 
   @@index([companyId])
   @@index([token])
+  @@index([roleId])
 }
 
 model AuditLog {
