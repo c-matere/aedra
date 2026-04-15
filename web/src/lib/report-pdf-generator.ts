@@ -8,7 +8,12 @@ export async function generateFinancialStatementPdf(
     company: CompanyRecord | null,
     propertyUnits?: any[]
 ) {
-    const doc = new jsPDF('p', 'mm', 'a4'); 
+    const doc = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4',
+        compress: true
+    }); 
     const property = data.property;
     const totals = data.totals;
     const margin = 14;
@@ -26,11 +31,43 @@ export async function generateFinancialStatementPdf(
         });
     };
 
+    /**
+     * Resizes an image if it's too large to prevent bloated PDFs.
+     * We don't need 4000px logos for a 25mm header.
+     */
+    const resizeImage = (img: HTMLImageElement, maxDim: number = 800): string | HTMLImageElement => {
+        const width = img.width;
+        const height = img.height;
+
+        if (width <= maxDim && height <= maxDim) return img;
+
+        const canvas = document.createElement('canvas');
+        let newWidth, newHeight;
+
+        if (width > height) {
+            newWidth = maxDim;
+            newHeight = (height / width) * maxDim;
+        } else {
+            newHeight = maxDim;
+            newWidth = (width / height) * maxDim;
+        }
+
+        canvas.width = newWidth;
+        canvas.height = newHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return img;
+
+        ctx.drawImage(img, 0, 0, newWidth, newHeight);
+        return canvas.toDataURL('image/jpeg', 0.85); // Compress to 85% quality JPEG
+    };
+
     // --- 1. Branding Header ---
     const logoUrl = getLogoUrl(company?.logo) || "/aedra logo.png";
     const logo = await loadImage(logoUrl);
     if (logo) {
-        doc.addImage(logo, 'PNG', margin, margin, 25, 25);
+        const optimizedLogo = resizeImage(logo, 600);
+        // Use 'FAST' compression alias and 'JPEG' format for smaller footprints
+        doc.addImage(optimizedLogo, 'JPEG', margin, margin, 25, 25, undefined, 'FAST');
     }
 
     // Company Info (Top Left)
@@ -83,27 +120,45 @@ export async function generateFinancialStatementPdf(
 
     // --- 2. Unit Breakdown Table ---
     const tableRows: any[] = [];
-    
-    let sumExpected = 0;
-    let sumPaid = 0;
-    let sumBalance = 0;
+    const vatRate = 0.16;
+    const commissionPct = property.commissionPercentage || 0;
+
+    let sumInvoice = 0;
+    let sumCollection = 0;
+    let sumOutstanding = 0;
+    let sumRemitted = 0;
+    let sumFeeVat = 0;
+    let sumPayable = 0;
 
     // Occupied Units
     data.tenantPayments.forEach(tp => {
-        const expected = tp.rentAmount || 0;
-        const paid = tp.paidThisMonth || 0;
-        const balance = expected - paid;
+        const invoiceAmt = tp.rentAmount || 0;
+        const currentCollection = tp.paidThisMonth || 0;
+        const outstanding = invoiceAmt - currentCollection;
+        
+        const managementFee = (currentCollection * commissionPct) / 100;
+        const vat = managementFee * vatRate;
+        const totalDeduction = managementFee + vat;
+        
+        const amountRemitted = currentCollection; 
+        const amountPayable = currentCollection - totalDeduction;
 
-        sumExpected += expected;
-        sumPaid += paid;
-        sumBalance += balance;
+        sumInvoice += invoiceAmt;
+        sumCollection += currentCollection;
+        sumOutstanding += outstanding;
+        sumRemitted += amountRemitted;
+        sumFeeVat += totalDeduction;
+        sumPayable += amountPayable;
 
         tableRows.push([
             tp.unit,
             tp.name,
-            expected.toLocaleString(),
-            paid.toLocaleString(),
-            balance.toLocaleString()
+            invoiceAmt.toLocaleString(),
+            currentCollection.toLocaleString(),
+            outstanding.toLocaleString(),
+            amountRemitted.toLocaleString(),
+            totalDeduction.toLocaleString(),
+            amountPayable.toLocaleString()
         ]);
     });
 
@@ -115,106 +170,73 @@ export async function generateFinancialStatementPdf(
                 tableRows.push([
                     u.unitNumber,
                     "VACANT",
-                    "—",
-                    "—",
-                    "—"
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    ""
                 ]);
             }
         });
     }
 
     autoTable(doc, {
-        startY: headerFinalY + 12,
+        startY: headerFinalY + 5,
         head: [[
-            'UNIT NUMBER', 
+            'UNIT', 
             'TENANT', 
-            'EXPECTED RENT', 
-            'ACTUAL PAID', 
-            'BALANCE'
+            'INVOICE AMT', 
+            'COLLECTION', 
+            'BALANCE', 
+            'REMITTED', 
+            'FEE + VAT', 
+            'PAYABLE'
         ]],
         body: tableRows,
+        foot: [[
+            'TOTALS',
+            '',
+            sumInvoice.toLocaleString(),
+            sumCollection.toLocaleString(),
+            sumOutstanding.toLocaleString(),
+            sumRemitted.toLocaleString(),
+            sumFeeVat.toLocaleString(),
+            sumPayable.toLocaleString()
+        ]],
         theme: 'striped',
         headStyles: { 
-            fillColor: [30, 30, 30], 
-            textColor: [255, 255, 255], 
+            fillColor: [255, 255, 255], 
+            textColor: [0, 0, 0], 
             fontStyle: 'bold',
-            fontSize: 8,
-            cellPadding: 3
+            lineWidth: 0.1,
+            lineColor: [200, 200, 200]
+        },
+        footStyles: {
+            fillColor: [245, 245, 245],
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            lineWidth: 0.1,
+            lineColor: [200, 200, 200]
         },
         styles: { 
-            fontSize: 8, 
-            cellPadding: 3, 
+            fontSize: 7, 
+            cellPadding: 2, 
             font: 'helvetica',
             lineWidth: 0.1,
             lineColor: [230, 230, 230]
         },
         columnStyles: {
-            0: { cellWidth: 30 },
-            1: { cellWidth: 60 },
+            0: { cellWidth: 15 },
+            1: { cellWidth: 45 }, // Increased name column width
             2: { halign: 'right' },
             3: { halign: 'right' },
-            4: { halign: 'right', fontStyle: 'bold' }
+            4: { halign: 'right' },
+            5: { halign: 'right' },
+            6: { halign: 'right' },
+            7: { halign: 'right', fontStyle: 'bold' }
         }
     });
-
-    // --- 3. Building Summary ---
-    const finalY = (doc as any).lastAutoTable.finalY + 15;
-    
-    // Calculate categorized expenses
-    const expensesByCategory = totals.expensesByCategory || [];
-    const commissionPct = property.commissionPercentage || 0;
-    const commissionAmount = (sumPaid * commissionPct) / 100;
-
-    const maintenanceExpenses = expensesByCategory
-        .filter(e => ['MAINTENANCE', 'REPAIR'].includes(e.category))
-        .reduce((sum, e) => sum + e.amount, 0);
-
-    const utilityExpenses = expensesByCategory
-        .filter(e => e.category === 'UTILITY')
-        .reduce((sum, e) => sum + e.amount, 0);
-
-    const otherExpenses = (totals.expenses || 0) - maintenanceExpenses - utilityExpenses;
-    const netLandlordShare = sumPaid - commissionAmount - (totals.expenses || 0);
-
-    // Render Summary Section
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(0, 0, 0);
-    doc.text("BUILDING SUMMARY (FOR THE MONTH)", margin, finalY);
-    
-    doc.setDrawColor(230, 230, 230);
-    doc.line(margin, finalY + 2, pageWidth - margin, finalY + 2);
-
-    let summaryY = finalY + 10;
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(100, 100, 100);
-
-    const renderSummaryRow = (label: string, value: string, isTotal = false) => {
-        if (isTotal) {
-            doc.setFont("helvetica", "bold");
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(11);
-        } else {
-            doc.setFont("helvetica", "normal");
-            doc.setTextColor(100, 100, 100);
-            doc.setFontSize(9);
-        }
-        
-        doc.text(label, margin, summaryY);
-        doc.text(value, rightAlignX, summaryY, { align: 'right' });
-        summaryY += 8;
-    };
-
-    renderSummaryRow("TOTAL RENT COLLECTED", `KES ${sumPaid.toLocaleString()}`);
-    renderSummaryRow("AGENT COMMISSION", `KES ${commissionAmount.toLocaleString()} (${commissionPct}%)`);
-    renderSummaryRow("MAINTENANCE & REPAIRS", `KES ${maintenanceExpenses.toLocaleString()}`);
-    renderSummaryRow("UTILITIES", `KES ${utilityExpenses.toLocaleString()}`);
-    renderSummaryRow("OTHER EXPENSES", `KES ${otherExpenses.toLocaleString()}`);
-    
-    summaryY += 2;
-    doc.line(margin, summaryY - 4, pageWidth - margin, summaryY - 4);
-    renderSummaryRow("NET LANDLORD SHARE", `KES ${netLandlordShare.toLocaleString()}`, true);
 
     // Footer
     const pageCount = (doc as any).internal.getNumberOfPages();
@@ -230,7 +252,7 @@ export async function generateFinancialStatementPdf(
         );
     }
 
-    const filename = `${property.name.replace(/\s+/g, '_')}_Financial_Statement_${data.month.replace(/\s+/g, '_')}.pdf`;
+    const filename = `${property.name.replace(/\s+/g, '_')}_Remittance_Report_${data.month.replace(/\s+/g, '_')}.pdf`;
     doc.save(filename);
 }
 
