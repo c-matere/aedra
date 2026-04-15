@@ -281,7 +281,6 @@ Thank you!
     `.trim();
 
     // STEP 8 — Deliver to tenant (using template for better deliverability)
-    const shortfall = Math.max(0, expected - amount);
     const balance = shortfall; // Simplified balance calculation
 
     await this.whatsappService
