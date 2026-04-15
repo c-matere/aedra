@@ -106,6 +106,7 @@ export interface TenantRecord {
   companyId: string;
   rentAmount?: number;
   leaseEnd?: string;
+  leases?: any[];
 }
 
 export interface LandlordRecord {
@@ -1833,4 +1834,20 @@ export async function triggerZuriSync(
     "POST",
     { companyId, propertyIds },
   );
+}
+export async function fetchTenantStatementPdf(
+  token: string,
+  leaseId: string,
+  startDate?: string,
+  endDate?: string,
+): Promise<BackendRequestResult<{ url: string }>> {
+  let path = `/reports/leases/${leaseId}/statement/pdf`;
+  const params = new URLSearchParams();
+  if (startDate) params.append("startDate", startDate);
+  if (endDate) params.append("endDate", endDate);
+  
+  const queryString = params.toString();
+  if (queryString) path += `?${queryString}`;
+
+  return backendGet<{ url: string }>(path, token);
 }

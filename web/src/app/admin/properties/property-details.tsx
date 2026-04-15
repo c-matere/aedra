@@ -485,8 +485,8 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                                         >
                                             <Printer className="h-4 w-4 text-emerald-500" />
                                             <div className="flex flex-col">
-                                                <span className="font-bold text-xs uppercase tracking-tight">Financial Statement (PDF)</span>
-                                                <span className="text-[9px] text-neutral-500">Premium printable version</span>
+                                                <span className="font-bold text-xs">Remittance Report (PDF)</span>
+                                                <span className="text-[9px] text-neutral-500">Professional financial summary</span>
                                             </div>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem
@@ -495,8 +495,8 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                                         >
                                             <FileDown className="h-4 w-4 text-emerald-500" />
                                             <div className="flex flex-col">
-                                                <span className="font-bold text-xs uppercase tracking-tight">Data Export (CSV)</span>
-                                                <span className="text-[9px] text-neutral-500">Raw dump for Excel/Analysis</span>
+                                                <span className="font-bold text-xs">Spreadsheet (CSV)</span>
+                                                <span className="text-[9px] text-neutral-500">Best for data analysis</span>
                                             </div>
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>

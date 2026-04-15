@@ -24,13 +24,15 @@ import type {
     ReportSummary,
     ReportOccupancy,
     ReportRevenue,
-    PropertyRecord
+    PropertyRecord,
+    TenantRecord
 } from "@/lib/backend-api"
 import {
     getPortfolioReport,
     getMcKinseyReport,
     getCompany,
-    backendBaseUrl
+    backendBaseUrl,
+    fetchTenantStatementPdf
 } from "@/lib/backend-api"
 import {
     BarChart,
@@ -60,12 +62,15 @@ interface ReportsClientProps {
     role: string | null
     token: string
     properties: PropertyRecord[]
+    tenants: TenantRecord[]
 }
 
-export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, token, properties }: ReportsClientProps) {
+export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, token, properties, tenants }: ReportsClientProps) {
     const [isGeneratingSystem, setIsGeneratingSystem] = useState(false)
     const [isGeneratingEntity, setIsGeneratingEntity] = useState(false)
     const [selectedPropertyId, setSelectedPropertyId] = useState<string>("")
+    const [selectedTenantId, setSelectedTenantId] = useState<string>("")
+    const [isGeneratingTenant, setIsGeneratingTenant] = useState(false)
 
     const handleSystemExport = async () => {
         setIsGeneratingSystem(true)
@@ -239,13 +244,43 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
         }
     }
 
+    const handleGenerateTenantStatement = async () => {
+        if (!selectedTenantId) return
+        const tenant = tenants.find(t => t.id === selectedTenantId)
+        if (!tenant) return
+
+        const activeLeaseId = tenant.leases?.[0]?.id
+        if (!activeLeaseId) {
+            alert("This tenant has no active lease to generate a statement for.")
+            return
+        }
+
+        setIsGeneratingTenant(true)
+        try {
+            const res = await fetchTenantStatementPdf(token, activeLeaseId)
+            if (res.error || !res.data) {
+                alert(`Failed to generate tenant statement: ${res.error || "Unknown error"}`)
+                return
+            }
+            const absoluteUrl = `${backendBaseUrl()}${res.data.url}`
+            window.open(absoluteUrl, '_blank')
+        } catch (err) {
+            console.error("Tenant statement error:", err)
+            alert("An unexpected error occurred during statement generation.")
+        } finally {
+            setIsGeneratingTenant(false)
+        }
+    }
+
     const occupancyChartData = occupancy ? [
         { name: 'Occupied', value: occupancy.OCCUPIED, color: '#10b981' },
         { name: 'Vacant', value: occupancy.VACANT, color: '#3b82f6' },
         { name: 'Maintenance', value: occupancy.UNDER_MAINTENANCE, color: '#f59e0b' },
     ].filter(d => d.value > 0) : []
 
-    const logs = Array.isArray(auditLogs?.logs) ? auditLogs.logs : []
+    const filteredTenants = selectedPropertyId 
+        ? tenants.filter(t => t.propertyId === selectedPropertyId)
+        : tenants
 
     return (
         <div className="flex flex-col gap-8 pb-10">
@@ -359,17 +394,23 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                             <Building2 className="h-5 w-5 text-emerald-500" />
                             Entity Report Center
                         </h2>
-                        <Card className="bg-neutral-900 border-white/10">
+                        
+                        {/* Property Reports */}
+                        <Card className="bg-neutral-900 border-white/10 mb-6">
                             <CardHeader>
-                                <CardTitle className="text-sm font-bold text-neutral-300">Generate Property Report</CardTitle>
-                                <CardDescription className="text-xs text-neutral-555 uppercase font-bold tracking-tighter">Select a property to begin</CardDescription>
+                                <CardTitle className="text-sm font-bold text-neutral-300">Property Reports</CardTitle>
+                                <CardDescription className="text-[10px] text-neutral-500 uppercase font-black tracking-tight mt-1">Select property to analyze performance</CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4 pt-4">
-                                <Select value={selectedPropertyId} onValueChange={setSelectedPropertyId}>
+                            <CardContent className="space-y-4">
+                                <Select value={selectedPropertyId} onValueChange={(val) => {
+                                    setSelectedPropertyId(val)
+                                    setSelectedTenantId("") // Reset tenant when property changes
+                                }}>
                                     <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl">
                                         <SelectValue placeholder="Select Property..." />
                                     </SelectTrigger>
                                     <SelectContent className="bg-neutral-900 border-white/10 text-white">
+                                        <SelectItem value="ALL_PROPERTIES" className="font-bold text-emerald-400">All Properties</SelectItem>
                                         {properties.map(p => (
                                             <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                                         ))}
@@ -380,7 +421,7 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                                     <div className="grid grid-cols-2 gap-3">
                                         <Button 
                                             variant="outline" 
-                                            disabled={!selectedPropertyId || isGeneratingEntity}
+                                            disabled={!selectedPropertyId || selectedPropertyId === "ALL_PROPERTIES" || isGeneratingEntity}
                                             onClick={() => handleGenerateEntityReport('PDF')}
                                             className="border-white/10 bg-white/5 hover:bg-emerald-500/10 hover:text-emerald-400 text-xs font-bold rounded-xl h-14"
                                         >
@@ -389,7 +430,7 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                                         </Button>
                                         <Button 
                                             variant="outline"
-                                            disabled={!selectedPropertyId || isGeneratingEntity}
+                                            disabled={!selectedPropertyId || selectedPropertyId === "ALL_PROPERTIES" || isGeneratingEntity}
                                             onClick={() => handleGenerateEntityReport('CSV')}
                                             className="border-white/10 bg-white/5 hover:bg-emerald-500/10 hover:text-emerald-400 text-xs font-bold rounded-xl h-14"
                                         >
@@ -399,22 +440,68 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                                     </div>
                                     <Button 
                                         variant="outline"
-                                        disabled={!selectedPropertyId || isGeneratingEntity}
+                                        disabled={!selectedPropertyId || selectedPropertyId === "ALL_PROPERTIES" || isGeneratingEntity}
                                         onClick={() => handleGenerateEntityReport('FINANCIAL_PDF')}
                                         className="w-full border-white/10 bg-white/5 hover:bg-emerald-500/10 hover:text-emerald-400 text-xs font-bold rounded-xl h-14"
                                     >
                                         <Printer className="h-4 w-4 mr-2 text-emerald-500" />
-                                        Print Statement (PDF)
+                                        Remittance Report (PDF)
                                     </Button>
                                 </div>
-                                {isGeneratingEntity && (
-                                    <div className="flex items-center gap-2 justify-center text-[10px] text-emerald-400 font-bold uppercase tracking-widest animate-pulse">
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                        Building your data...
-                                    </div>
-                                )}
                             </CardContent>
                         </Card>
+
+                        {/* Tenant Statement Center */}
+                        <Card className="bg-neutral-900 border-white/10">
+                            <CardHeader>
+                                <CardTitle className="text-sm font-bold text-neutral-300">Tenant Statement Center</CardTitle>
+                                <CardDescription className="text-[10px] text-neutral-500 uppercase font-black tracking-tight mt-1">Select tenant to generate ledger</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
+                                    <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl">
+                                        <SelectValue placeholder="Select Tenant..." />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-neutral-900 border-white/10 text-white max-h-[300px]">
+                                        {filteredTenants.length > 0 ? (
+                                            filteredTenants.map(t => (
+                                                <SelectItem key={t.id} value={t.id}>
+                                                    {t.firstName} {t.lastName} {t.unitNumber ? `(Unit ${t.unitNumber})` : ''}
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <div className="p-2 text-xs text-neutral-500 text-center uppercase font-bold tracking-widest">No tenants found</div>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+
+                                <Button 
+                                    variant="outline"
+                                    disabled={!selectedTenantId || isGeneratingTenant}
+                                    onClick={handleGenerateTenantStatement}
+                                    className="w-full border-white/10 bg-white/5 hover:bg-emerald-500/10 hover:text-emerald-400 text-xs font-bold rounded-xl h-14"
+                                >
+                                    {isGeneratingTenant ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Generating Statement...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <History className="h-4 w-4 mr-2 text-emerald-500" />
+                                            Generate Statement (PDF)
+                                        </>
+                                    )}
+                                </Button>
+                            </CardContent>
+                        </Card>
+
+                        {(isGeneratingEntity || isGeneratingTenant) && (
+                            <div className="flex items-center gap-2 justify-center text-[10px] text-emerald-400 font-bold uppercase tracking-widest animate-pulse mt-4">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Building your professional report...
+                            </div>
+                        )}
                     </section>
                 </div>
             </div>

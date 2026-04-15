@@ -88,6 +88,13 @@ export class TenantsService {
     const [data, total] = await Promise.all([
       this.prisma.tenant.findMany({
         where,
+        include: {
+          leases: {
+            where: { status: 'ACTIVE' },
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+          },
+        },
         orderBy: { createdAt: 'desc' },
         skip,
         take,
