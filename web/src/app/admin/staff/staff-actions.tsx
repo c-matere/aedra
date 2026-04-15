@@ -320,7 +320,7 @@ export function StaffRowActions({ role, user, customRoles }: { role: UserRole | 
             <Input name="email" type="email" defaultValue={user.email} required />
             <Input name="phone" defaultValue={user.phone || ""} />
             <Input name="password" type="password" placeholder="Leave blank to keep current password" />
-            <select name="role" defaultValue={user.roleId || user.role} className="h-10 w-full rounded-md border border-white/10 bg-white/5 px-3 text-sm text-white">
+            <select name="role" defaultValue={(user as any).roleId || user.role} className="h-10 w-full rounded-md border border-white/10 bg-white/5 px-3 text-sm text-white">
               <optgroup label="System Roles" className="bg-neutral-900">
                 {USER_ROLES.map((itemRole) => (
                   <option key={itemRole} value={itemRole}>{itemRole}</option>
