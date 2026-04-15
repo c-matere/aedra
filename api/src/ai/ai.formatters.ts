@@ -96,13 +96,18 @@ export const formatUnitList = (units: any[], query?: string) => {
   return `${header}\n\n${lines.join('\n')}`;
 };
 
-export const formatFinancialSummary = (summary: any, language: 'en' | 'sw' = 'en') => {
+export const formatFinancialSummary = (
+  summary: any,
+  language: 'en' | 'sw' = 'en',
+) => {
   const isSw = language === 'sw';
   if (!summary || summary?.error) {
     const msg =
       summary?.message ||
       summary?.error ||
-      (isSw ? 'Sikuweza kupata muhtasari wa kifedha kwa sasa.' : "I couldn't retrieve the financial summary right now.");
+      (isSw
+        ? 'Sikuweza kupata muhtasari wa kifedha kwa sasa.'
+        : "I couldn't retrieve the financial summary right now.");
     return `📊 ${msg}`;
   }
 
@@ -111,9 +116,10 @@ export const formatFinancialSummary = (summary: any, language: 'en' | 'sw' = 'en
   const totals = summary.totals || {};
 
   const fmt = (n: any) => `KES ${Number(n || 0).toLocaleString('en-KE')}`;
-  const range = summary?.dateRange?.from && summary?.dateRange?.to
-    ? `${new Date(summary.dateRange.from).toLocaleDateString('en-KE')} → ${new Date(summary.dateRange.to).toLocaleDateString('en-KE')}`
-    : undefined;
+  const range =
+    summary?.dateRange?.from && summary?.dateRange?.to
+      ? `${new Date(summary.dateRange.from).toLocaleDateString('en-KE')} → ${new Date(summary.dateRange.to).toLocaleDateString('en-KE')}`
+      : undefined;
 
   const lines = [
     `*${companyName}*`,
@@ -365,9 +371,10 @@ export const formatCompanySummary = (data: any) => {
       year: 'numeric',
     });
 
-  const period = dateRange?.from && dateRange?.to 
-    ? `📅 *Period:* ${formatDate(dateRange.from)} - ${formatDate(dateRange.to)}\n`
-    : '';
+  const period =
+    dateRange?.from && dateRange?.to
+      ? `📅 *Period:* ${formatDate(dateRange.from)} - ${formatDate(dateRange.to)}\n`
+      : '';
 
   return `*COMPANY SUMMARY REPORT: ${companyName || 'General'}*
 ---------------------------
@@ -456,7 +463,9 @@ export const formatPaymentDetails = (payment: any) => {
     month: 'long',
     year: 'numeric',
   });
-  const tenant = payment.lease?.tenant ? `${payment.lease.tenant.firstName} ${payment.lease.tenant.lastName}` : 'N/A';
+  const tenant = payment.lease?.tenant
+    ? `${payment.lease.tenant.firstName} ${payment.lease.tenant.lastName}`
+    : 'N/A';
   const unit = payment.lease?.unit?.unitNumber || 'N/A';
   const notes = payment.notes ? `\n📝 *Notes:* ${payment.notes}` : '';
   const ref = payment.reference ? `\n🔗 *Reference:* ${payment.reference}` : '';
@@ -516,7 +525,14 @@ export const formatEntityHistory = (data: any) => {
       }
     } else if (h.action === 'CREATE' && h.metadata?.after) {
       // Show identifying fields for CREATE
-      const keys = ['name', 'firstName', 'lastName', 'amount', 'reference', 'status'];
+      const keys = [
+        'name',
+        'firstName',
+        'lastName',
+        'amount',
+        'reference',
+        'status',
+      ];
       const details = keys
         .filter((k) => h.metadata.after[k] !== undefined)
         .map((k) => `${k}: ${h.metadata.after[k]}`);
@@ -579,7 +595,7 @@ export const formatSessionDiff = (logs: any[]) => {
     const entity = h.entity
       ? h.entity.charAt(0) + h.entity.slice(1).toLowerCase()
       : 'Record';
-    
+
     let header = `📊 **System Change Summary**\n`;
     header += `**${entity} ID:** ${h.targetId || 'N/A'}\n`;
     header += `**Update Time:** ${new Date(h.timestamp).toLocaleString('en-KE', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} UTC\n`;
@@ -588,8 +604,10 @@ export const formatSessionDiff = (logs: any[]) => {
     if (h.action === 'UPDATE' && h.metadata?.diff) {
       const changedFields = Object.entries(h.metadata.diff).map(
         ([key, val]: [string, any]) => {
-          const oldVal = val.old === null || val.old === undefined ? 'None' : val.old;
-          const newVal = val.new === null || val.new === undefined ? 'None' : val.new;
+          const oldVal =
+            val.old === null || val.old === undefined ? 'None' : val.old;
+          const newVal =
+            val.new === null || val.new === undefined ? 'None' : val.new;
           return `• *Field:* ${key}\n• *Old Value:* ${oldVal}\n• *New Value:* ${newVal}`;
         },
       );

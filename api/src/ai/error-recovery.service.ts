@@ -39,10 +39,14 @@ export class ErrorRecoveryService {
       ? `${context.userId.substring(0, 4)}...${context.userId.substring(context.userId.length - 4)}`
       : 'anon';
 
-    this.logger.error(`Action ${action} failed: ${errorMsg}`, error?.stack || 'No stack trace', {
-      userId: maskedUserId,
-      action,
-    });
+    this.logger.error(
+      `Action ${action} failed: ${errorMsg}`,
+      error?.stack || 'No stack trace',
+      {
+        userId: maskedUserId,
+        action,
+      },
+    );
 
     if (
       errorMsg.includes('429') ||

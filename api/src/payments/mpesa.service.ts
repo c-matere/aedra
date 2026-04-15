@@ -47,15 +47,21 @@ export class MpesaService {
     // STEP 0 — Multi-tenant Company resolution
     let company;
     if (manualCompanyId) {
-        company = await this.prisma.company.findUnique({ where: { id: manualCompanyId } });
+      company = await this.prisma.company.findUnique({
+        where: { id: manualCompanyId },
+      });
     } else if (shortCode) {
-        company = await this.prisma.company.findUnique({ where: { mpesaShortcode: shortCode } });
+      company = await this.prisma.company.findUnique({
+        where: { mpesaShortcode: shortCode },
+      });
     }
 
     if (!company) {
-        this.logger.error(`[M-Pesa] FATAL: Received payment for unregistered or missing company. ShortCode: ${shortCode}, ManualId: ${manualCompanyId}`);
-        // We still accept it to stop Safaricom retries, but we can't process it automatically
-        return { ResultCode: 0, ResultDesc: 'Accepted but company not found' };
+      this.logger.error(
+        `[M-Pesa] FATAL: Received payment for unregistered or missing company. ShortCode: ${shortCode}, ManualId: ${manualCompanyId}`,
+      );
+      // We still accept it to stop Safaricom retries, but we can't process it automatically
+      return { ResultCode: 0, ResultDesc: 'Accepted but company not found' };
     }
 
     // STEP 1 — Idempotency guard (exact-match duplicate detection)
@@ -73,7 +79,12 @@ export class MpesaService {
       this.logger.warn(
         `[M-Pesa] Unmatched payment: ${mpesaCode} from ${phone} KES ${amount} [Company: ${company.name}]`,
       );
-      await this.alertAgentUnmatchedPayment(phone, amount, mpesaCode, company.id);
+      await this.alertAgentUnmatchedPayment(
+        phone,
+        amount,
+        mpesaCode,
+        company.id,
+      );
       return { ResultCode: 0, ResultDesc: 'Accepted but unmatched' };
     }
 
@@ -136,7 +147,11 @@ export class MpesaService {
     return { ResultCode: 0, ResultDesc: 'Accepted and processed' };
   }
 
-  private async findTenantByPhone(phone: string, companyId: string, reference?: string) {
+  private async findTenantByPhone(
+    phone: string,
+    companyId: string,
+    reference?: string,
+  ) {
     const rawDigits = phone.replace(/\D/g, '');
     const last9 = rawDigits.slice(-9);
 
@@ -199,10 +214,10 @@ export class MpesaService {
 
     // Find company owners/admins for notification
     const admins = await this.prisma.user.findMany({
-      where: { 
-          companyId, 
-          role: { in: ['COMPANY_ADMIN', 'SUPER_ADMIN'] },
-          isActive: true
+      where: {
+        companyId,
+        role: { in: ['COMPANY_ADMIN', 'SUPER_ADMIN'] },
+        isActive: true,
       },
       select: { phone: true },
     });
@@ -265,16 +280,22 @@ Managed by: ${company.name}
 Thank you!
     `.trim();
 
-    // STEP 8 — Deliver to tenant
+    // STEP 8 — Deliver to tenant (using template for better deliverability)
+    const shortfall = Math.max(0, expected - amount);
+    const balance = shortfall; // Simplified balance calculation
+
     await this.whatsappService
-      .sendTextMessage({
+      .sendPaymentConfirmation({
         companyId: company.id,
         to: tenant.phone,
-        text: receiptContent,
+        tenantName: tenant.firstName,
+        amount: amount,
+        unitNumber: unit.unitNumber,
+        newBalance: balance,
       })
       .catch((err) =>
         this.logger.error(
-          `Receipt delivery failed to tenant ${tenant.phone}: ${err.message}`,
+          `Receipt delivery failed (Template) to tenant ${tenant.phone}: ${err.message}`,
         ),
       );
 
@@ -308,46 +329,55 @@ Thank you!
 
   private async getCredentials(companyId?: string) {
     if (companyId) {
-        const company = await this.prisma.company.findUnique({
-            where: { id: companyId },
-            select: {
-                mpesaConsumerKey: true,
-                mpesaConsumerSecret: true,
-                mpesaPasskey: true,
-                mpesaShortcode: true,
-                mpesaEnvironment: true
-            }
-        });
+      const company = await this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: {
+          mpesaConsumerKey: true,
+          mpesaConsumerSecret: true,
+          mpesaPasskey: true,
+          mpesaShortcode: true,
+          mpesaEnvironment: true,
+        },
+      });
 
-        if (company?.mpesaConsumerKey && company?.mpesaConsumerSecret) {
-            return {
-                consumerKey: company.mpesaConsumerKey,
-                consumerSecret: company.mpesaConsumerSecret,
-                passkey: company.mpesaPasskey || process.env.MPESA_PASSKEY,
-                shortCode: company.mpesaShortcode || process.env.MPESA_SHORTCODE || '174379',
-                environment: company.mpesaEnvironment || process.env.MPESA_ENVIRONMENT || 'sandbox'
-            };
-        }
+      if (company?.mpesaConsumerKey && company?.mpesaConsumerSecret) {
+        return {
+          consumerKey: company.mpesaConsumerKey,
+          consumerSecret: company.mpesaConsumerSecret,
+          passkey: company.mpesaPasskey || process.env.MPESA_PASSKEY,
+          shortCode:
+            company.mpesaShortcode || process.env.MPESA_SHORTCODE || '174379',
+          environment:
+            company.mpesaEnvironment ||
+            process.env.MPESA_ENVIRONMENT ||
+            'sandbox',
+        };
+      }
 
-        throw new ConflictException(`M-Pesa is not configured for company ${companyId}. Please set up Consumer Key and Secret.`);
+      throw new ConflictException(
+        `M-Pesa is not configured for company ${companyId}. Please set up Consumer Key and Secret.`,
+      );
     }
 
     return {
-        consumerKey: process.env.MPESA_CONSUMER_KEY,
-        consumerSecret: process.env.MPESA_CONSUMER_SECRET,
-        passkey: process.env.MPESA_PASSKEY,
-        shortCode: process.env.MPESA_SHORTCODE || '174379',
-        environment: process.env.MPESA_ENVIRONMENT || 'sandbox'
+      consumerKey: process.env.MPESA_CONSUMER_KEY,
+      consumerSecret: process.env.MPESA_CONSUMER_SECRET,
+      passkey: process.env.MPESA_PASSKEY,
+      shortCode: process.env.MPESA_SHORTCODE || '174379',
+      environment: process.env.MPESA_ENVIRONMENT || 'sandbox',
     };
   }
 
   async getAccessToken(companyId?: string) {
     const creds = await this.getCredentials(companyId);
-    const auth = Buffer.from(`${creds.consumerKey}:${creds.consumerSecret}`).toString('base64');
+    const auth = Buffer.from(
+      `${creds.consumerKey}:${creds.consumerSecret}`,
+    ).toString('base64');
 
-    const url = creds.environment === 'sandbox'
-      ? 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
-      : 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
+    const url =
+      creds.environment === 'sandbox'
+        ? 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
+        : 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
 
     try {
       const response = await fetch(url, {
@@ -355,7 +385,7 @@ Thank you!
       });
       const data = await response.json();
       if (!data.access_token) {
-          throw new Error(data.errorMessage || 'Failed to get access token');
+        throw new Error(data.errorMessage || 'Failed to get access token');
       }
       return data.access_token;
     } catch (err) {
@@ -364,19 +394,31 @@ Thank you!
     }
   }
 
-  async stkPush(phone: string, amount: number, reference: string, companyId?: string) {
+  async stkPush(
+    phone: string,
+    amount: number,
+    reference: string,
+    companyId?: string,
+  ) {
     if (!phone || phone.length < 9) {
-        throw new Error(`Invalid phone number for STK Push: ${phone}`);
+      throw new Error(`Invalid phone number for STK Push: ${phone}`);
     }
     const creds = await this.getCredentials(companyId);
     const token = await this.getAccessToken(companyId);
-    const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
-    const password = Buffer.from(`${creds.shortCode}${creds.passkey}${timestamp}`).toString('base64');
-    
-    const callbackUrl = companyId 
-        ? `${process.env.API_URL}/payments/c-p/callback/${companyId}`
-        : `${process.env.API_URL}/payments/c-p/callback`;
-    const formattedPhone = phone.startsWith('254') ? phone : `254${phone.slice(-9)}`;
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[-:T.Z]/g, '')
+      .slice(0, 14);
+    const password = Buffer.from(
+      `${creds.shortCode}${creds.passkey}${timestamp}`,
+    ).toString('base64');
+
+    const callbackUrl = companyId
+      ? `${process.env.API_URL}/payments/c-p/callback/${companyId}`
+      : `${process.env.API_URL}/payments/c-p/callback`;
+    const formattedPhone = phone.startsWith('254')
+      ? phone
+      : `254${phone.slice(-9)}`;
 
     const body = {
       BusinessShortCode: creds.shortCode,
@@ -391,13 +433,16 @@ Thank you!
       AccountReference: reference,
       TransactionDesc: `Payment for ${reference}`,
     };
-    
-    const stkUrl = creds.environment === 'sandbox'
-      ? 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest'
-      : 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
+
+    const stkUrl =
+      creds.environment === 'sandbox'
+        ? 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest'
+        : 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
 
     try {
-      this.logger.log(`[M-Pesa] Triggering STK Push for ${formattedPhone} | KES ${amount} | Company: ${companyId || 'Global'}`);
+      this.logger.log(
+        `[M-Pesa] Triggering STK Push for ${formattedPhone} | KES ${amount} | Company: ${companyId || 'Global'}`,
+      );
       const response = await fetch(stkUrl, {
         method: 'POST',
         headers: {
@@ -427,12 +472,15 @@ Thank you!
       ValidationURL: validationUrl,
     };
 
-    const url = creds.environment === 'sandbox'
-      ? 'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/registerurl'
-      : 'https://api.safaricom.co.ke/mpesa/c2b/v1/registerurl';
+    const url =
+      creds.environment === 'sandbox'
+        ? 'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/registerurl'
+        : 'https://api.safaricom.co.ke/mpesa/c2b/v1/registerurl';
 
     try {
-      this.logger.log(`[M-Pesa] Registering C2B URLs for shortcode ${creds.shortCode}`);
+      this.logger.log(
+        `[M-Pesa] Registering C2B URLs for shortcode ${creds.shortCode}`,
+      );
       const response = await fetch(url, {
         method: 'POST',
         headers: {

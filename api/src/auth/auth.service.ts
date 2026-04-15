@@ -62,19 +62,25 @@ export class AuthService {
 
     // Identify user to create token
     const identified = await this.whatsappService.identifySenderByPhone(phone);
-    
-    // For Tenants and Landlords, we might need to handle their identities specifically 
+
+    // For Tenants and Landlords, we might need to handle their identities specifically
     // but the identified object already contains id, role, and companyId.
-    
+
     let email = '';
     if (identified.role === 'TENANT') {
-      const tenant = await this.prisma.tenant.findUnique({ where: { id: identified.id } });
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: identified.id },
+      });
       email = tenant?.email || `tenant_${identified.id}@aedra.app`;
     } else if (identified.role === 'LANDLORD') {
-      const landlord = await this.prisma.landlord.findUnique({ where: { id: identified.id } });
+      const landlord = await this.prisma.landlord.findUnique({
+        where: { id: identified.id },
+      });
       email = landlord?.email || `landlord_${identified.id}@aedra.app`;
     } else {
-      const user = await this.prisma.user.findUnique({ where: { id: identified.id } });
+      const user = await this.prisma.user.findUnique({
+        where: { id: identified.id },
+      });
       email = user?.email || 'N/A';
     }
 
@@ -145,8 +151,15 @@ export class AuthService {
     if (!data.email || typeof data.email !== 'string') {
       throw new BadRequestException('Email is required for registration.');
     }
-    if (!data.companyName || !data.password || !data.firstName || !data.lastName) {
-      throw new BadRequestException('All fields (companyName, email, password, firstName, lastName) are required.');
+    if (
+      !data.companyName ||
+      !data.password ||
+      !data.firstName ||
+      !data.lastName
+    ) {
+      throw new BadRequestException(
+        'All fields (companyName, email, password, firstName, lastName) are required.',
+      );
     }
 
     const normalizedEmail = data.email.trim().toLowerCase();

@@ -17,7 +17,12 @@ export class AiStagingService {
    * stage
    * Writes data to a job-specific staging area.
    */
-  async stage(jobId: string, key: string, data: any, ttlMs?: number): Promise<string> {
+  async stage(
+    jobId: string,
+    key: string,
+    data: any,
+    ttlMs?: number,
+  ): Promise<string> {
     const stagingKey = this.getPrefix(jobId, key);
     await this.cacheManager.set(stagingKey, data, ttlMs ?? this.DEFAULT_TTL);
     this.logger.log(`[Staging] Staged data for job ${jobId} under key: ${key}`);

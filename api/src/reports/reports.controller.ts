@@ -64,7 +64,10 @@ export class ReportsController {
       endDate ? new Date(endDate) : undefined,
     );
 
-    const sanitizedFirstName = data.tenant.firstName.replace(/[^a-z0-9]/gi, '_');
+    const sanitizedFirstName = data.tenant.firstName.replace(
+      /[^a-z0-9]/gi,
+      '_',
+    );
     const sanitizedLastName = data.tenant.lastName.replace(/[^a-z0-9]/gi, '_');
     const fileName = `statement_${sanitizedFirstName}_${sanitizedLastName}_${new Date().toISOString().split('T')[0]}.pdf`;
     const url = await this.reportsGenerator.generateTenantStatementPdf(
@@ -82,7 +85,10 @@ export class ReportsController {
 
   @Post(':id/mckinsey')
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
-  async getMcKinseyReport(@Req() req: RequestWithUser, @Param('id') id: string) {
+  async getMcKinseyReport(
+    @Req() req: RequestWithUser,
+    @Param('id') id: string,
+  ) {
     const result = await this.aiReportTool.executeReportTool(
       'get_mckinsey_style_report',
       { propertyId: id },

@@ -5,7 +5,7 @@ export interface RecordFeedbackDto {
   phone: string;
   traceId?: string;
   intentType: string;
-  score: number;        // 1–5, or -1/1 for thumbs down/up
+  score: number; // 1–5, or -1/1 for thumbs down/up
   comment?: string;
   language?: string;
   companyId?: string;
@@ -33,7 +33,9 @@ export class FeedbackService {
           companyId: dto.companyId,
         },
       });
-      this.logger.log(`[Feedback] Recorded score=${dto.score} for ${dto.phone} (intent=${dto.intentType})`);
+      this.logger.log(
+        `[Feedback] Recorded score=${dto.score} for ${dto.phone} (intent=${dto.intentType})`,
+      );
     } catch (e) {
       this.logger.warn(`[Feedback] Failed to record feedback: ${e.message}`);
     }

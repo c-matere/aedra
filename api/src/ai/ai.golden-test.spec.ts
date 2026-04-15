@@ -90,25 +90,43 @@ describe('AiService Golden Set (BS-03)', () => {
       findMany: jest.fn().mockResolvedValue([]),
     },
   };
-  
+
   const goldenQueries = [
     // READ Intents
-    { q: 'Who are my tenants at Parkview?', expectedIntent: AiIntent.FINANCIAL_QUERY },
-    { q: 'Show me vacant 2-bedroom units', expectedIntent: AiIntent.FINANCIAL_QUERY },
-    { q: 'What is the rent balance for Unit B4?', expectedIntent: AiIntent.FINANCIAL_QUERY },
+    {
+      q: 'Who are my tenants at Parkview?',
+      expectedIntent: AiIntent.FINANCIAL_QUERY,
+    },
+    {
+      q: 'Show me vacant 2-bedroom units',
+      expectedIntent: AiIntent.FINANCIAL_QUERY,
+    },
+    {
+      q: 'What is the rent balance for Unit B4?',
+      expectedIntent: AiIntent.FINANCIAL_QUERY,
+    },
     {
       q: 'List all maintenance requests for last month',
       expectedIntent: AiIntent.MAINTENANCE,
     },
-    { q: 'Find the lease for John Doe', expectedIntent: AiIntent.FINANCIAL_QUERY },
-    { q: 'Are there any late payments today?', expectedIntent: AiIntent.FINANCIAL_REPORTING },
+    {
+      q: 'Find the lease for John Doe',
+      expectedIntent: AiIntent.FINANCIAL_QUERY,
+    },
+    {
+      q: 'Are there any late payments today?',
+      expectedIntent: AiIntent.FINANCIAL_REPORTING,
+    },
 
     // WRITE Intents
     {
       q: 'Add a new tenant named Alice Smith with phone 0722000000',
       expectedIntent: AiIntent.ONBOARDING,
     },
-    { q: 'Record a payment of 50,000 for Unit A1', expectedIntent: AiIntent.FINANCIAL_MANAGEMENT },
+    {
+      q: 'Record a payment of 50,000 for Unit A1',
+      expectedIntent: AiIntent.FINANCIAL_MANAGEMENT,
+    },
     {
       q: 'Change the status of Unit C2 to MAINTAINANCE',
       expectedIntent: AiIntent.MAINTENANCE,
@@ -125,11 +143,20 @@ describe('AiService Golden Set (BS-03)', () => {
       q: 'Assign Jane Wanjiku as the manager for Sunshine Apartments',
       expectedIntent: AiIntent.FINANCIAL_MANAGEMENT,
     },
-    { q: 'Mark invoice #998 as PAID', expectedIntent: AiIntent.FINANCIAL_MANAGEMENT },
+    {
+      q: 'Mark invoice #998 as PAID',
+      expectedIntent: AiIntent.FINANCIAL_MANAGEMENT,
+    },
 
     // REPORT Intents
-    { q: 'Generate a revenue summary for Q1', expectedIntent: AiIntent.REVENUE_REPORT },
-    { q: 'I need a PDF report of all arrears', expectedIntent: AiIntent.FINANCIAL_REPORTING },
+    {
+      q: 'Generate a revenue summary for Q1',
+      expectedIntent: AiIntent.REVENUE_REPORT,
+    },
+    {
+      q: 'I need a PDF report of all arrears',
+      expectedIntent: AiIntent.FINANCIAL_REPORTING,
+    },
     {
       q: 'Give me a breakdown of occupancy rates by property',
       expectedIntent: AiIntent.REVENUE_REPORT,
@@ -183,9 +210,9 @@ describe('AiService Golden Set (BS-03)', () => {
           useValue: {
             classify: jest.fn().mockImplementation((q) => {
               const isEmergency = /fire|hurt|emergency/i.test(q);
-              return Promise.resolve({ 
-                intent: isEmergency ? 'emergency' : 'general_inquiry', 
-                complexity: isEmergency ? 3 : 1 
+              return Promise.resolve({
+                intent: isEmergency ? 'emergency' : 'general_inquiry',
+                complexity: isEmergency ? 3 : 1,
               });
             }),
           },
@@ -193,7 +220,12 @@ describe('AiService Golden Set (BS-03)', () => {
         { provide: ResponsePipelineService, useValue: {} },
         { provide: CriticService, useValue: {} },
         { provide: CACHE_MANAGER, useValue: mockCache },
-        { provide: MenuRouterService, useValue: { routeMessage: jest.fn().mockResolvedValue({ handled: false }) } },
+        {
+          provide: MenuRouterService,
+          useValue: {
+            routeMessage: jest.fn().mockResolvedValue({ handled: false }),
+          },
+        },
         { provide: UnitsService, useValue: {} },
         { provide: RemindersService, useValue: {} },
         {
@@ -230,37 +262,67 @@ describe('AiService Golden Set (BS-03)', () => {
           },
         },
         { provide: getQueueToken(AI_BACKGROUND_QUEUE), useValue: mockQueue },
-        { 
-          provide: AiToolRegistryService, 
-          useValue: { 
-            getToolsForRole: jest.fn().mockResolvedValue([]), 
-            isToolAllowed: jest.fn().mockImplementation((t) => t === 'emergency_escalation' || true), 
+        {
+          provide: AiToolRegistryService,
+          useValue: {
+            getToolsForRole: jest.fn().mockResolvedValue([]),
+            isToolAllowed: jest
+              .fn()
+              .mockImplementation((t) => t === 'emergency_escalation' || true),
             isHighStakes: jest.fn().mockReturnValue(false),
-            executeTool: jest.fn().mockResolvedValue({ success: true, data: { status: 'ESCALATED' } })
-          } 
+            executeTool: jest.fn().mockResolvedValue({
+              success: true,
+              data: { status: 'ESCALATED' },
+            }),
+          },
         },
         { provide: WorkflowBridgeService, useValue: {} },
-        { provide: AiIntentFirewallService, useValue: { intercept: jest.fn().mockReturnValue({ isIntercepted: false }) } },
+        {
+          provide: AiIntentFirewallService,
+          useValue: {
+            intercept: jest.fn().mockReturnValue({ isIntercepted: false }),
+          },
+        },
         { provide: QuorumBridgeService, useValue: {} },
         { provide: AiDecisionSpineService, useValue: {} },
-        { provide: AiSecurityService, useValue: { isSecurityViolation: jest.fn().mockReturnValue(false), getRefusalMessage: jest.fn().mockReturnValue('Refused') } },
-        { 
-          provide: AiPromptService, 
-          useValue: { 
+        {
+          provide: AiSecurityService,
+          useValue: {
+            isSecurityViolation: jest.fn().mockReturnValue(false),
+            getRefusalMessage: jest.fn().mockReturnValue('Refused'),
+          },
+        },
+        {
+          provide: AiPromptService,
+          useValue: {
             generateUnifiedPlan: jest.fn().mockImplementation((q) => {
-              const match = goldenQueries.find(g => g.q === q);
+              const match = goldenQueries.find((g) => g.q === q);
               const isEmergency = match?.expectedIntent === AiIntent.EMERGENCY;
               return Promise.resolve({
                 intent: match?.expectedIntent || AiIntent.GENERAL_QUERY,
-                steps: [{ tool: isEmergency ? 'emergency_escalation' : 'kernel_search', args: {}, required: true }],
+                steps: [
+                  {
+                    tool: isEmergency
+                      ? 'emergency_escalation'
+                      : 'kernel_search',
+                    args: {},
+                    required: true,
+                  },
+                ],
                 priority: isEmergency ? 'EMERGENCY' : 'NORMAL',
                 language: 'en',
-                immediateResponse: isEmergency ? 'EMERGENCY DETECTED' : undefined
+                immediateResponse: isEmergency
+                  ? 'EMERGENCY DETECTED'
+                  : undefined,
               });
             }),
-            generateFinalResponse: jest.fn().mockResolvedValue('mock final response'),
-            safeLlmRender: jest.fn().mockResolvedValue('mock rendered response'),
-          } 
+            generateFinalResponse: jest
+              .fn()
+              .mockResolvedValue('mock final response'),
+            safeLlmRender: jest
+              .fn()
+              .mockResolvedValue('mock rendered response'),
+          },
         },
         { provide: AiFormatterService, useValue: {} },
         { provide: WhatsAppFormatterService, useValue: {} },
@@ -271,10 +333,21 @@ describe('AiService Golden Set (BS-03)', () => {
         { provide: ConsistencyValidatorService, useValue: {} },
         { provide: AiNextStepController, useValue: {} },
         { provide: AiIntentNormalizerService, useValue: {} },
-        { provide: AiEntityResolutionService, useValue: { resolveId: jest.fn().mockResolvedValue({ id: 'resolved_id' }) } },
-        { provide: AiHistoryService, useValue: { getMessageHistory: jest.fn().mockResolvedValue([]) } },
+        {
+          provide: AiEntityResolutionService,
+          useValue: {
+            resolveId: jest.fn().mockResolvedValue({ id: 'resolved_id' }),
+          },
+        },
+        {
+          provide: AiHistoryService,
+          useValue: { getMessageHistory: jest.fn().mockResolvedValue([]) },
+        },
         { provide: AiBenchmarkService, useValue: {} },
-        { provide: ContextMemoryService, useValue: { getContext: jest.fn().mockResolvedValue({}) } },
+        {
+          provide: ContextMemoryService,
+          useValue: { getContext: jest.fn().mockResolvedValue({}) },
+        },
         { provide: WorkflowEngine, useValue: { setHandlers: jest.fn() } },
       ],
     }).compile();
@@ -303,12 +376,14 @@ describe('AiService Golden Set (BS-03)', () => {
     (service as any).executeGroqToolLoop = jest
       .fn()
       .mockResolvedValue({ response: 'mock', chatId: 'chat_123' });
-    (service as any).aggregateTruth = jest.fn().mockImplementation((trace) => Promise.resolve({ 
-      status: 'COMPLETE', 
-      data: {}, 
-      computedAt: new Date().toISOString(),
-      intent: trace?.unifiedPlan?.intent || AiIntent.GENERAL_QUERY
-    }));
+    (service as any).aggregateTruth = jest.fn().mockImplementation((trace) =>
+      Promise.resolve({
+        status: 'COMPLETE',
+        data: {},
+        computedAt: new Date().toISOString(),
+        intent: trace?.unifiedPlan?.intent || AiIntent.GENERAL_QUERY,
+      }),
+    );
   });
 
   it.each(goldenQueries)(

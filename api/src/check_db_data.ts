@@ -10,11 +10,11 @@ async function checkData() {
           include: {
             leases: {
               where: { status: 'ACTIVE', deletedAt: null },
-              include: { tenant: true }
-            }
-          }
-        }
-      }
+              include: { tenant: true },
+            },
+          },
+        },
+      },
     });
 
     console.log(JSON.stringify(properties, null, 2));

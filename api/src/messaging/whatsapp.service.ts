@@ -62,7 +62,7 @@ export class WhatsappService {
     const lower = normalized.toLowerCase();
 
     // App-level language codes commonly used across the codebase.
-    if (lower === 'en') return 'en_US';
+    if (lower === 'en') return 'en'; // Stop forcing en_US
     if (lower === 'sw') return 'sw';
 
     return normalized;
@@ -109,7 +109,9 @@ export class WhatsappService {
       last9, // 712345678
     ];
 
-    this.logger.log(`Identifying sender for phone: ${phone} (last9: ${last9}). Checking formats: ${JSON.stringify(possibleFormats)}`);
+    this.logger.log(
+      `Identifying sender for phone: ${phone} (last9: ${last9}). Checking formats: ${JSON.stringify(possibleFormats)}`,
+    );
 
     // 1. Check Users (Admins/Staff)
     const user = await this.prisma.user.findFirst({
@@ -338,8 +340,12 @@ export class WhatsappService {
 
       return { ...result, senderType };
     } catch (error) {
-      const isNetwork = error.message?.includes('fetch failed') || error.code === 'UND_ERR_CONNECT_TIMEOUT';
-      this.logger.error(`[WhatsApp] Failed to send template message: ${error.message}${isNetwork ? ' (Network/Meta API unreachable)' : ''}`);
+      const isNetwork =
+        error.message?.includes('fetch failed') ||
+        error.code === 'UND_ERR_CONNECT_TIMEOUT';
+      this.logger.error(
+        `[WhatsApp] Failed to send template message: ${error.message}${isNetwork ? ' (Network/Meta API unreachable)' : ''}`,
+      );
       throw error;
     }
   }
@@ -646,8 +652,12 @@ export class WhatsappService {
 
       return { ...result, senderType };
     } catch (error) {
-      const isNetwork = error.message?.includes('fetch failed') || error.code === 'UND_ERR_CONNECT_TIMEOUT';
-      this.logger.error(`[WhatsApp] Failed to send text message: ${error.message}${isNetwork ? ' (Network/Meta API unreachable)' : ''}`);
+      const isNetwork =
+        error.message?.includes('fetch failed') ||
+        error.code === 'UND_ERR_CONNECT_TIMEOUT';
+      this.logger.error(
+        `[WhatsApp] Failed to send text message: ${error.message}${isNetwork ? ' (Network/Meta API unreachable)' : ''}`,
+      );
       throw error;
     }
   }
@@ -907,6 +917,45 @@ export class WhatsappService {
   }
 
   /**
+   * Send a rent reminder using a template.
+   */
+  async sendRentReminder(params: {
+    to: string;
+    tenantName: string;
+    amountDue: number;
+    unitNumber: string;
+    dueDate: string;
+    isFirm?: boolean;
+    companyId?: string;
+  }) {
+    const {
+      to,
+      tenantName,
+      amountDue,
+      unitNumber,
+      dueDate,
+      isFirm = false,
+      companyId,
+    } = params;
+    return this.sendMessage({
+      companyId,
+      to,
+      templateName: isFirm ? 'rent_reminder_firm' : 'rent_reminder',
+      components: [
+        {
+          type: 'body',
+          parameters: [
+            { type: 'text', text: tenantName },
+            { type: 'text', text: String(amountDue.toLocaleString()) },
+            { type: 'text', text: unitNumber },
+            { type: 'text', text: dueDate },
+          ],
+        },
+      ],
+    });
+  }
+
+  /**
    * Send a payment confirmation using a template.
    */
   async sendPaymentConfirmation(params: {
@@ -914,20 +963,71 @@ export class WhatsappService {
     tenantName: string;
     amount: number;
     unitNumber: string;
+    newBalance?: number;
     companyId?: string;
   }) {
-    const { to, tenantName, amount, unitNumber, companyId } = params;
+    const {
+      to,
+      tenantName,
+      amount,
+      unitNumber,
+      newBalance = 0,
+      companyId,
+    } = params;
     return this.sendMessage({
       companyId,
       to,
-      templateName: 'payment_confirmation',
+      templateName: 'payment_receipt',
+      components: [
+        {
+          type: 'body',
+          parameters: [
+            { type: 'text', text: String(amount.toLocaleString()) },
+            { type: 'text', text: unitNumber },
+            { type: 'text', text: new Date().toLocaleDateString() },
+            { type: 'text', text: String((newBalance || 0).toLocaleString()) },
+            { type: 'text', text: tenantName },
+          ],
+        },
+      ],
+    });
+  }
+
+  /**
+   * Send an invoice notification using a template.
+   */
+  async sendInvoiceNotice(params: {
+    to: string;
+    tenantName: string;
+    amount: number;
+    description: string;
+    unitNumber: string;
+    dueDate: string;
+    companyId?: string;
+  }) {
+    const {
+      to,
+      tenantName,
+      amount,
+      description,
+      unitNumber,
+      dueDate,
+      companyId,
+    } = params;
+
+    return this.sendMessage({
+      companyId,
+      to,
+      templateName: 'invoice_notice',
       components: [
         {
           type: 'body',
           parameters: [
             { type: 'text', text: tenantName },
-            { type: 'text', text: `KES ${amount.toLocaleString()}` },
+            { type: 'text', text: description },
+            { type: 'text', text: String(amount.toLocaleString()) },
             { type: 'text', text: unitNumber },
+            { type: 'text', text: dueDate },
           ],
         },
       ],
@@ -980,7 +1080,9 @@ export class WhatsappService {
   async handleWebhook(body: any) {
     // Only log if there's a real message — status callbacks are silent
     if (body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
-      this.logger.log(`[Webhook] Incoming message from ${body.entry[0].changes[0].value.messages[0].from}`);
+      this.logger.log(
+        `[Webhook] Incoming message from ${body.entry[0].changes[0].value.messages[0].from}`,
+      );
     }
 
     const entry = body?.entry?.[0];

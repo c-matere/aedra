@@ -4,7 +4,9 @@ describe('AiEntityResolutionService', () => {
   it('resolves property exact match', async () => {
     const prisma: any = {
       property: {
-        findFirst: jest.fn().mockResolvedValue({ id: 'p1', name: 'Palm Grove' }),
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: 'p1', name: 'Palm Grove' }),
         findMany: jest.fn(),
       },
     };
@@ -39,4 +41,3 @@ describe('AiEntityResolutionService', () => {
     expect(res.candidates.length).toBeGreaterThan(0);
   });
 });
-

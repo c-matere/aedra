@@ -276,6 +276,7 @@ export interface CompanyRecord {
   waAlertsEnabled: boolean;
   waOtpEnabled: boolean;
   waPaymentConfirmationsEnabled: boolean;
+  waInvoiceNotificationsEnabled: boolean;
   // Integration settings
   smsProvider: string;
   africaTalkingUsername: string | null;
@@ -351,6 +352,7 @@ export interface UpdateCompanyPayload {
   waAlertsEnabled?: boolean;
   waOtpEnabled?: boolean;
   waPaymentConfirmationsEnabled?: boolean;
+  waInvoiceNotificationsEnabled?: boolean;
   waAccessToken?: string | null;
   waPhoneNumberId?: string | null;
   waBusinessAccountId?: string | null;

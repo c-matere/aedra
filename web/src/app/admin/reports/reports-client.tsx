@@ -46,13 +46,7 @@ import {
     PieChart,
     Pie
 } from "recharts"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 
 interface ReportsClientProps {
     summary: ReportSummary | null
@@ -280,9 +274,15 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
         { name: 'Maintenance', value: occupancy.UNDER_MAINTENANCE, color: '#f59e0b' },
     ].filter(d => d.value > 0) : []
 
-    const filteredTenants = selectedPropertyId 
-        ? tenants.filter(t => t.propertyId === selectedPropertyId)
-        : tenants
+    const propertyOptions = [
+        { value: "ALL_PROPERTIES", label: "All Properties" },
+        ...properties.map(p => ({ value: p.id, label: p.name }))
+    ]
+
+    const tenantOptions = tenants.map(t => ({
+        value: t.id,
+        label: `${t.firstName} ${t.lastName} ${t.unitNumber ? `(Unit ${t.unitNumber})` : ''}`
+    }))
 
     return (
         <div className="flex flex-col gap-8 pb-10">
@@ -404,20 +404,16 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                                 <CardDescription className="text-[10px] text-neutral-500 uppercase font-black tracking-tight mt-1">Select property to analyze performance</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <Select value={selectedPropertyId} onValueChange={(val) => {
-                                    setSelectedPropertyId(val)
-                                    setSelectedTenantId("") // Reset tenant when property changes
-                                }}>
-                                    <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl">
-                                        <SelectValue placeholder="Select Property..." />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-neutral-900 border-white/10 text-white">
-                                        <SelectItem value="ALL_PROPERTIES" className="font-bold text-emerald-400">All Properties</SelectItem>
-                                        {properties.map(p => (
-                                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    options={propertyOptions}
+                                    value={selectedPropertyId}
+                                    onValueChange={(val) => {
+                                        setSelectedPropertyId(val)
+                                        // We no longer reset tenant here to allow independent selection
+                                    }}
+                                    placeholder="Select Property..."
+                                    className="h-12 rounded-xl"
+                                />
 
                                  <div className="flex flex-col gap-3">
                                     <div className="grid grid-cols-2 gap-3">
@@ -460,22 +456,14 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                                 <CardDescription className="text-[10px] text-neutral-500 uppercase font-bold tracking-tight mt-1">Select tenant to generate ledger</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
-                                    <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl">
-                                        <SelectValue placeholder="Select Tenant..." />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-neutral-900 border-white/10 text-white max-h-[300px]">
-                                        {filteredTenants.length > 0 ? (
-                                            filteredTenants.map(t => (
-                                                <SelectItem key={t.id} value={t.id}>
-                                                    {t.firstName} {t.lastName} {t.unitNumber ? `(Unit ${t.unitNumber})` : ''}
-                                                </SelectItem>
-                                            ))
-                                        ) : (
-                                            <div className="p-2 text-xs text-neutral-500 text-center uppercase font-bold tracking-widest">No tenants found</div>
-                                        )}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    options={tenantOptions}
+                                    value={selectedTenantId}
+                                    onValueChange={setSelectedTenantId}
+                                    placeholder="Select Tenant..."
+                                    emptyMessage="No tenants found."
+                                    className="h-12 rounded-xl"
+                                />
 
                                 <Button 
                                     variant="outline"

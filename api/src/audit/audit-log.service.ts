@@ -160,10 +160,16 @@ export class AuditLogService {
    * Build a concise version-control summary to embed in write tool responses.
    * The AI reads this and is instructed to surface it to the user after every mutation.
    */
-  buildVcSummary(
-    logEntry: AuditLogEntry,
-  ): { versionId: string; action: string; changedFields: string[]; hint: string } {
-    const diff = (logEntry.metadata?.diff ?? {}) as Record<string, { old: any; new: any }>;
+  buildVcSummary(logEntry: AuditLogEntry): {
+    versionId: string;
+    action: string;
+    changedFields: string[];
+    hint: string;
+  } {
+    const diff = (logEntry.metadata?.diff ?? {}) as Record<
+      string,
+      { old: any; new: any }
+    >;
     const changedFields = Object.keys(diff);
     const hint =
       changedFields.length > 0

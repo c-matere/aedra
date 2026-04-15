@@ -16,15 +16,15 @@ async function sendWebhook(from: string, text: string, messageId: string) {
                   id: messageId,
                   type: 'text',
                   text: { body: text },
-                  timestamp: Math.floor(Date.now() / 1000).toString()
-                }
-              ]
+                  timestamp: Math.floor(Date.now() / 1000).toString(),
+                },
+              ],
             },
-            field: 'messages'
-          }
-        ]
-      }
-    ]
+            field: 'messages',
+          },
+        ],
+      },
+    ],
   };
 
   const res = await fetch(`${API_URL}/messaging/whatsapp/webhook`, {
@@ -44,15 +44,19 @@ async function sendWebhook(from: string, text: string, messageId: string) {
 
 async function main() {
   const testPhone = '254705660625'; // Valid COMPANY_ADMIN
-  
+
   // Test 1: Onboarding Hallucination
   console.log('--- Test 1: Onboarding Hallucination ---');
-  await sendWebhook(testPhone, 'I want to create a property called "Antigravity Heights" with 15 units', 'wamid.test.new.1');
-  
+  await sendWebhook(
+    testPhone,
+    'I want to create a property called "Antigravity Heights" with 15 units',
+    'wamid.test.new.1',
+  );
+
   // Wait for background process
   console.log('Waiting 10s for background processing...');
-  await new Promise(r => setTimeout(r, 10000));
-  
+  await new Promise((r) => setTimeout(r, 10000));
+
   // Test 2: Deduplication
   console.log('\n--- Test 2: Deduplication ---');
   await sendWebhook(testPhone, 'Duplicate message', 'wamid.test.dup.new');

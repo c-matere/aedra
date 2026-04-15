@@ -48,31 +48,36 @@ export interface WorkflowInstance {
 }
 
 export interface WorkflowEvent {
-  type: 'USER_MESSAGE' | 'SYSTEM_EVENT' | 'WEBHOOK' | 'BACKGROUND_HEARTBEAT' | 'INPUT';
+  type:
+    | 'USER_MESSAGE'
+    | 'SYSTEM_EVENT'
+    | 'WEBHOOK'
+    | 'BACKGROUND_HEARTBEAT'
+    | 'INPUT';
   content?: any;
   meta?: Record<string, any>;
 }
 
 export type RouteResult =
-  | { 
-      status: "NEEDS_INFO"; 
-      missingFields: string[]; 
-      pendingIntent: string; 
+  | {
+      status: 'NEEDS_INFO';
+      missingFields: string[];
+      pendingIntent: string;
       collectedEntities: Record<string, any>;
       prompt?: string;
     }
-  | { 
-      status: "WORKFLOW_READY"; 
-      workflowId: string; 
+  | {
+      status: 'WORKFLOW_READY';
+      workflowId: string;
       context: Record<string, any>;
     }
-  | { 
-      status: "DIRECT_RESPONSE"; 
-      prompt: string; 
+  | {
+      status: 'DIRECT_RESPONSE';
+      prompt: string;
       context?: Record<string, any>;
     }
-  | { 
-      status: "AGENT_FALLBACK";
+  | {
+      status: 'AGENT_FALLBACK';
       reason?: string;
     };
 

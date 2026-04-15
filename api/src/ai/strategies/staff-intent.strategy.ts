@@ -11,13 +11,22 @@ export class StaffIntentStrategy implements AiStrategy {
 
   constructor(private readonly classifier: AiClassifierService) {}
 
-  async resolveIntent(message: string, history: any[], context: any): Promise<Partial<Interpretation>> {
-    this.logger.log(`[StaffStrategy] Resolving intent for message: ${message.substring(0, 30)}...`);
+  async resolveIntent(
+    message: string,
+    history: any[],
+    context: any,
+  ): Promise<Partial<Interpretation>> {
+    this.logger.log(
+      `[StaffStrategy] Resolving intent for message: ${message.substring(0, 30)}...`,
+    );
     const text = (message || '').toLowerCase();
 
     // 1. DETERMINISTIC ACTION GATING
     // Onboarding / Tenant Registration
-    if (/(weka|onboard|register|add).*tenant/i.test(text) || /(import|bulk).*tenant/i.test(text)) {
+    if (
+      /(weka|onboard|register|add).*tenant/i.test(text) ||
+      /(import|bulk).*tenant/i.test(text)
+    ) {
       this.logger.log('[StaffStrategy] Gating: Tenant Onboarding detected.');
       return {
         intent: AiIntent.ONBOARDING,
@@ -26,16 +35,25 @@ export class StaffIntentStrategy implements AiStrategy {
     }
 
     // Maintenance (Staff acting as reporter/fixer)
-    if (/(plumber|sink|blocked|leak|pipe|toilet|repair|mabati|fundi|eleki|stima)/i.test(text)) {
+    if (
+      /(plumber|sink|blocked|leak|pipe|toilet|repair|mabati|fundi|eleki|stima)/i.test(
+        text,
+      )
+    ) {
       this.logger.log('[StaffStrategy] Gating: Maintenance keywords detected.');
       return {
         intent: AiIntent.MAINTENANCE_REQUEST,
-        confidence: 0.90, // Allow LLM to still extract entities
+        confidence: 0.9, // Allow LLM to still extract entities
       };
     }
 
     // Financial Status / Collection
-    if (/(collection|rent|arrears|outstanding|mapato|makusanyo).*status/i.test(text) || /who.*not.*paid/i.test(text)) {
+    if (
+      /(collection|rent|arrears|outstanding|mapato|makusanyo).*status/i.test(
+        text,
+      ) ||
+      /who.*not.*paid/i.test(text)
+    ) {
       this.logger.log('[StaffStrategy] Gating: Collection Status detected.');
       return {
         intent: AiIntent.FINANCIAL_REPORTING,
@@ -53,23 +71,27 @@ export class StaffIntentStrategy implements AiStrategy {
     }
 
     // 2. LLM-BASED REFINEMENT
-    const result = await this.classifier.classifyForRole(message, 'COMPANY_STAFF', context);
-    
+    const result = await this.classifier.classifyForRole(
+      message,
+      'COMPANY_STAFF',
+      context,
+    );
+
     // Map internal strings to AiIntent enum
     const intentMap: Record<string, AiIntent> = {
-      'onboard_property': AiIntent.ONBOARDING,
-      'bulk_create_tenants': AiIntent.ONBOARDING,
-      'add_tenant': AiIntent.ONBOARDING,
-      'update_property': AiIntent.ONBOARDING,
-      'create_unit': AiIntent.ONBOARDING,
-      'create_lease': AiIntent.ONBOARDING,
-      'collection_status': AiIntent.FINANCIAL_REPORTING,
-      'record_expense': AiIntent.ONBOARDING,
-      'list_expenses': AiIntent.FINANCIAL_REPORTING,
-      'check_rent_status': AiIntent.FINANCIAL_QUERY,
-      'send_bulk_reminder': AiIntent.FINANCIAL_REPORTING,
-      'check_vacancy': AiIntent.FINANCIAL_QUERY,
-      'general_query': AiIntent.GENERAL_QUERY,
+      onboard_property: AiIntent.ONBOARDING,
+      bulk_create_tenants: AiIntent.ONBOARDING,
+      add_tenant: AiIntent.ONBOARDING,
+      update_property: AiIntent.ONBOARDING,
+      create_unit: AiIntent.ONBOARDING,
+      create_lease: AiIntent.ONBOARDING,
+      collection_status: AiIntent.FINANCIAL_REPORTING,
+      record_expense: AiIntent.ONBOARDING,
+      list_expenses: AiIntent.FINANCIAL_REPORTING,
+      check_rent_status: AiIntent.FINANCIAL_QUERY,
+      send_bulk_reminder: AiIntent.FINANCIAL_REPORTING,
+      check_vacancy: AiIntent.FINANCIAL_QUERY,
+      general_query: AiIntent.GENERAL_QUERY,
     };
 
     return {

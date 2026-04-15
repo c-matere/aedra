@@ -1,7 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { isLastDayOfMonth, getDate, getMonth, getYear, lastDayOfMonth } from 'date-fns';
+import {
+  isLastDayOfMonth,
+  getDate,
+  getMonth,
+  getYear,
+  lastDayOfMonth,
+} from 'date-fns';
 
 @Injectable()
 export class ExpenseAutomationService {
@@ -22,7 +28,7 @@ export class ExpenseAutomationService {
     const year = getYear(today);
     const isLastDay = isLastDayOfMonth(today);
 
-    // Criteria: 
+    // Criteria:
     // 1. Matches today's day
     // 2. OR if today is last day of month, trigger anything set for > today
     const where: any = {
@@ -37,7 +43,9 @@ export class ExpenseAutomationService {
       where,
     });
 
-    this.logger.log(`Found ${dueExpenses.length} potential recurring expenses to process.`);
+    this.logger.log(
+      `Found ${dueExpenses.length} potential recurring expenses to process.`,
+    );
 
     for (const record of dueExpenses) {
       // Check if already generated for this month
@@ -70,9 +78,13 @@ export class ExpenseAutomationService {
           });
         });
 
-        this.logger.log(`Generated expense for: ${record.description} (Property: ${record.propertyId})`);
+        this.logger.log(
+          `Generated expense for: ${record.description} (Property: ${record.propertyId})`,
+        );
       } catch (err) {
-        this.logger.error(`Failed to generate expense for record ${record.id}: ${err.message}`);
+        this.logger.error(
+          `Failed to generate expense for record ${record.id}: ${err.message}`,
+        );
       }
     }
   }

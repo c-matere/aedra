@@ -101,7 +101,7 @@ export class MenuRouterService {
           })()
         : cached;
     if (!parsed || typeof parsed !== 'object') return { userId: uid };
-    return { ...(parsed as any), userId: uid };
+    return { ...parsed, userId: uid };
   }
 
   private async saveSession(uid: string, session: Partial<MenuSessionState>) {
@@ -219,7 +219,10 @@ export class MenuRouterService {
         'get_tenant_arrears',
         'get_tenant_statement',
       ]);
-      const propertyIdTools = new Set(['get_property_details', 'get_property_arrears']);
+      const propertyIdTools = new Set([
+        'get_property_details',
+        'get_property_arrears',
+      ]);
       const unitIdTools = new Set(['get_unit_details']);
 
       if (tenantIdTools.has(tool)) {
@@ -237,7 +240,11 @@ export class MenuRouterService {
       if (propertyIdTools.has(tool)) {
         return {
           handled: true,
-          tool: { name: tool === 'get_property_arrears' ? 'get_portfolio_arrears' : tool, args: { propertyId: id } },
+          tool: {
+            name:
+              tool === 'get_property_arrears' ? 'get_portfolio_arrears' : tool,
+            args: { propertyId: id },
+          },
         };
       }
       if (unitIdTools.has(tool)) {
@@ -257,10 +264,22 @@ export class MenuRouterService {
 
     // Harden common interactive IDs (avoid underscores/planning issues/spaces/punctuation)
     const cleanLower = normalized.replace(/_/g, ' ').trim();
-    if (cleanLower === 'list tenants' || cleanLower === 'view tenants' || text === 'list_tenants') {
-      return { handled: true, tool: { name: 'list_tenants', args: { limit: 20 } } };
+    if (
+      cleanLower === 'list tenants' ||
+      cleanLower === 'view tenants' ||
+      text === 'list_tenants'
+    ) {
+      return {
+        handled: true,
+        tool: { name: 'list_tenants', args: { limit: 20 } },
+      };
     }
-    if (cleanLower === 'list companies' || cleanLower === 'view companies' || text === 'list_companies' || text === 'menu_companies') {
+    if (
+      cleanLower === 'list companies' ||
+      cleanLower === 'view companies' ||
+      text === 'list_companies' ||
+      text === 'menu_companies'
+    ) {
       return { handled: true, tool: { name: 'list_companies' } };
     }
     if (
@@ -274,16 +293,20 @@ export class MenuRouterService {
     }
 
     // Common power-user commands (bypass LLM planner for deterministic output)
-    if (/^(list|show|view)\s+tenants\b/.test(lowered) || /^tenants\b/.test(lowered) || text.startsWith('list_tenants')) {
+    if (
+      /^(list|show|view)\s+tenants\b/.test(lowered) ||
+      /^tenants\b/.test(lowered) ||
+      text.startsWith('list_tenants')
+    ) {
       const parts = text.split(':');
       return {
         handled: true,
-        tool: { 
-          name: 'list_tenants', 
-          args: { 
+        tool: {
+          name: 'list_tenants',
+          args: {
             limit: 20,
-            ...(parts[1] ? { propertyId: parts[1] } : {})
-          } 
+            ...(parts[1] ? { propertyId: parts[1] } : {}),
+          },
         },
       };
     }
@@ -324,7 +347,8 @@ export class MenuRouterService {
       /^(report\s+(status|progress)|status\s+of\s+(the\s+)?report|status\s+with\s+(the\s+)?report|progress\s+of\s+(the\s+)?report)\b/.test(
         lowered,
       ) ||
-      (/\breport\b/.test(lowered) && /\b(status|progress|tracking)\b/.test(lowered));
+      (/\breport\b/.test(lowered) &&
+        /\b(status|progress|tracking)\b/.test(lowered));
     if (looksLikeReportStatus) {
       return {
         handled: true,
@@ -421,7 +445,8 @@ export class MenuRouterService {
       let propertyName: string | undefined;
       const propMatch = afterKeyword.match(/^property\s+(.+)$/i);
       if (propMatch?.[1]) propertyName = propMatch[1].trim();
-      else if (afterKeyword && !wantsPlatform && !wantsCompany) propertyName = afterKeyword;
+      else if (afterKeyword && !wantsPlatform && !wantsCompany)
+        propertyName = afterKeyword;
 
       return {
         handled: true,
@@ -430,7 +455,11 @@ export class MenuRouterService {
           args: {
             reportType: 'Summary',
             format: 'pdf',
-            scope: wantsPlatform ? 'platform' : propertyName ? 'property' : 'company',
+            scope: wantsPlatform
+              ? 'platform'
+              : propertyName
+                ? 'property'
+                : 'company',
             ...(propertyName ? { propertyName } : {}),
           },
         },
@@ -485,19 +514,22 @@ export class MenuRouterService {
       // 2. Try Name Match (Case-Insensitive OR Fuzzy)
       if (session.lastResults && session.lastResults.length > 0) {
         const query = input.toLowerCase().trim();
-        
+
         // Exact / Substring match (normalized)
-        const directMatch = session.lastResults.find(r => 
-          r.name.toLowerCase().includes(query) || 
-          query.includes(r.name.toLowerCase())
+        const directMatch = session.lastResults.find(
+          (r) =>
+            r.name.toLowerCase().includes(query) ||
+            query.includes(r.name.toLowerCase()),
         );
         if (directMatch) return directMatch;
 
         // Fuzzy match using Jaro-Winkler (threshold 0.85)
-        const candidates = session.lastResults.map(r => ({
-          ...r,
-          score: jaroWinklerDistance(query, r.name.toLowerCase())
-        })).sort((a, b) => b.score - a.score);
+        const candidates = session.lastResults
+          .map((r) => ({
+            ...r,
+            score: jaroWinklerDistance(query, r.name.toLowerCase()),
+          }))
+          .sort((a, b) => b.score - a.score);
 
         if (candidates[0] && candidates[0].score >= 0.85) {
           return candidates[0];
@@ -527,7 +559,10 @@ export class MenuRouterService {
         });
         return {
           handled: true,
-          tool: { name: mapping.name, args: { [mapping.argKey]: selectedGeneric.id } },
+          tool: {
+            name: mapping.name,
+            args: { [mapping.argKey]: selectedGeneric.id },
+          },
           response:
             selectedGeneric.type === 'company'
               ? language === 'sw'

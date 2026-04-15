@@ -33,7 +33,6 @@ export class AutonomousAgentService {
       },
     });
 
-
     // this.logger.log(`[AgentService] Found ${pausedAgents.length} agents to resume.`);
 
     const CONCURRENCY_LIMIT = 5;
@@ -48,7 +47,9 @@ export class AutonomousAgentService {
               content: 'Heartbeat trigger',
             });
           } catch (e) {
-            this.logger.error(`Failed to resume agent ${agent.id}: ${e.message}`);
+            this.logger.error(
+              `Failed to resume agent ${agent.id}: ${e.message}`,
+            );
           }
         }),
       );
@@ -90,8 +91,10 @@ JSON_STRUCTURED_OUTPUT:`;
    */
   async notifyPlan(context: any) {
     const planResult = context.analyze_goal || {};
-    const planSteps = (planResult.plan || []).map((s: string) => `• ${s}`).join('\n');
-    
+    const planSteps = (planResult.plan || [])
+      .map((s: string) => `• ${s}`)
+      .join('\n');
+
     const message = `🤖 *Autonomous Agent Plan*\nI've analyzed your goal and proposed the following steps:\n\n${planSteps}\n\nDo you want me to proceed?`;
 
     if (context.phone) {
@@ -100,7 +103,10 @@ JSON_STRUCTURED_OUTPUT:`;
         to: context.phone,
         text: message,
         buttons: [
-          { id: `WF_RESUME_${context.instanceId}_APPROVE`, title: 'Approve & Start' },
+          {
+            id: `WF_RESUME_${context.instanceId}_APPROVE`,
+            title: 'Approve & Start',
+          },
           { id: `WF_RESUME_${context.instanceId}_NOTES`, title: 'Add Notes' },
         ],
       });
@@ -143,13 +149,21 @@ JSON_STRUCTURED_OUTPUT:`;
     const tasks = context.analyze_goal?.tasks || [];
     const pending = tasks.filter((t: any) => t.status === 'pending');
 
-    this.logger.log(`[AgentService] Evaluation: ${pending.length} tasks remaining.`);
+    this.logger.log(
+      `[AgentService] Evaluation: ${pending.length} tasks remaining.`,
+    );
 
     if (pending.length === 0) {
-      return { status: 'COMPLETED', message: 'All tasks finished successfully.' };
+      return {
+        status: 'COMPLETED',
+        message: 'All tasks finished successfully.',
+      };
     }
 
-    return { status: 'CONTINUE', message: `${pending.length} tasks still pending.` };
+    return {
+      status: 'CONTINUE',
+      message: `${pending.length} tasks still pending.`,
+    };
   }
 
   /**

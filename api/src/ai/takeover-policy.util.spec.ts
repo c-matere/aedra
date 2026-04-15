@@ -47,4 +47,3 @@ describe('evaluateTakeover', () => {
     expect(res.shouldTakeover).toBe(false);
   });
 });
-

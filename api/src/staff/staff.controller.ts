@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Delete, Body, Param, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Req,
+} from '@nestjs/common';
 import { StaffService, PropertyAssignmentDto } from './staff.service';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../auth/roles.enum';
@@ -10,17 +18,26 @@ export class StaffController {
   constructor(private readonly staffService: StaffService) {}
 
   @Get(':userId/assignments')
-  async getAssignments(@Param('userId') userId: string, @Req() req: RequestWithUser) {
+  async getAssignments(
+    @Param('userId') userId: string,
+    @Req() req: RequestWithUser,
+  ) {
     return this.staffService.getAssignments(userId, req.user!);
   }
 
   @Post('assign')
-  async assignProperty(@Body() data: PropertyAssignmentDto, @Req() req: RequestWithUser) {
+  async assignProperty(
+    @Body() data: PropertyAssignmentDto,
+    @Req() req: RequestWithUser,
+  ) {
     return this.staffService.assignProperty(data, req.user!);
   }
 
   @Delete('unassign')
-  async unassignProperty(@Body() data: PropertyAssignmentDto, @Req() req: RequestWithUser) {
+  async unassignProperty(
+    @Body() data: PropertyAssignmentDto,
+    @Req() req: RequestWithUser,
+  ) {
     return this.staffService.unassignProperty(data, req.user!);
   }
 
@@ -30,6 +47,10 @@ export class StaffController {
     @Body() data: { propertyIds: string[] },
     @Req() req: RequestWithUser,
   ) {
-    return this.staffService.setBulkAssignments(userId, data.propertyIds, req.user!);
+    return this.staffService.setBulkAssignments(
+      userId,
+      data.propertyIds,
+      req.user!,
+    );
   }
 }

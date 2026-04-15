@@ -7,41 +7,78 @@ export class AiFactCheckerService {
    * Cross-references all numbers and key entities in the summary against the tool results.
    * Returns a list of discrepancies.
    */
-  async verify(summary: string, results: any[]): Promise<{ isValid: boolean; discrepancies: string[] }> {
+  async verify(
+    summary: string,
+    results: any[],
+  ): Promise<{ isValid: boolean; discrepancies: string[] }> {
     const discrepancies: string[] = [];
 
     // 1. Extract all numbers and capitalized names/entities from the summary
     const summaryNumbers = this.extractNumbers(summary);
     const summaryEntities = this.extractEntities(summary);
-    if (summaryNumbers.length === 0 && summaryEntities.length === 0) return { isValid: true, discrepancies: [] };
+    if (summaryNumbers.length === 0 && summaryEntities.length === 0)
+      return { isValid: true, discrepancies: [] };
 
     // 2. Extract all numbers and strings from the tool results
     const toolNumbers = this.extractNumbersFromJson(results);
-    const toolStrings = this.extractStringsFromJson(results).map(s => s.toLowerCase());
+    const toolStrings = this.extractStringsFromJson(results).map((s) =>
+      s.toLowerCase(),
+    );
 
     // 3. Compare summary numbers
     for (const num of summaryNumbers) {
       if (this.isCommonNumber(num)) continue;
-      const isGrounded = toolNumbers.some(tn => Math.abs(tn - num) < 0.01);
-      if (!isGrounded) discrepancies.push(`Number '${num}' found in response but not in any tool result.`);
+      const isGrounded = toolNumbers.some((tn) => Math.abs(tn - num) < 0.01);
+      if (!isGrounded)
+        discrepancies.push(
+          `Number '${num}' found in response but not in any tool result.`,
+        );
     }
 
     // 4. Compare summary entities (Names)
     const personaIgnoreList = [
-      'Friday', 'March', 'April', 'Tenant', 'Unit', 'KES', 'I', 'Aedra', 
-      'Karibu', 'Hujambo', 'Sawa', 'Habari', 'Sheng', 'Swahili', 'Kenya', 
-      'Mombasa', 'Palm', 'Grove', 'TENANT', 'STAFF', 'LANDLORD', 'NONE', 'PENDING'
+      'Friday',
+      'March',
+      'April',
+      'Tenant',
+      'Unit',
+      'KES',
+      'I',
+      'Aedra',
+      'Karibu',
+      'Hujambo',
+      'Sawa',
+      'Habari',
+      'Sheng',
+      'Swahili',
+      'Kenya',
+      'Mombasa',
+      'Palm',
+      'Grove',
+      'TENANT',
+      'STAFF',
+      'LANDLORD',
+      'NONE',
+      'PENDING',
     ];
 
     for (const entity of summaryEntities) {
       if (personaIgnoreList.includes(entity)) continue;
       if (entity.length < 3) continue;
-      
-      const isGrounded = toolStrings.some(ts => ts.includes(entity.toLowerCase()) || entity.toLowerCase().includes(ts));
+
+      const isGrounded = toolStrings.some(
+        (ts) =>
+          ts.includes(entity.toLowerCase()) ||
+          entity.toLowerCase().includes(ts),
+      );
       if (!isGrounded) {
         // Only flag if it's definitely not a persona-related or common-structural word
-        this.logger.warn(`[FactChecker] Entity '${entity}' mentioned but not grounded. Discrepancy logged.`);
-        discrepancies.push(`Entity '${entity}' mentioned but not found in verified tool data.`);
+        this.logger.warn(
+          `[FactChecker] Entity '${entity}' mentioned but not grounded. Discrepancy logged.`,
+        );
+        discrepancies.push(
+          `Entity '${entity}' mentioned but not found in verified tool data.`,
+        );
       }
     }
 
@@ -53,7 +90,7 @@ export class AiFactCheckerService {
 
   private extractNumbers(text: string): number[] {
     const matches = text.replace(/,/g, '').match(/-?\d+(\.\d+)?/g);
-    return matches ? matches.map(m => parseFloat(m)) : [];
+    return matches ? matches.map((m) => parseFloat(m)) : [];
   }
 
   private extractEntities(text: string): string[] {
@@ -74,7 +111,7 @@ export class AiFactCheckerService {
       } else if (typeof item === 'string') {
         const matches = item.replace(/,/g, '').match(/-?\d+(\.\d+)?/g);
         if (matches) {
-          matches.forEach(m => numbers.push(parseFloat(m)));
+          matches.forEach((m) => numbers.push(parseFloat(m)));
         }
       }
     };

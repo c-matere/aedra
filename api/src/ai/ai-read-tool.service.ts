@@ -59,14 +59,14 @@ export class AiReadToolService implements OnModuleInit {
     'monthly summary': 'generate_mckinsey_report',
     'monthly summary report': 'generate_mckinsey_report',
     'summary report': 'generate_mckinsey_report',
-    'generate_monthly_summary': 'generate_mckinsey_report',
+    generate_monthly_summary: 'generate_mckinsey_report',
     'rent roll': 'generate_rent_roll',
-    'statement': 'generate_statement',
-    'revenue': 'get_revenue_summary',
+    statement: 'generate_statement',
+    revenue: 'get_revenue_summary',
     'revenue figure': 'get_revenue_summary',
-    'occupancy': 'get_occupancy_report',
+    occupancy: 'get_occupancy_report',
     'mckinsey report': 'generate_mckinsey_report',
-    'mckinsey': 'generate_mckinsey_report'
+    mckinsey: 'generate_mckinsey_report',
   };
 
   private formatNotFoundError(entity: string, searchTerm: string): any {
@@ -75,11 +75,15 @@ export class AiReadToolService implements OnModuleInit {
       entity_type: entity,
       search_term: searchTerm,
       required_action: 'CLARIFY_IDENTITY',
-      message: `I couldn't find a unique ${entity} for '${searchTerm}'. Could you provide more details like the full name or unit number?`
+      message: `I couldn't find a unique ${entity} for '${searchTerm}'. Could you provide more details like the full name or unit number?`,
     };
   }
 
-  private handleResolutionError(resolved: any, entityType: string, searchTerm: string): any {
+  private handleResolutionError(
+    resolved: any,
+    entityType: string,
+    searchTerm: string,
+  ): any {
     if (resolved?.error === 'AMBIGUOUS_MATCH') {
       return {
         error: 'AMBIGUOUS_MATCH',
@@ -87,7 +91,7 @@ export class AiReadToolService implements OnModuleInit {
         search_term: searchTerm,
         required_action: 'SELECT_FROM_LIST',
         matches: resolved.matches,
-        message: `I found multiple ${entityType}s matching '${searchTerm}'. Which one did you mean?`
+        message: `I found multiple ${entityType}s matching '${searchTerm}'. Which one did you mean?`,
       };
     }
     return this.formatNotFoundError(entityType, searchTerm);
@@ -108,7 +112,7 @@ export class AiReadToolService implements OnModuleInit {
       'not_specified',
       'not-specified',
       'pending',
-      'undefined'
+      'undefined',
     ].includes(raw);
   }
 
@@ -118,9 +122,9 @@ export class AiReadToolService implements OnModuleInit {
       const paths = [
         path.join(process.cwd(), 'src/ai/bench-fixtures.json'),
         path.join(__dirname, 'bench-fixtures.json'),
-        '/home/chris/aedra/api/src/ai/bench-fixtures.json'
+        '/home/chris/aedra/api/src/ai/bench-fixtures.json',
       ];
-      
+
       let filePath = '';
       for (const p of paths) {
         if (fs.existsSync(p)) {
@@ -131,163 +135,273 @@ export class AiReadToolService implements OnModuleInit {
 
       if (filePath) {
         this.mockFixtures = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        this.logger.log(`[Mock] Loaded fixtures from ${filePath} (${this.mockFixtures.tenants?.length} tenants)`);
+        this.logger.log(
+          `[Mock] Loaded fixtures from ${filePath} (${this.mockFixtures.tenants?.length} tenants)`,
+        );
       } else {
-        this.logger.error(`[Mock] Could not find bench-fixtures.json in any searched paths: ${paths.join(', ')}`);
+        this.logger.error(
+          `[Mock] Could not find bench-fixtures.json in any searched paths: ${paths.join(', ')}`,
+        );
       }
     } catch (e) {
       this.logger.error(`Failed to load mock fixtures: ${e.message}`);
     }
   }
 
-  private async handleMockRead(name: string, args: any, context?: any): Promise<any> {
+  private async handleMockRead(
+    name: string,
+    args: any,
+    context?: any,
+  ): Promise<any> {
     if (!this.mockFixtures) return null;
 
     switch (name) {
       case 'get_property_details': {
-        const query = (args.propertyId || args.propertyName || args.id || args.name || 'unspecified').toLowerCase().trim();
-        const prop = this.mockFixtures.properties.find((p: any) => 
-          p.id.toLowerCase() === query ||
-          p.name.toLowerCase().includes(query) || 
-          query.includes(p.name.toLowerCase())
+        const query = (
+          args.propertyId ||
+          args.propertyName ||
+          args.id ||
+          args.name ||
+          'unspecified'
+        )
+          .toLowerCase()
+          .trim();
+        const prop = this.mockFixtures.properties.find(
+          (p: any) =>
+            p.id.toLowerCase() === query ||
+            p.name.toLowerCase().includes(query) ||
+            query.includes(p.name.toLowerCase()),
         );
         if (!prop) return this.formatNotFoundError('property', query);
-        return { ...prop, units: this.mockFixtures.units.filter((u: any) => u.propertyId === prop.id) };
+        return {
+          ...prop,
+          units: this.mockFixtures.units.filter(
+            (u: any) => u.propertyId === prop.id,
+          ),
+        };
       }
       case 'get_unit_details': {
-        const unit = this.mockFixtures.units.find((u: any) => 
-          u.id?.toLowerCase() === (args.unitId?.toLowerCase() || args.id?.toLowerCase()) ||
-          u.unitNumber.toUpperCase() === (args.unitNumber?.toUpperCase() || args.id?.toUpperCase())
+        const unit = this.mockFixtures.units.find(
+          (u: any) =>
+            u.id?.toLowerCase() ===
+              (args.unitId?.toLowerCase() || args.id?.toLowerCase()) ||
+            u.unitNumber.toUpperCase() ===
+              (args.unitNumber?.toUpperCase() || args.id?.toUpperCase()),
         );
-        if (!unit) return this.formatNotFoundError('unit', args.unitId || args.unitNumber || args.id || 'unspecified');
-        
+        if (!unit)
+          return this.formatNotFoundError(
+            'unit',
+            args.unitId || args.unitNumber || args.id || 'unspecified',
+          );
+
         // Ensure we only link the ACTIVE tenant to the unit
-        const tenant = this.mockFixtures.tenants.find((t: any) => 
-          t.currentLease?.unitNumber === unit.unitNumber && t.currentLease?.status === 'ACTIVE'
+        const tenant = this.mockFixtures.tenants.find(
+          (t: any) =>
+            t.currentLease?.unitNumber === unit.unitNumber &&
+            t.currentLease?.status === 'ACTIVE',
         );
-        return { ...unit, leases: tenant ? [{ tenant, status: 'ACTIVE', balance: tenant.arrears }] : [] };
+        return {
+          ...unit,
+          leases: tenant
+            ? [{ tenant, status: 'ACTIVE', balance: tenant.arrears }]
+            : [],
+        };
       }
       case 'search_tenants':
       case 'get_tenant_details': {
-        const rawQuery = (args.query || args.tenantName || args.tenantId || args.name || '').trim();
+        const rawQuery = (
+          args.query ||
+          args.tenantName ||
+          args.tenantId ||
+          args.name ||
+          ''
+        ).trim();
         const query = rawQuery.toLowerCase();
-        
-        if (!query || query === 'depends' || query === 'null' || query === 'undefined') {
-          return { error: 'MISSING_TENANT_CONTEXT', recoverable: true, message: 'I need a tenant name or ID to find details.' };
+
+        if (
+          !query ||
+          query === 'depends' ||
+          query === 'null' ||
+          query === 'undefined'
+        ) {
+          return {
+            error: 'MISSING_TENANT_CONTEXT',
+            recoverable: true,
+            message: 'I need a tenant name or ID to find details.',
+          };
         }
 
         // 1. Precise Match (Full Name)
-        let matches = this.mockFixtures.tenants.filter((t: any) => 
-          `${t.firstName} ${t.lastName}`.toLowerCase().trim() === query || 
-          t.id.toLowerCase() === query
+        let matches = this.mockFixtures.tenants.filter(
+          (t: any) =>
+            `${t.firstName} ${t.lastName}`.toLowerCase().trim() === query ||
+            t.id.toLowerCase() === query,
         );
 
         // 2. Partial Match (First or Last name only)
         if (matches.length === 0) {
-          matches = this.mockFixtures.tenants.filter((t: any) => 
-            t.firstName.toLowerCase().trim() === query || 
-            t.lastName.toLowerCase().trim() === query
+          matches = this.mockFixtures.tenants.filter(
+            (t: any) =>
+              t.firstName.toLowerCase().trim() === query ||
+              t.lastName.toLowerCase().trim() === query,
           );
         }
 
         // 3. Fuzzy Match (Fallback - Starts With)
         if (matches.length === 0) {
-           matches = this.mockFixtures.tenants.filter((t: any) => 
-             `${t.firstName} ${t.lastName}`.toLowerCase().startsWith(query)
-           );
+          matches = this.mockFixtures.tenants.filter((t: any) =>
+            `${t.firstName} ${t.lastName}`.toLowerCase().startsWith(query),
+          );
         }
 
         if (matches.length === 0) {
-          return { error: 'NOT_FOUND', message: `No tenant found matching "${rawQuery}"` };
+          return {
+            error: 'NOT_FOUND',
+            message: `No tenant found matching "${rawQuery}"`,
+          };
         }
 
         if (name === 'get_tenant_details' && matches.length > 1) {
-          this.logger.warn(`[Mock] get_tenant_details("${query}") found multiple matches. Returning AMBIGUOUS_RESULT.`);
-          return { 
-            error: 'AMBIGUOUS_RESULT', 
+          this.logger.warn(
+            `[Mock] get_tenant_details("${query}") found multiple matches. Returning AMBIGUOUS_RESULT.`,
+          );
+          return {
+            error: 'AMBIGUOUS_RESULT',
             message: `Multiple tenants found for "${rawQuery}"`,
-            options: matches.map((m: any) => ({ id: m.id, name: `${m.firstName} ${m.lastName}` }))
+            options: matches.map((m: any) => ({
+              id: m.id,
+              name: `${m.firstName} ${m.lastName}`,
+            })),
           };
         }
 
         const mappedMatches = matches.map((t: any) => ({
-           ...t,
-           leases: t.currentLease ? [{ ...t.currentLease, unit: this.mockFixtures.units.find((u: any) => u.unitNumber === t.currentLease.unitNumber) }] : []
+          ...t,
+          leases: t.currentLease
+            ? [
+                {
+                  ...t.currentLease,
+                  unit: this.mockFixtures.units.find(
+                    (u: any) => u.unitNumber === t.currentLease.unitNumber,
+                  ),
+                },
+              ]
+            : [],
         }));
-        
+
         return name === 'get_tenant_details' ? mappedMatches[0] : mappedMatches;
       }
       case 'get_lease_details': {
-         const leaseId = args.id || args.leaseId;
-         const tenant = this.mockFixtures.tenants.find((t: any) => t.currentLease?.id === leaseId);
-         if (!tenant) return { error: 'NOT_FOUND', message: 'Lease not found.' };
-         return tenant?.currentLease ? { ...tenant.currentLease, tenant } : { error: 'NOT_FOUND' };
+        const leaseId = args.id || args.leaseId;
+        const tenant = this.mockFixtures.tenants.find(
+          (t: any) => t.currentLease?.id === leaseId,
+        );
+        if (!tenant) return { error: 'NOT_FOUND', message: 'Lease not found.' };
+        return tenant?.currentLease
+          ? { ...tenant.currentLease, tenant }
+          : { error: 'NOT_FOUND' };
       }
       case 'get_tenant_arrears': {
-         const query = (args.tenantName || args.tenantId || '').toLowerCase().trim();
-         if (!query || query === 'depends' || query === 'null' || query === 'undefined') {
-            return { error: 'MISSING_TENANT_CONTEXT', recoverable: true, message: 'I need a tenant name or ID to check arrears.' };
-         }
-         const tenant = this.mockFixtures.tenants.find((t: any) => 
-           `${t.firstName} ${t.lastName}`.toLowerCase().includes(query) || t.id.toLowerCase() === query
-         );
-         return tenant ? { arrears: tenant.arrears || 0, balance: tenant.arrears || 0, success: true } 
-                       : { error: 'NOT_FOUND', message: 'Tenant not found.' };
+        const query = (args.tenantName || args.tenantId || '')
+          .toLowerCase()
+          .trim();
+        if (
+          !query ||
+          query === 'depends' ||
+          query === 'null' ||
+          query === 'undefined'
+        ) {
+          return {
+            error: 'MISSING_TENANT_CONTEXT',
+            recoverable: true,
+            message: 'I need a tenant name or ID to check arrears.',
+          };
+        }
+        const tenant = this.mockFixtures.tenants.find(
+          (t: any) =>
+            `${t.firstName} ${t.lastName}`.toLowerCase().includes(query) ||
+            t.id.toLowerCase() === query,
+        );
+        return tenant
+          ? {
+              arrears: tenant.arrears || 0,
+              balance: tenant.arrears || 0,
+              success: true,
+            }
+          : { error: 'NOT_FOUND', message: 'Tenant not found.' };
       }
       case 'list_tenants': {
         return this.mockFixtures.tenants.map((t: any) => ({
           ...t,
-          property: { name: t.currentLease?.propertyId || 'Unknown' }
+          property: { name: t.currentLease?.propertyId || 'Unknown' },
         }));
       }
       case 'list_payments': {
         const identityKey = `ai_session:${args.chatId || 'SYSTEM'}:identity`;
-        let q = (args.query || args.tenantName || args.tenantId || '').toLowerCase();
-        
+        let q = (
+          args.query ||
+          args.tenantName ||
+          args.tenantId ||
+          ''
+        ).toLowerCase();
+
         // If no query, use the locked session identity if available
         if (!q && context?.lockedIdentity?.name) {
           q = context.lockedIdentity.name.toLowerCase();
-          this.logger.log(`[Mock] list_payments: Using locked identity filter: ${q}`);
+          this.logger.log(
+            `[Mock] list_payments: Using locked identity filter: ${q}`,
+          );
         }
 
         let payments = this.mockFixtures.payments;
         if (q) {
-          payments = payments.filter((p: any) => 
-            p.tenantName?.toLowerCase().includes(q) || 
-            p.tenantId?.toLowerCase() === q ||
-            p.unitNumber?.toLowerCase() === q ||
-            p.leaseId?.toLowerCase() === q
+          payments = payments.filter(
+            (p: any) =>
+              p.tenantName?.toLowerCase().includes(q) ||
+              p.tenantId?.toLowerCase() === q ||
+              p.unitNumber?.toLowerCase() === q ||
+              p.leaseId?.toLowerCase() === q,
           );
         } else if (process.env.BENCH_MOCK_MODE !== 'true') {
           // In production, no query means empty list to prevent leak
           payments = [];
         }
-        return { 
-          success: true, 
+        return {
+          success: true,
           payments: payments.map((p: any) => ({ ...p, status: 'COMPLETED' })),
-          _mocked: true 
+          _mocked: true,
         };
       }
       case 'get_payment_details': {
         const id = args.id || args.paymentId;
-        const payment = this.mockFixtures.payments.find((p: any) => p.id === id);
-        if (!payment) return { error: 'NOT_FOUND', message: `Payment with ID ${id} not found.` };
-        
+        const payment = this.mockFixtures.payments.find(
+          (p: any) => p.id === id,
+        );
+        if (!payment)
+          return {
+            error: 'NOT_FOUND',
+            message: `Payment with ID ${id} not found.`,
+          };
+
         // Enhance with tenant/unit info for the formatter
         const lease = this.mockFixtures.tenants
           .map((t: any) => t.currentLease)
           .find((l: any) => l?.id === payment.leaseId);
-        const tenant = this.mockFixtures.tenants.find((t: any) => t.currentLease?.id === payment.leaseId);
-        const unit = this.mockFixtures.units.find((u: any) => u.unitNumber === lease?.unitNumber);
+        const tenant = this.mockFixtures.tenants.find(
+          (t: any) => t.currentLease?.id === payment.leaseId,
+        );
+        const unit = this.mockFixtures.units.find(
+          (u: any) => u.unitNumber === lease?.unitNumber,
+        );
 
-        return { 
-          ...payment, 
-          lease: { 
-            ...lease, 
-            tenant, 
-            unit 
+        return {
+          ...payment,
+          lease: {
+            ...lease,
+            tenant,
+            unit,
           },
-          _mocked: true 
+          _mocked: true,
         };
       }
       case 'generate_rent_roll': {
@@ -296,36 +410,52 @@ export class AiReadToolService implements OnModuleInit {
           propertyName: args.propertyName || 'Portfolio Summary',
           units: this.mockFixtures.units.map((u: any) => ({
             unitNumber: u.unitNumber,
-            tenant: this.mockFixtures.tenants.find((t: any) => t.currentLease?.unitNumber === u.unitNumber)?.lastName || 'VACANT',
+            tenant:
+              this.mockFixtures.tenants.find(
+                (t: any) => t.currentLease?.unitNumber === u.unitNumber,
+              )?.lastName || 'VACANT',
             rent: u.rentAmount,
-            status: u.status
+            status: u.status,
           })),
-        _mocked: true,
-        url: `https://aedra.app/reports/rent_roll_${Date.now()}.pdf`
-      };
-    }
+          _mocked: true,
+          url: `https://aedra.app/reports/rent_roll_${Date.now()}.pdf`,
+        };
+      }
       case 'get_collection_rate': {
-        const res =  {
+        const res = {
           success: true,
-          rate: "94.5%",
+          rate: '94.5%',
           totalInvoiced: 450000,
           totalCollected: 425250,
-          _mocked: true
+          _mocked: true,
         };
         // Post-Read Validation
         const validation = await this.validator.validatePostRead(name, res);
-        return validation.isValid ? res : { error: 'DATA_CONTRADICTION', message: validation.message, data: res };
+        return validation.isValid
+          ? res
+          : {
+              error: 'DATA_CONTRADICTION',
+              message: validation.message,
+              data: res,
+            };
       }
       case 'get_revenue_summary':
       case 'get_monthly_summary':
       case 'generate_monthly_summary': {
-        const rawProp = args.propertyName || args.property || args.propertyId || 'all properties';
+        const rawProp =
+          args.propertyName ||
+          args.property ||
+          args.propertyId ||
+          'all properties';
         const query = String(rawProp).toLowerCase().trim();
-        const property = this.mockFixtures.properties.find((p: any) => 
-            p.name.toLowerCase().includes(query) || query.includes(p.name.toLowerCase()) || p.id.toLowerCase() === query
+        const property = this.mockFixtures.properties.find(
+          (p: any) =>
+            p.name.toLowerCase().includes(query) ||
+            query.includes(p.name.toLowerCase()) ||
+            p.id.toLowerCase() === query,
         );
         const nameToUse = property ? property.name : query;
-        
+
         return {
           success: true,
           period: 'March 2026',
@@ -337,21 +467,27 @@ export class AiReadToolService implements OnModuleInit {
           unpaidAmount: 68750,
           units: [
             { unit: property ? 'A1' : 'U-001', status: 'PAID', amount: 35000 },
-            { unit: property ? 'B4' : 'U-002', status: 'PARTIAL', amount: 32500, balance: 12500 },
+            {
+              unit: property ? 'B4' : 'U-002',
+              status: 'PARTIAL',
+              amount: 32500,
+              balance: 12500,
+            },
           ],
           _mocked: true,
-          url: `https://aedra.app/reports/monthly_summary_${Date.now()}.pdf`
+          url: `https://aedra.app/reports/monthly_summary_${Date.now()}.pdf`,
         };
       }
       case 'generate_mckinsey_report': {
-        const rawProp = args.propertyName || args.property || args.propertyId || 'Palm Grove';
+        const rawProp =
+          args.propertyName || args.property || args.propertyId || 'Palm Grove';
         return {
           success: true,
           reportTitle: `McKinsey Portfolio Analysis - ${rawProp}`,
           generatedAt: new Date().toISOString(),
           url: `https://aedra.app/reports/mckinsey_analysis_${Date.now()}.pdf`,
           summary: 'Premium portfolio health check complete.',
-          _mocked: true
+          _mocked: true,
         };
       }
       case 'check_payment_status':
@@ -365,19 +501,26 @@ export class AiReadToolService implements OnModuleInit {
             date: '2026-03-20',
             method: 'MPESA',
             status: 'CONFIRMED',
-            reference: 'QKF3892JD'
+            reference: 'QKF3892JD',
           },
-          advice: 'No duplicate payment detected. The last transaction was confirmed successfully.',
-          _mocked: true
+          advice:
+            'No duplicate payment detected. The last transaction was confirmed successfully.',
+          _mocked: true,
         };
       }
       case 'get_maintenance_status': {
         return {
           success: true,
-          open: this.mockFixtures.maintenanceRequests?.filter((r: any) => r.status !== 'CLOSED').length || 3,
-          closed: this.mockFixtures.maintenanceRequests?.filter((r: any) => r.status === 'CLOSED').length || 12,
+          open:
+            this.mockFixtures.maintenanceRequests?.filter(
+              (r: any) => r.status !== 'CLOSED',
+            ).length || 3,
+          closed:
+            this.mockFixtures.maintenanceRequests?.filter(
+              (r: any) => r.status === 'CLOSED',
+            ).length || 12,
           urgent: 1,
-          _mocked: true
+          _mocked: true,
         };
       }
       default:
@@ -419,20 +562,27 @@ export class AiReadToolService implements OnModuleInit {
     // 1. GOVERNANCE: Pre-execution Identity Guard
     if (role === UserRole.TENANT && lockedTenantId) {
       const rawProvidedId =
-        args?.tenantId || (name === 'get_tenant_details' ? args?.id : undefined);
+        args?.tenantId ||
+        (name === 'get_tenant_details' ? args?.id : undefined);
       const providedId =
         typeof rawProvidedId === 'string' &&
         this.isPlaceholderValue(rawProvidedId)
           ? undefined
           : rawProvidedId;
-      
+
       // Strict Conflict Check: If the AI provides an ID that doesn't match the lock
-      if (providedId && providedId !== 'PENDING' && providedId !== lockedTenantId) {
-        this.logger.error(`[Governance] CONTEXT_CONFLICT: Session ${chatId} locked to ${lockedTenantId}, but tool ${name} called for ${providedId}`);
-        return { 
-          error: 'CONTEXT_CONFLICT', 
+      if (
+        providedId &&
+        providedId !== 'PENDING' &&
+        providedId !== lockedTenantId
+      ) {
+        this.logger.error(
+          `[Governance] CONTEXT_CONFLICT: Session ${chatId} locked to ${lockedTenantId}, but tool ${name} called for ${providedId}`,
+        );
+        return {
+          error: 'CONTEXT_CONFLICT',
           requires_clarification: true,
-          message: `Identity mismatch. This session is already locked to ${lockedTenantName || 'your account'}.` 
+          message: `Identity mismatch. This session is already locked to ${lockedTenantName || 'your account'}.`,
         };
       }
 
@@ -449,7 +599,9 @@ export class AiReadToolService implements OnModuleInit {
         if (tenantScopedTools.includes(name)) {
           args = { ...args, tenantId: lockedTenantId };
           if (name === 'get_tenant_details') args.id = lockedTenantId;
-          this.logger.log(`[Governance] Defaulted to locked tenant ${lockedTenantName || lockedTenantId} for ${name}`);
+          this.logger.log(
+            `[Governance] Defaulted to locked tenant ${lockedTenantName || lockedTenantId} for ${name}`,
+          );
         }
       }
     }
@@ -460,96 +612,146 @@ export class AiReadToolService implements OnModuleInit {
         role === UserRole.TENANT && identityKey
           ? await this.cacheManager.get(identityKey)
           : null;
-      
+
       // Reporting Router Override
       if (this.REPORT_MAP[toolKey]) {
         const mappedTool = this.REPORT_MAP[toolKey];
-        this.logger.log(`[ReportingRouter] Mapping "${name}" -> "${mappedTool}"`);
+        this.logger.log(
+          `[ReportingRouter] Mapping "${name}" -> "${mappedTool}"`,
+        );
         // Recurse with the mapped tool name
         return this.executeReadTool(mappedTool, args, context, role, language);
       }
 
-      this.logger.log(`[Mock] Executing tool: ${name} with args: ${JSON.stringify(args)}`);
-      const mocked = await this.handleMockRead(name, args, { ...context, lockedIdentity });
-      
+      this.logger.log(
+        `[Mock] Executing tool: ${name} with args: ${JSON.stringify(args)}`,
+      );
+      const mocked = await this.handleMockRead(name, args, {
+        ...context,
+        lockedIdentity,
+      });
+
       if (mocked && !mocked.error) {
         // 2. GOVERNANCE: Lifecycle Transition (UNRESOLVED -> RESOLVED -> LOCKED)
         // CRITICAL: Only lock identity for TENANTS. Staff/Landlords should stay flexible.
-        if (role === UserRole.TENANT && (name === 'get_tenant_details' || name === 'search_tenants')) {
-          const tenant = Array.isArray(mocked) ? (mocked.length === 1 ? mocked[0] : null) : mocked;
-          
+        if (
+          role === UserRole.TENANT &&
+          (name === 'get_tenant_details' || name === 'search_tenants')
+        ) {
+          const tenant = Array.isArray(mocked)
+            ? mocked.length === 1
+              ? mocked[0]
+              : null
+            : mocked;
+
           if (tenant && tenant.id && tenant.firstName) {
-            const tenantName = `${tenant.firstName} ${tenant.lastName || ''}`.trim();
-            const isExactMatch = args.tenantId === tenant.id || args.id === tenant.id;
-            
+            const tenantName =
+              `${tenant.firstName} ${tenant.lastName || ''}`.trim();
+            const isExactMatch =
+              args.tenantId === tenant.id || args.id === tenant.id;
+
             // Confidence Scoring
             const confidence = isExactMatch ? 'high' : 'low';
 
             if (!lockedIdentity || lockedIdentity.id === tenant.id) {
-                const newLock = { 
-                  id: tenant.id, 
-                  name: tenantName, 
-                  confidence,
-                  source: isExactMatch ? 'explicit' : 'resolved',
-                  ...tenant 
-                };
-                await this.cacheManager.set(identityKey as string, newLock, 3600 * 1000);
-                
-                if (!lockedIdentity || lockedIdentity.confidence !== confidence) {
-                  this.logger.log(`[Governance] Identity ${confidence.toUpperCase()} for ${chatId}: ${tenantName} (${tenant.id})`);
-                }
+              const newLock = {
+                id: tenant.id,
+                name: tenantName,
+                confidence,
+                source: isExactMatch ? 'explicit' : 'resolved',
+                ...tenant,
+              };
+              await this.cacheManager.set(
+                identityKey as string,
+                newLock,
+                3600 * 1000,
+              );
+
+              if (!lockedIdentity || lockedIdentity.confidence !== confidence) {
+                this.logger.log(
+                  `[Governance] Identity ${confidence.toUpperCase()} for ${chatId}: ${tenantName} (${tenant.id})`,
+                );
+              }
             } else {
-                // Secondary Conflict Check (Output Validation)
-                this.logger.warn(`[Governance] OUTPUT_CONFLICT: Tool ${name} returned ${tenantName}, but session is LOCKED to ${lockedIdentity.name}`);
-                return { error: 'CONTEXT_CONFLICT', message: 'Result contradicts established identity.' };
+              // Secondary Conflict Check (Output Validation)
+              this.logger.warn(
+                `[Governance] OUTPUT_CONFLICT: Tool ${name} returned ${tenantName}, but session is LOCKED to ${lockedIdentity.name}`,
+              );
+              return {
+                error: 'CONTEXT_CONFLICT',
+                message: 'Result contradicts established identity.',
+              };
             }
-            
+
             // Sync with ContextMemory for prompt visibility
-            const contextData: any = (await this.cacheManager.get(`ai_session:${chatId}:context`)) || {};
+            const contextData: any =
+              (await this.cacheManager.get(`ai_session:${chatId}:context`)) ||
+              {};
             contextData.activeTenantId = tenant.id;
             contextData.activeTenantName = tenantName;
             contextData.identityConfidence = confidence;
-            if (tenant.currentLease?.unitNumber) contextData.activeUnitId = tenant.currentLease.unitNumber;
-            await this.cacheManager.set(`ai_session:${chatId}:context`, contextData, 3600 * 1000);
+            if (tenant.currentLease?.unitNumber)
+              contextData.activeUnitId = tenant.currentLease.unitNumber;
+            await this.cacheManager.set(
+              `ai_session:${chatId}:context`,
+              contextData,
+              3600 * 1000,
+            );
           }
         }
         this.logger.log(`[MOCK] Intercepted tool: ${name}`);
         return mocked;
       }
-      
+
       if (mocked?.error) return mocked;
 
-      this.logger.warn(`[MOCK] Tool ${name} returned null in mock mode. SILENCING fall-through.`);
+      this.logger.warn(
+        `[MOCK] Tool ${name} returned null in mock mode. SILENCING fall-through.`,
+      );
       return null;
     }
 
     try {
       this.logger.log(
-        `[Tool] ▶ ${name} | user=${context.userId?.substring(0,8)} role=${context.role} company=${context.companyId?.substring(0,8) || 'NONE'} args=${JSON.stringify(args || {}).substring(0, 120)}`,
+        `[Tool] ▶ ${name} | user=${context.userId?.substring(0, 8)} role=${context.role} company=${context.companyId?.substring(0, 8) || 'NONE'} args=${JSON.stringify(args || {}).substring(0, 120)}`,
       );
       switch (name) {
         case 'check_active_plan': {
-          const res = await this.resolutionService.resolveId('property', args?.propertyId, context.companyId);
+          const res = await this.resolutionService.resolveId(
+            'property',
+            args?.propertyId,
+            context.companyId,
+          );
           const propertyId = res.id;
-          if (!propertyId) return { error: 'PROPERTY_NOT_FOUND', message: 'Could not find the specified property.' };
+          if (!propertyId)
+            return {
+              error: 'PROPERTY_NOT_FOUND',
+              message: 'Could not find the specified property.',
+            };
 
           const property = await this.prisma.property.findUnique({
-            where: { id: propertyId }
+            where: { id: propertyId },
           });
 
-          const isBlocked = property?.name?.toLowerCase().includes('ocean view') || 
-                            propertyId?.toLowerCase().includes('ocean view') ||
-                            propertyId === 'ocean-view-id';
+          const isBlocked =
+            property?.name?.toLowerCase().includes('ocean view') ||
+            propertyId?.toLowerCase().includes('ocean view') ||
+            propertyId === 'ocean-view-id';
 
           if (isBlocked) {
             return {
-              error: "WORKFLOW_BLOCKED",
-              reason: "Registration not allowed. This property does not have an active management plan. Please create a plan before adding tenants.",
-              required_action: "create_management_plan"
+              error: 'WORKFLOW_BLOCKED',
+              reason:
+                'Registration not allowed. This property does not have an active management plan. Please create a plan before adding tenants.',
+              required_action: 'create_management_plan',
             };
           }
 
-          return { allowed: true, propertyName: property?.name || 'Property', status: 'ACTIVE_PLAN' };
+          return {
+            allowed: true,
+            propertyName: property?.name || 'Property',
+            status: 'ACTIVE_PLAN',
+          };
         }
 
         case 'list_properties': {
@@ -724,21 +926,36 @@ export class AiReadToolService implements OnModuleInit {
           let tenantId = args.tenantId;
 
           // Guard: Missing or placeholder context
-          if (!tenantId || tenantId === 'DEPENDS' || tenantId === 'null' || tenantId === 'UNDEFINED') {
-             return {
-               success: false,
-               error: 'MISSING_TENANT_CONTEXT',
-               recoverable: true,
-               message: `I need a specific tenant to check arrears. Please provide a name or unit number.`
-             };
+          if (
+            !tenantId ||
+            tenantId === 'DEPENDS' ||
+            tenantId === 'null' ||
+            tenantId === 'UNDEFINED'
+          ) {
+            return {
+              success: false,
+              error: 'MISSING_TENANT_CONTEXT',
+              recoverable: true,
+              message: `I need a specific tenant to check arrears. Please provide a name or unit number.`,
+            };
           }
 
-          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId || '');
+          const isUuid =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+              tenantId || '',
+            );
           if (!isUuid && (args.tenantName || tenantId)) {
-            const resolved = await this.resolutionService.resolveId('tenant', args.tenantName || tenantId, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'tenant',
+              args.tenantName || tenantId,
+              context.companyId,
+            );
             if (resolved?.id) {
               tenantId = resolved.id;
-            } else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) {
+            } else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            ) {
               return {
                 error: 'AMBIGUOUS_MATCH',
                 entity_type: 'tenant',
@@ -748,11 +965,18 @@ export class AiReadToolService implements OnModuleInit {
                 message: `I found multiple tenants matching '${args.tenantName || tenantId}'. Which one did you mean?`,
               };
             } else {
-              return this.formatNotFoundError('tenant', args.tenantName || tenantId);
+              return this.formatNotFoundError(
+                'tenant',
+                args.tenantName || tenantId,
+              );
             }
           }
 
-          if (!tenantId) return this.formatNotFoundError('tenant', args.tenantName || args.tenantId || 'unspecified');
+          if (!tenantId)
+            return this.formatNotFoundError(
+              'tenant',
+              args.tenantName || args.tenantId || 'unspecified',
+            );
 
           await this.resolveCompanyId(context, tenantId, 'tenant');
           const tenant = await this.prisma.tenant.findUnique({
@@ -786,17 +1010,29 @@ export class AiReadToolService implements OnModuleInit {
             balance: arrears,
             currency: 'KES',
             calculation: {
-               note: "Calculated from total invoices - total payments"
-            }
+              note: 'Calculated from total invoices - total payments',
+            },
           };
         }
 
         case 'get_portfolio_arrears': {
           let resolvedPropertyId = args?.propertyId;
           if (!resolvedPropertyId && args?.propertyName) {
-            const resolved = await this.resolutionService.resolveId('property', args.propertyName, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'property',
+              args.propertyName,
+              context.companyId,
+            );
             if (resolved?.id) resolvedPropertyId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) return this.handleResolutionError(resolved, 'property', args.propertyName);
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            )
+              return this.handleResolutionError(
+                resolved,
+                'property',
+                args.propertyName,
+              );
             else return this.formatNotFoundError('property', args.propertyName);
           }
 
@@ -810,7 +1046,7 @@ export class AiReadToolService implements OnModuleInit {
           const totalProps = propEntries.length;
 
           let response = '# MONTHLY COLLECTION STATUS\n\n';
-          
+
           // 1. High-Level Rollup Summary
           response += `📊 *PORTFOLIO SUMMARY*\n`;
           response += `• Total Expected: KES ${totals.expected.toLocaleString()}\n`;
@@ -821,20 +1057,24 @@ export class AiReadToolService implements OnModuleInit {
 
           // 2. Decide on noise reduction / thresholding
           const hasArrears = propEntries.filter(([, d]: any) => d.balance > 0);
-          const allPaid = propEntries.filter(([, d]: any) => d.balance <= 0 && d.total_expected > 0);
-          
+          const allPaid = propEntries.filter(
+            ([, d]: any) => d.balance <= 0 && d.total_expected > 0,
+          );
+
           const showDetailedArrears = hasArrears.slice(0, 10);
-          const remainingArrearsCount = hasArrears.length - showDetailedArrears.length;
+          const remainingArrearsCount =
+            hasArrears.length - showDetailedArrears.length;
 
           if (hasArrears.length === 0) {
-            response += '✅ *Excellent!* All properties in this selection are fully paid.\n';
+            response +=
+              '✅ *Excellent!* All properties in this selection are fully paid.\n';
           } else {
             response += `🏠 *Top Arrears Properties (${hasArrears.length} total):*\n\n`;
             for (const [propId, data] of showDetailedArrears) {
               const d = data as any;
               response += `*${d.name}*\n`;
               response += `💰 Expected: KES ${d.total_expected.toLocaleString()} | *Pending: KES ${d.balance.toLocaleString()}*\n`;
-              
+
               if (d.unpaid_this_month.length > 0) {
                 const topUnpaid = d.unpaid_this_month.slice(0, 3);
                 for (const u of topUnpaid) {
@@ -855,7 +1095,10 @@ export class AiReadToolService implements OnModuleInit {
           }
 
           if (allPaid.length > 0 && totalProps <= 5) {
-            response += '\n---\n✅ *Properties fully paid:* ' + allPaid.map(([, d]: any) => d.name).join(', ') + '\n';
+            response +=
+              '\n---\n✅ *Properties fully paid:* ' +
+              allPaid.map(([, d]: any) => d.name).join(', ') +
+              '\n';
           }
 
           return response;
@@ -864,9 +1107,21 @@ export class AiReadToolService implements OnModuleInit {
         case 'generate_rent_roll': {
           let propertyId = args.propertyId;
           if (!propertyId && args.propertyName) {
-            const resolved = await this.resolutionService.resolveId('property', args.propertyName, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'property',
+              args.propertyName,
+              context.companyId,
+            );
             if (resolved?.id) propertyId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) return this.handleResolutionError(resolved, 'property', args.propertyName);
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            )
+              return this.handleResolutionError(
+                resolved,
+                'property',
+                args.propertyName,
+              );
             else return this.formatNotFoundError('property', args.propertyName);
           }
 
@@ -884,26 +1139,28 @@ export class AiReadToolService implements OnModuleInit {
                 include: {
                   leases: {
                     where: { status: 'ACTIVE', deletedAt: null },
-                    include: { tenant: true }
-                  }
-                }
-              }
-            }
+                    include: { tenant: true },
+                  },
+                },
+              },
+            },
           });
 
           if (properties.length === 0) return { error: 'No properties found.' };
 
-          const report = properties.map(p => ({
+          const report = properties.map((p) => ({
             propertyName: p.name,
-            units: p.units.map(u => {
-                const activeLease = u.leases[0];
-                return {
-                    unitNumber: u.unitNumber,
-                    status: u.status,
-                    tenant: activeLease ? `${activeLease.tenant.firstName} ${activeLease.tenant.lastName}` : 'VACANT',
-                    rentAmount: u.rentAmount
-                };
-            })
+            units: p.units.map((u) => {
+              const activeLease = u.leases[0];
+              return {
+                unitNumber: u.unitNumber,
+                status: u.status,
+                tenant: activeLease
+                  ? `${activeLease.tenant.firstName} ${activeLease.tenant.lastName}`
+                  : 'VACANT',
+                rentAmount: u.rentAmount,
+              };
+            }),
           }));
 
           return report.length === 1 ? report[0] : report;
@@ -912,9 +1169,21 @@ export class AiReadToolService implements OnModuleInit {
         case 'generate_statement': {
           let tenantId = args.tenantId;
           if (!tenantId && args.tenantName) {
-            const resolved = await this.resolutionService.resolveId('tenant', args.tenantName, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'tenant',
+              args.tenantName,
+              context.companyId,
+            );
             if (resolved?.id) tenantId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) return this.handleResolutionError(resolved, 'tenant', args.tenantName);
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            )
+              return this.handleResolutionError(
+                resolved,
+                'tenant',
+                args.tenantName,
+              );
             else return this.formatNotFoundError('tenant', args.tenantName);
           }
 
@@ -922,20 +1191,41 @@ export class AiReadToolService implements OnModuleInit {
             return { error: 'Tenant not found.' };
           }
 
-          const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId }, include: { property: true } });
+          const tenant = await this.prisma.tenant.findUnique({
+            where: { id: tenantId },
+            include: { property: true },
+          });
           if (!tenant) return { error: 'Tenant record missing.' };
 
-          const invoices = await this.prisma.invoice.findMany({ where: { lease: { tenantId } }, orderBy: { createdAt: 'desc' } });
-          const payments = await this.prisma.payment.findMany({ where: { lease: { tenantId } }, orderBy: { createdAt: 'desc' } });
+          const invoices = await this.prisma.invoice.findMany({
+            where: { lease: { tenantId } },
+            orderBy: { createdAt: 'desc' },
+          });
+          const payments = await this.prisma.payment.findMany({
+            where: { lease: { tenantId } },
+            orderBy: { createdAt: 'desc' },
+          });
 
-          const balance = invoices.reduce((acc: number, a: any) => acc + a.amount, 0) - payments.reduce((acc: number, p: any) => acc + p.amount, 0);
+          const balance =
+            invoices.reduce((acc: number, a: any) => acc + a.amount, 0) -
+            payments.reduce((acc: number, p: any) => acc + p.amount, 0);
 
           return {
             id: tenant.id,
             name: `${tenant.firstName} ${tenant.lastName}`,
             balance,
-            recentPayments: payments.slice(0, 5).map((p: any) => ({ amount: p.amount, date: p.paidAt, method: p.method })),
-            activeInvoices: invoices.filter((a: any) => a.status === 'PENDING').map((a: any) => ({ amount: a.amount, date: a.createdAt, description: a.description }))
+            recentPayments: payments.slice(0, 5).map((p: any) => ({
+              amount: p.amount,
+              date: p.paidAt,
+              method: p.method,
+            })),
+            activeInvoices: invoices
+              .filter((a: any) => a.status === 'PENDING')
+              .map((a: any) => ({
+                amount: a.amount,
+                date: a.createdAt,
+                description: a.description,
+              })),
           };
         }
 
@@ -981,12 +1271,22 @@ export class AiReadToolService implements OnModuleInit {
 
         case 'get_tenant_details': {
           let tenantId = args.tenantId;
-          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId || '');
+          const isUuid =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+              tenantId || '',
+            );
           if (!isUuid && (args.tenantName || tenantId)) {
-            const resolved = await this.resolutionService.resolveId('tenant', args.tenantName || tenantId, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'tenant',
+              args.tenantName || tenantId,
+              context.companyId,
+            );
             if (resolved?.id) {
               tenantId = resolved.id;
-            } else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) {
+            } else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            ) {
               return {
                 error: 'AMBIGUOUS_MATCH',
                 entity_type: 'tenant',
@@ -996,11 +1296,18 @@ export class AiReadToolService implements OnModuleInit {
                 message: `I found multiple tenants matching '${args.tenantName || tenantId}'. Which one did you mean?`,
               };
             } else {
-              return this.formatNotFoundError('tenant', args.tenantName || tenantId);
+              return this.formatNotFoundError(
+                'tenant',
+                args.tenantName || tenantId,
+              );
             }
           }
 
-          if (!tenantId) return this.formatNotFoundError('tenant', args.tenantName || args.tenantId || 'unspecified');
+          if (!tenantId)
+            return this.formatNotFoundError(
+              'tenant',
+              args.tenantName || args.tenantId || 'unspecified',
+            );
 
           await this.resolveCompanyId(context, tenantId, 'tenant');
           const tenant = await this.prisma.tenant.findFirst({
@@ -1030,17 +1337,18 @@ export class AiReadToolService implements OnModuleInit {
           if (tenant.leases.length > 1) {
             return {
               error: 'BLOCK_DATA_INCONSISTENCY',
-              message: `CRITICAL DATA ALERT: Tenant ${tenant.firstName} ${tenant.lastName} is linked to ${tenant.leases.length} active leases simultaneously (Units: ${tenant.leases.map(l => l.unit?.unitNumber).join(', ')}). I cannot proceed with any account changes or statements until this duplicate record is resolved by an Admin.`,
-              leases: tenant.leases.map(l => ({
+              message: `CRITICAL DATA ALERT: Tenant ${tenant.firstName} ${tenant.lastName} is linked to ${tenant.leases.length} active leases simultaneously (Units: ${tenant.leases.map((l) => l.unit?.unitNumber).join(', ')}). I cannot proceed with any account changes or statements until this duplicate record is resolved by an Admin.`,
+              leases: tenant.leases.map((l) => ({
                 id: l.id,
                 unit: l.unit?.unitNumber,
                 startDate: l.startDate,
-                status: l.status
-              }))
+                status: l.status,
+              })),
             };
           }
           if (tenant) {
-            const tenantName = `${tenant.firstName} ${tenant.lastName || ''}`.trim();
+            const tenantName =
+              `${tenant.firstName} ${tenant.lastName || ''}`.trim();
             const identityKey = `ai_session:${context.chatId}:identity`;
             if (role === UserRole.TENANT) {
               const existing: any = await this.cacheManager.get(identityKey);
@@ -1086,7 +1394,10 @@ export class AiReadToolService implements OnModuleInit {
 
           const company = await this.prisma.company.findFirst({
             where: {
-              OR: [{ id: targetId }, { name: { equals: targetId, mode: 'insensitive' } }],
+              OR: [
+                { id: targetId },
+                { name: { equals: targetId, mode: 'insensitive' } },
+              ],
             },
           });
 
@@ -1195,15 +1506,13 @@ export class AiReadToolService implements OnModuleInit {
         }
 
         case 'search_properties': {
-          const query = (args?.query || args?.propertyName || args?.name || '').toString().trim();
+          const query = (args?.query || args?.propertyName || args?.name || '')
+            .toString()
+            .trim();
           const isGeneric = this.isGenericQuery(query);
           const vectorIds =
             !isGeneric && query
-              ? await this.vectorSearch(
-                  'PROPERTY',
-                  query,
-                  context.companyId,
-                )
+              ? await this.vectorSearch('PROPERTY', query, context.companyId)
               : [];
           const foundProperties = await this.prisma.property.findMany({
             where: {
@@ -1237,9 +1546,21 @@ export class AiReadToolService implements OnModuleInit {
             return statusValue;
           let resolvedPropertyId = args?.propertyId;
           if (!resolvedPropertyId && args?.propertyName) {
-            const resolved = await this.resolutionService.resolveId('property', args.propertyName, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'property',
+              args.propertyName,
+              context.companyId,
+            );
             if (resolved?.id) resolvedPropertyId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) return this.handleResolutionError(resolved, 'property', args.propertyName);
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            )
+              return this.handleResolutionError(
+                resolved,
+                'property',
+                args.propertyName,
+              );
             else return this.formatNotFoundError('property', args.propertyName);
           }
 
@@ -1251,7 +1572,14 @@ export class AiReadToolService implements OnModuleInit {
                 deletedAt: null,
                 ...(resolvedPropertyId ? { id: resolvedPropertyId } : {}),
               },
-              ...(args?.unitNumber ? { unitNumber: { equals: args.unitNumber, mode: 'insensitive' } } : {}),
+              ...(args?.unitNumber
+                ? {
+                    unitNumber: {
+                      equals: args.unitNumber,
+                      mode: 'insensitive',
+                    },
+                  }
+                : {}),
               ...(typeof statusValue === 'string'
                 ? { status: statusValue }
                 : {}),
@@ -1264,45 +1592,74 @@ export class AiReadToolService implements OnModuleInit {
 
         case 'get_unit_details': {
           let unitId = args?.unitId;
-          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(unitId || '');
-          
+          const isUuid =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+              unitId || '',
+            );
+
           if (!isUuid && (args?.unitNumber || unitId)) {
             // Pre-resolve property if provided to prevent ambiguous match on properties with identical units
             let propertyScopeId: string | undefined;
             if (args?.propertyName) {
-              const pRes = await this.resolutionService.resolveId('property', args.propertyName, context.companyId);
+              const pRes = await this.resolutionService.resolveId(
+                'property',
+                args.propertyName,
+                context.companyId,
+              );
               if (pRes?.id) propertyScopeId = pRes.id;
             }
-            
+
             // If we have a bound property scope, try exact match first
             if (propertyScopeId && args?.unitNumber) {
               const exactUnit = await this.prisma.unit.findFirst({
-                where: { unitNumber: { equals: args.unitNumber, mode: 'insensitive' }, propertyId: propertyScopeId }
+                where: {
+                  unitNumber: { equals: args.unitNumber, mode: 'insensitive' },
+                  propertyId: propertyScopeId,
+                },
               });
               if (exactUnit) unitId = exactUnit.id;
             }
 
             // Fallback to robust resolution if exact match fails
-            if (!unitId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(unitId)) {
-                const resolved = await this.resolutionService.resolveId('unit', args?.unitNumber || unitId, context.companyId);
-                if (resolved?.id) {
-                  unitId = resolved.id;
-                } else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) {
-                  return {
-                    error: 'AMBIGUOUS_MATCH',
-                    entity_type: 'unit',
-                    search_term: args?.unitNumber || unitId,
-                    required_action: 'SELECT_FROM_LIST',
-                    matches: resolved.candidates,
-                    message: `I found multiple units matching '${args?.unitNumber || unitId}'. Which one did you mean?`,
-                  };
-                } else {
-                  return this.formatNotFoundError('unit', args?.unitNumber || unitId);
-                }
+            if (
+              !unitId ||
+              !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                unitId,
+              )
+            ) {
+              const resolved = await this.resolutionService.resolveId(
+                'unit',
+                args?.unitNumber || unitId,
+                context.companyId,
+              );
+              if (resolved?.id) {
+                unitId = resolved.id;
+              } else if (
+                resolved?.mode === 'AMBIGUOUS' &&
+                resolved?.candidates?.length
+              ) {
+                return {
+                  error: 'AMBIGUOUS_MATCH',
+                  entity_type: 'unit',
+                  search_term: args?.unitNumber || unitId,
+                  required_action: 'SELECT_FROM_LIST',
+                  matches: resolved.candidates,
+                  message: `I found multiple units matching '${args?.unitNumber || unitId}'. Which one did you mean?`,
+                };
+              } else {
+                return this.formatNotFoundError(
+                  'unit',
+                  args?.unitNumber || unitId,
+                );
+              }
             }
           }
 
-          if (!unitId) return this.formatNotFoundError('unit', args?.unitNumber || args?.unitId || 'the provided identifier');
+          if (!unitId)
+            return this.formatNotFoundError(
+              'unit',
+              args?.unitNumber || args?.unitId || 'the provided identifier',
+            );
 
           await this.resolveCompanyId(context, unitId, 'unit');
           const unit = await this.prisma.unit.findFirst({
@@ -1313,7 +1670,11 @@ export class AiReadToolService implements OnModuleInit {
             },
             include: { property: true, leases: { include: { tenant: true } } },
           });
-          if (!unit) return { error: 'UNIT_NOT_FOUND', message: `Unit ${args.unitNumber || unitId} not found.` };
+          if (!unit)
+            return {
+              error: 'UNIT_NOT_FOUND',
+              message: `Unit ${args.unitNumber || unitId} not found.`,
+            };
           return unit;
         }
 
@@ -1330,7 +1691,11 @@ export class AiReadToolService implements OnModuleInit {
               },
             },
           });
-          if (!payment) return { error: 'PAYMENT_NOT_FOUND', message: `Could not find payment: ${id}` };
+          if (!payment)
+            return {
+              error: 'PAYMENT_NOT_FOUND',
+              message: `Could not find payment: ${id}`,
+            };
           return formatPaymentDetails(payment);
         }
 
@@ -1338,23 +1703,51 @@ export class AiReadToolService implements OnModuleInit {
           // Resolve name → ID if user passed a name instead of UUID
           let resolvedPropertyId = args?.propertyId;
           if (!resolvedPropertyId && args?.propertyName) {
-            const resolved = await this.resolutionService.resolveId('property', args.propertyName, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'property',
+              args.propertyName,
+              context.companyId,
+            );
             if (resolved?.id) resolvedPropertyId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) return this.handleResolutionError(resolved, 'property', args.propertyName);
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            )
+              return this.handleResolutionError(
+                resolved,
+                'property',
+                args.propertyName,
+              );
             else return this.formatNotFoundError('property', args.propertyName);
           }
           let resolvedTenantId = args?.tenantId;
           if (!resolvedTenantId && args?.tenantName) {
-            const resolved = await this.resolutionService.resolveId('tenant', args.tenantName, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'tenant',
+              args.tenantName,
+              context.companyId,
+            );
             if (resolved?.id) resolvedTenantId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) return this.handleResolutionError(resolved, 'tenant', args.tenantName);
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            )
+              return this.handleResolutionError(
+                resolved,
+                'tenant',
+                args.tenantName,
+              );
             else return this.formatNotFoundError('tenant', args.tenantName);
           }
 
           // If tenantId resolved, just return that specific tenant
           if (resolvedTenantId) {
             const t = await this.prisma.tenant.findFirst({
-              where: { id: resolvedTenantId, companyId: context.companyId, deletedAt: null },
+              where: {
+                id: resolvedTenantId,
+                companyId: context.companyId,
+                deletedAt: null,
+              },
               include: { property: { select: { name: true, id: true } } },
             });
             return t ? [t] : [];
@@ -1364,8 +1757,14 @@ export class AiReadToolService implements OnModuleInit {
           const tenantCount = await this.prisma.tenant.count({
             where: { companyId: context.companyId, deletedAt: null },
           });
-          
-          const hasFilter = !!(resolvedPropertyId || resolvedTenantId || args?.query || args?.tenantName || args?.propertyName);
+
+          const hasFilter = !!(
+            resolvedPropertyId ||
+            resolvedTenantId ||
+            args?.query ||
+            args?.tenantName ||
+            args?.propertyName
+          );
 
           if (!hasFilter && tenantCount > 20) {
             const uid = getSessionUid(context);
@@ -1422,7 +1821,16 @@ export class AiReadToolService implements OnModuleInit {
         }
 
         case 'search_tenants': {
-          const query = (args?.query || args?.tenant_name || args?.tenantName || args?.tenant_query || args?.name || '').toString().trim();
+          const query = (
+            args?.query ||
+            args?.tenant_name ||
+            args?.tenantName ||
+            args?.tenant_query ||
+            args?.name ||
+            ''
+          )
+            .toString()
+            .trim();
 
           if (!query) {
             // Important: Don't silently fall back to listing tenants. That creates confusing UX
@@ -1504,7 +1912,7 @@ export class AiReadToolService implements OnModuleInit {
           const sTenantSessionKey = `ai_session:${sTenantUid}`;
           const sTenantSession: any =
             (await this.cacheManager.get(sTenantSessionKey)) || {};
-          
+
           const results = foundTenants.map((t) => ({
             id: t.id,
             name: `${t.firstName} ${t.lastName}`,
@@ -1514,15 +1922,23 @@ export class AiReadToolService implements OnModuleInit {
           sTenantSession.lastResults = results;
           sTenantSession.lastIntent = 'list_tenants';
           sTenantSession.awaitingSelection = 'tenant';
-          await this.cacheManager.set(sTenantSessionKey, sTenantSession, 3600 * 1000);
+          await this.cacheManager.set(
+            sTenantSessionKey,
+            sTenantSession,
+            3600 * 1000,
+          );
 
           const sListKey = `list:${sTenantUid}`;
-          await this.cacheManager.set(sListKey, {
+          await this.cacheManager.set(
+            sListKey,
+            {
               items: results,
               chatId: context.chatId,
               action: 'list_tenants',
               idField: 'tenantId',
-            }, 300 * 1000);
+            },
+            300 * 1000,
+          );
 
           if (foundTenants.length > 1) {
             return {
@@ -1539,65 +1955,127 @@ export class AiReadToolService implements OnModuleInit {
         case 'get_financial_summary': {
           if (!context.companyId || context.companyId === 'NONE')
             return { error: 'Please select a company workspace first.' };
-          
-          this.logger.log(`[BENCH_DEBUG] get_financial_summary for companyId: ${context.companyId}, propId: ${args?.propertyId}, date: ${args?.dateFrom}-${args?.dateTo}`);
-          
+
+          this.logger.log(
+            `[BENCH_DEBUG] get_financial_summary for companyId: ${context.companyId}, propId: ${args?.propertyId}, date: ${args?.dateFrom}-${args?.dateTo}`,
+          );
+
           let propId = args?.propertyId;
-          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(propId || '');
+          const isUuid =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+              propId || '',
+            );
           if (!isUuid && (args?.propertyName || propId)) {
-            const resolved = await this.resolutionService.resolveId('property', args?.propertyName || propId, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'property',
+              args?.propertyName || propId,
+              context.companyId,
+            );
             if (resolved) propId = resolved;
           }
 
           const { start, end } = this.getDateRange(args);
-          const [props, units, vacantUnits, tenants, company] = await Promise.all([
-            this.prisma.property.count({
-              where: { companyId: context.companyId, deletedAt: null, ...(propId ? { id: propId } : {}) },
-            }),
-            this.prisma.unit.count({
-              where: { property: { companyId: context.companyId, ...(propId ? { id: propId } : {}) } },
-            }),
-            this.prisma.unit.count({
-              where: { property: { companyId: context.companyId, ...(propId ? { id: propId } : {}) }, status: 'VACANT' },
-            }),
-            this.prisma.tenant.count({
-              where: { companyId: context.companyId, deletedAt: null, ...(propId ? { propertyId: propId } : {}) },
-            }),
-            this.prisma.company.findUnique({
-              where: { id: context.companyId },
-            }),
-          ]);
+          const [props, units, vacantUnits, tenants, company] =
+            await Promise.all([
+              this.prisma.property.count({
+                where: {
+                  companyId: context.companyId,
+                  deletedAt: null,
+                  ...(propId ? { id: propId } : {}),
+                },
+              }),
+              this.prisma.unit.count({
+                where: {
+                  property: {
+                    companyId: context.companyId,
+                    ...(propId ? { id: propId } : {}),
+                  },
+                },
+              }),
+              this.prisma.unit.count({
+                where: {
+                  property: {
+                    companyId: context.companyId,
+                    ...(propId ? { id: propId } : {}),
+                  },
+                  status: 'VACANT',
+                },
+              }),
+              this.prisma.tenant.count({
+                where: {
+                  companyId: context.companyId,
+                  deletedAt: null,
+                  ...(propId ? { propertyId: propId } : {}),
+                },
+              }),
+              this.prisma.company.findUnique({
+                where: { id: context.companyId },
+              }),
+            ]);
 
-          const [payments, expenses, invoices, overdueInvoices] = await Promise.all([
-            this.prisma.payment.aggregate({
-              _sum: { amount: true },
-              where: { lease: { property: { companyId: context.companyId, ...(propId ? { id: propId } : {}) } }, paidAt: { gte: start, lte: end }, deletedAt: null }
-            }),
-            this.prisma.expense.aggregate({
-              _sum: { amount: true },
-              where: { 
-                companyId: context.companyId, 
-                ...(propId ? { propertyId: propId } : {}),
-                date: { gte: start, lte: end }, 
-                deletedAt: null 
-              }
-            }),
-            this.prisma.invoice.aggregate({
-              _sum: { amount: true },
-              where: { lease: { property: { companyId: context.companyId, ...(propId ? { id: propId } : {}) } }, createdAt: { gte: start, lte: end }, deletedAt: null }
-            }),
-            this.prisma.invoice.aggregate({
-              _sum: { amount: true },
-              where: { lease: { property: { companyId: context.companyId, ...(propId ? { id: propId } : {}) } }, dueDate: { lt: new Date() }, status: 'PENDING', deletedAt: null }
-            })
-          ]);
+          const [payments, expenses, invoices, overdueInvoices] =
+            await Promise.all([
+              this.prisma.payment.aggregate({
+                _sum: { amount: true },
+                where: {
+                  lease: {
+                    property: {
+                      companyId: context.companyId,
+                      ...(propId ? { id: propId } : {}),
+                    },
+                  },
+                  paidAt: { gte: start, lte: end },
+                  deletedAt: null,
+                },
+              }),
+              this.prisma.expense.aggregate({
+                _sum: { amount: true },
+                where: {
+                  companyId: context.companyId,
+                  ...(propId ? { propertyId: propId } : {}),
+                  date: { gte: start, lte: end },
+                  deletedAt: null,
+                },
+              }),
+              this.prisma.invoice.aggregate({
+                _sum: { amount: true },
+                where: {
+                  lease: {
+                    property: {
+                      companyId: context.companyId,
+                      ...(propId ? { id: propId } : {}),
+                    },
+                  },
+                  createdAt: { gte: start, lte: end },
+                  deletedAt: null,
+                },
+              }),
+              this.prisma.invoice.aggregate({
+                _sum: { amount: true },
+                where: {
+                  lease: {
+                    property: {
+                      companyId: context.companyId,
+                      ...(propId ? { id: propId } : {}),
+                    },
+                  },
+                  dueDate: { lt: new Date() },
+                  status: 'PENDING',
+                  deletedAt: null,
+                },
+              }),
+            ]);
 
           return {
             companyName: company?.name,
             propertyId: propId,
             dateRange: { from: start.toISOString(), to: end.toISOString() },
             properties: props,
-            units: { total: units, occupied: units - vacantUnits, vacant: vacantUnits },
+            units: {
+              total: units,
+              occupied: units - vacantUnits,
+              vacant: vacantUnits,
+            },
             tenants: tenants,
             activeLeases: tenants,
             totals: {
@@ -1614,48 +2092,56 @@ export class AiReadToolService implements OnModuleInit {
           let unitId = args?.unitId;
 
           // Resolve unitId if it's a number/name
-          const isUnitUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(unitId || '');
+          const isUnitUuid =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+              unitId || '',
+            );
           if (!isUnitUuid && (args?.unitNumber || unitId)) {
-            const resolvedUnit = await this.resolutionService.resolveId('unit', args?.unitNumber || unitId, context.companyId);
+            const resolvedUnit = await this.resolutionService.resolveId(
+              'unit',
+              args?.unitNumber || unitId,
+              context.companyId,
+            );
             if (resolvedUnit) unitId = resolvedUnit;
           }
 
           if (!reqId && unitId) {
-             const latestReq = await this.prisma.maintenanceRequest.findFirst({
-               where: { unitId, companyId: context.companyId, deletedAt: null },
-               orderBy: { createdAt: 'desc' }
-             });
-             if (latestReq) reqId = latestReq.id;
+            const latestReq = await this.prisma.maintenanceRequest.findFirst({
+              where: { unitId, companyId: context.companyId, deletedAt: null },
+              orderBy: { createdAt: 'desc' },
+            });
+            if (latestReq) reqId = latestReq.id;
           }
 
           if (reqId) {
             const req = await this.prisma.maintenanceRequest.findUnique({
               where: { id: reqId },
-              include: { property: true, unit: true }
+              include: { property: true, unit: true },
             });
             if (!req) return { error: 'Maintenance request not found.' };
 
             // Logic: Check notes for URLs first (common pattern in this system)
-            const photoMatches = (req.notes || '').match(/https?:\/\/[^\s]+/g) || [];
-            
+            const photoMatches =
+              (req.notes || '').match(/https?:\/\/[^\s]+/g) || [];
+
             // Also check Documents tied to this unit/property of type 'OTHER' or 'COMPLIANCE'
             const docs = await this.prisma.document.findMany({
               where: {
                 OR: [
                   { unitId: req.unitId || 'NONE' },
-                  { propertyId: req.propertyId }
+                  { propertyId: req.propertyId },
                 ],
                 companyId: context.companyId,
-                deletedAt: null
-              }
+                deletedAt: null,
+              },
             });
 
             return {
               request: { title: req.title, status: req.status },
               photos: [
-                ...photoMatches.map(url => ({ url, label: 'From notes' })),
-                ...docs.map(d => ({ url: d.fileUrl, label: d.name }))
-              ]
+                ...photoMatches.map((url) => ({ url, label: 'From notes' })),
+                ...docs.map((d) => ({ url: d.fileUrl, label: d.name })),
+              ],
             };
           }
           return { error: 'No maintenance request ID provided or resolved.' };
@@ -1664,9 +2150,21 @@ export class AiReadToolService implements OnModuleInit {
         case 'generate_rent_roll': {
           let propertyId = args?.propertyId;
           if (!propertyId && args?.propertyName) {
-            const resolved = await this.resolutionService.resolveId('property', args.propertyName, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'property',
+              args.propertyName,
+              context.companyId,
+            );
             if (resolved?.id) propertyId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) return this.handleResolutionError(resolved, 'property', args.propertyName);
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            )
+              return this.handleResolutionError(
+                resolved,
+                'property',
+                args.propertyName,
+              );
             else return this.formatNotFoundError('property', args.propertyName);
           }
 
@@ -1691,10 +2189,12 @@ export class AiReadToolService implements OnModuleInit {
             orderBy: { unitNumber: 'asc' },
           });
 
-          const rentRoll = units.map(unit => ({
+          const rentRoll = units.map((unit) => ({
             unitNumber: unit.unitNumber,
             propertyName: unit.property.name,
-            tenantName: unit.leases[0]?.tenant ? `${unit.leases[0].tenant.firstName} ${unit.leases[0].tenant.lastName}` : 'VACANT',
+            tenantName: unit.leases[0]?.tenant
+              ? `${unit.leases[0].tenant.firstName} ${unit.leases[0].tenant.lastName}`
+              : 'VACANT',
             rentAmount: unit.rentAmount,
             status: unit.status,
             leaseStatus: unit.leases[0]?.status || 'N/A',
@@ -1702,7 +2202,9 @@ export class AiReadToolService implements OnModuleInit {
 
           return {
             success: true,
-            propertyName: propertyId ? units[0]?.property.name : 'Portfolio Summary',
+            propertyName: propertyId
+              ? units[0]?.property.name
+              : 'Portfolio Summary',
             units: rentRoll,
           };
         }
@@ -1711,9 +2213,21 @@ export class AiReadToolService implements OnModuleInit {
           const { start, end } = this.getDateRange(args);
           let propertyId = args?.propertyId;
           if (!propertyId && args?.propertyName) {
-            const resolved = await this.resolutionService.resolveId('property', args.propertyName, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'property',
+              args.propertyName,
+              context.companyId,
+            );
             if (resolved?.id) propertyId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) return this.handleResolutionError(resolved, 'property', args.propertyName);
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            )
+              return this.handleResolutionError(
+                resolved,
+                'property',
+                args.propertyName,
+              );
             else return this.formatNotFoundError('property', args.propertyName);
           }
 
@@ -1727,20 +2241,23 @@ export class AiReadToolService implements OnModuleInit {
             deletedAt: null,
           };
 
-          const [totalInvoicedResult, totalCollectedResult] = await Promise.all([
-            this.prisma.invoice.aggregate({
-              _sum: { amount: true },
-              where: { ...whereClause, createdAt: { gte: start, lte: end } },
-            }),
-            this.prisma.payment.aggregate({
-              _sum: { amount: true },
-              where: { ...whereClause, paidAt: { gte: start, lte: end } },
-            }),
-          ]);
+          const [totalInvoicedResult, totalCollectedResult] = await Promise.all(
+            [
+              this.prisma.invoice.aggregate({
+                _sum: { amount: true },
+                where: { ...whereClause, createdAt: { gte: start, lte: end } },
+              }),
+              this.prisma.payment.aggregate({
+                _sum: { amount: true },
+                where: { ...whereClause, paidAt: { gte: start, lte: end } },
+              }),
+            ],
+          );
 
           const totalInvoiced = totalInvoicedResult._sum.amount || 0;
           const totalCollected = totalCollectedResult._sum.amount || 0;
-          const collectionRate = totalInvoiced > 0 ? (totalCollected / totalInvoiced) * 100 : 0;
+          const collectionRate =
+            totalInvoiced > 0 ? (totalCollected / totalInvoiced) * 100 : 0;
 
           return {
             success: true,
@@ -1748,7 +2265,13 @@ export class AiReadToolService implements OnModuleInit {
             totalInvoiced,
             totalCollected,
             period: `${start.toISOString().split('T')[0]} to ${end.toISOString().split('T')[0]}`,
-            propertyName: propertyId ? (await this.prisma.property.findUnique({ where: { id: propertyId } }))?.name : 'All Properties',
+            propertyName: propertyId
+              ? (
+                  await this.prisma.property.findUnique({
+                    where: { id: propertyId },
+                  })
+                )?.name
+              : 'All Properties',
           };
         }
 
@@ -1758,34 +2281,75 @@ export class AiReadToolService implements OnModuleInit {
           const { start, end } = this.getDateRange(args);
           let propertyId = args?.propertyId;
           if (!propertyId && args?.propertyName) {
-            const resolved = await this.resolutionService.resolveId('property', args.propertyName, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'property',
+              args.propertyName,
+              context.companyId,
+            );
             if (resolved?.id) propertyId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) return this.handleResolutionError(resolved, 'property', args.propertyName);
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            )
+              return this.handleResolutionError(
+                resolved,
+                'property',
+                args.propertyName,
+              );
             else return this.formatNotFoundError('property', args.propertyName);
           }
 
           const whereInvoice: any = {
-            lease: { property: { companyId: context.companyId, ...(propertyId ? { id: propertyId } : {}) } },
+            lease: {
+              property: {
+                companyId: context.companyId,
+                ...(propertyId ? { id: propertyId } : {}),
+              },
+            },
             deletedAt: null,
             createdAt: { gte: start, lte: end },
           };
           const wherePayment: any = {
-            lease: { property: { companyId: context.companyId, ...(propertyId ? { id: propertyId } : {}) } },
+            lease: {
+              property: {
+                companyId: context.companyId,
+                ...(propertyId ? { id: propertyId } : {}),
+              },
+            },
             deletedAt: null,
             paidAt: { gte: start, lte: end },
           };
 
-          const [invoiceAgg, paymentAgg, pendingCount, property] = await Promise.all([
-            this.prisma.invoice.aggregate({ _sum: { amount: true }, where: whereInvoice }),
-            this.prisma.payment.aggregate({ _sum: { amount: true }, where: wherePayment }),
-            this.prisma.invoice.count({ where: { ...whereInvoice, status: 'PENDING', dueDate: { lt: new Date() } } }),
-            propertyId ? this.prisma.property.findUnique({ where: { id: propertyId }, select: { id: true, name: true } }) : Promise.resolve(null),
-          ]);
+          const [invoiceAgg, paymentAgg, pendingCount, property] =
+            await Promise.all([
+              this.prisma.invoice.aggregate({
+                _sum: { amount: true },
+                where: whereInvoice,
+              }),
+              this.prisma.payment.aggregate({
+                _sum: { amount: true },
+                where: wherePayment,
+              }),
+              this.prisma.invoice.count({
+                where: {
+                  ...whereInvoice,
+                  status: 'PENDING',
+                  dueDate: { lt: new Date() },
+                },
+              }),
+              propertyId
+                ? this.prisma.property.findUnique({
+                    where: { id: propertyId },
+                    select: { id: true, name: true },
+                  })
+                : Promise.resolve(null),
+            ]);
 
           const totalInvoiced = invoiceAgg._sum.amount || 0;
           const totalCollected = paymentAgg._sum.amount || 0;
           const unpaidAmount = Math.max(0, totalInvoiced - totalCollected);
-          const collectionRate = totalInvoiced > 0 ? (totalCollected / totalInvoiced) * 100 : 0;
+          const collectionRate =
+            totalInvoiced > 0 ? (totalCollected / totalInvoiced) * 100 : 0;
 
           const base = {
             success: true,
@@ -1800,7 +2364,10 @@ export class AiReadToolService implements OnModuleInit {
             unpaidAmount,
           };
           if (name === 'generate_monthly_summary') {
-            return { ...base, url: `https://aedra.app/reports/monthly_summary_${Date.now()}.pdf` };
+            return {
+              ...base,
+              url: `https://aedra.app/reports/monthly_summary_${Date.now()}.pdf`,
+            };
           }
           return base;
         }
@@ -1808,9 +2375,21 @@ export class AiReadToolService implements OnModuleInit {
         case 'get_maintenance_status': {
           let propertyId = args?.propertyId;
           if (!propertyId && args?.propertyName) {
-            const resolved = await this.resolutionService.resolveId('property', args.propertyName, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'property',
+              args.propertyName,
+              context.companyId,
+            );
             if (resolved?.id) propertyId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) return this.handleResolutionError(resolved, 'property', args.propertyName);
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            )
+              return this.handleResolutionError(
+                resolved,
+                'property',
+                args.propertyName,
+              );
             else return this.formatNotFoundError('property', args.propertyName);
           }
 
@@ -1820,21 +2399,35 @@ export class AiReadToolService implements OnModuleInit {
             ...(propertyId ? { propertyId: propertyId } : {}),
           };
 
-          const [openRequests, closedRequests, urgentRequests] = await Promise.all([
-            this.prisma.maintenanceRequest.count({
-              where: { ...whereClause, status: { in: ['PENDING', 'IN_PROGRESS'] } },
-            }),
-            this.prisma.maintenanceRequest.count({
-              where: { ...whereClause, status: 'COMPLETED' },
-            }),
-            this.prisma.maintenanceRequest.count({
-              where: { ...whereClause, priority: 'HIGH', status: { in: ['PENDING', 'IN_PROGRESS'] } },
-            }),
-          ]);
+          const [openRequests, closedRequests, urgentRequests] =
+            await Promise.all([
+              this.prisma.maintenanceRequest.count({
+                where: {
+                  ...whereClause,
+                  status: { in: ['PENDING', 'IN_PROGRESS'] },
+                },
+              }),
+              this.prisma.maintenanceRequest.count({
+                where: { ...whereClause, status: 'COMPLETED' },
+              }),
+              this.prisma.maintenanceRequest.count({
+                where: {
+                  ...whereClause,
+                  priority: 'HIGH',
+                  status: { in: ['PENDING', 'IN_PROGRESS'] },
+                },
+              }),
+            ]);
 
           return {
             success: true,
-            propertyName: propertyId ? (await this.prisma.property.findUnique({ where: { id: propertyId } }))?.name : 'All Properties',
+            propertyName: propertyId
+              ? (
+                  await this.prisma.property.findUnique({
+                    where: { id: propertyId },
+                  })
+                )?.name
+              : 'All Properties',
             open: openRequests,
             closed: closedRequests,
             urgent: urgentRequests,
@@ -1865,16 +2458,40 @@ export class AiReadToolService implements OnModuleInit {
           // Resolve names → IDs
           let payTenantId = args?.tenantId;
           if (!payTenantId && args?.tenantName) {
-            const resolved = await this.resolutionService.resolveId('tenant', args.tenantName, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'tenant',
+              args.tenantName,
+              context.companyId,
+            );
             if (resolved?.id) payTenantId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) return this.handleResolutionError(resolved, 'tenant', args.tenantName);
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            )
+              return this.handleResolutionError(
+                resolved,
+                'tenant',
+                args.tenantName,
+              );
             else return this.formatNotFoundError('tenant', args.tenantName);
           }
           let payPropertyId = args?.propertyId;
           if (!payPropertyId && args?.propertyName) {
-            const resolved = await this.resolutionService.resolveId('property', args.propertyName, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'property',
+              args.propertyName,
+              context.companyId,
+            );
             if (resolved?.id) payPropertyId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) return this.handleResolutionError(resolved, 'property', args.propertyName);
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            )
+              return this.handleResolutionError(
+                resolved,
+                'property',
+                args.propertyName,
+              );
             else return this.formatNotFoundError('property', args.propertyName);
           }
 
@@ -1885,11 +2502,20 @@ export class AiReadToolService implements OnModuleInit {
               deletedAt: null,
               ...(args?.leaseId ? { leaseId: args.leaseId } : {}),
               ...(payTenantId ? { lease: { tenantId: payTenantId } } : {}),
-              ...(payPropertyId ? { lease: { property: { id: payPropertyId } } } : {}),
+              ...(payPropertyId
+                ? { lease: { property: { id: payPropertyId } } }
+                : {}),
               // Always apply date filter unless specifically overridden by a broad search
               paidAt: { gte: pStart, lte: pEnd },
             },
-            include: { lease: { include: { tenant: { select: { firstName: true, lastName: true } }, property: { select: { name: true } } } } },
+            include: {
+              lease: {
+                include: {
+                  tenant: { select: { firstName: true, lastName: true } },
+                  property: { select: { name: true } },
+                },
+              },
+            },
             take: this.resolveSmartLimit(args, 10, 25),
             orderBy: { paidAt: 'desc' },
           });
@@ -1897,7 +2523,7 @@ export class AiReadToolService implements OnModuleInit {
           return {
             success: true,
             count: payments.length,
-            payments: payments.map(p => ({
+            payments: payments.map((p) => ({
               ...p,
               tenantName: `${p.lease.tenant.firstName} ${p.lease.tenant.lastName}`,
               propertyName: p.lease.property.name,
@@ -1908,7 +2534,7 @@ export class AiReadToolService implements OnModuleInit {
               dateFrom: pStart.toISOString().split('T')[0],
               dateTo: pEnd.toISOString().split('T')[0],
             },
-            message: `Showing payments from ${pStart.toISOString().split('T')[0]} to ${pEnd.toISOString().split('T')[0]}.`
+            message: `Showing payments from ${pStart.toISOString().split('T')[0]} to ${pEnd.toISOString().split('T')[0]}.`,
           };
         }
 
@@ -1916,23 +2542,53 @@ export class AiReadToolService implements OnModuleInit {
           // Resolve names → IDs
           let invTenantId = args?.tenantId;
           if (!invTenantId && args?.tenantName) {
-            const resolved = await this.resolutionService.resolveId('tenant', args.tenantName, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'tenant',
+              args.tenantName,
+              context.companyId,
+            );
             if (resolved?.id) invTenantId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) return this.handleResolutionError(resolved, 'tenant', args.tenantName);
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            )
+              return this.handleResolutionError(
+                resolved,
+                'tenant',
+                args.tenantName,
+              );
             else return this.formatNotFoundError('tenant', args.tenantName);
           }
           let invPropertyId = args?.propertyId;
           if (!invPropertyId && args?.propertyName) {
-            const resolved = await this.resolutionService.resolveId('property', args.propertyName, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'property',
+              args.propertyName,
+              context.companyId,
+            );
             if (resolved?.id) invPropertyId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) return this.handleResolutionError(resolved, 'property', args.propertyName);
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            )
+              return this.handleResolutionError(
+                resolved,
+                'property',
+                args.propertyName,
+              );
             else return this.formatNotFoundError('property', args.propertyName);
           }
 
-          if (!args?.leaseId && !invTenantId && !invPropertyId && !args?.status) {
+          if (
+            !args?.leaseId &&
+            !invTenantId &&
+            !invPropertyId &&
+            !args?.status
+          ) {
             return {
               _needs_filter: true,
-              message: 'To retrieve invoices, please provide a tenant name, property name, or status (PENDING/PAID/OVERDUE).',
+              message:
+                'To retrieve invoices, please provide a tenant name, property name, or status (PENDING/PAID/OVERDUE).',
               hint: 'Example: "show pending invoices" or "invoices for John"',
             };
           }
@@ -1942,10 +2598,19 @@ export class AiReadToolService implements OnModuleInit {
               deletedAt: null,
               ...(args?.leaseId ? { leaseId: args.leaseId } : {}),
               ...(invTenantId ? { lease: { tenantId: invTenantId } } : {}),
-              ...(invPropertyId ? { lease: { property: { id: invPropertyId } } } : {}),
+              ...(invPropertyId
+                ? { lease: { property: { id: invPropertyId } } }
+                : {}),
               ...(args?.status ? { status: args.status } : {}),
             },
-            include: { lease: { include: { tenant: { select: { firstName: true, lastName: true } }, property: { select: { name: true } } } } },
+            include: {
+              lease: {
+                include: {
+                  tenant: { select: { firstName: true, lastName: true } },
+                  property: { select: { name: true } },
+                },
+              },
+            },
             take: this.resolveSmartLimit(args, 10, 25),
             orderBy: { createdAt: 'desc' },
           });
@@ -1953,7 +2618,11 @@ export class AiReadToolService implements OnModuleInit {
         }
 
         case 'list_expenses': {
-          const res = await this.resolutionService.resolveId('property', args.propertyId, context.companyId);
+          const res = await this.resolutionService.resolveId(
+            'property',
+            args.propertyId,
+            context.companyId,
+          );
           const propertyId = res?.id;
 
           const expenses = await this.prisma.expense.findMany({
@@ -1963,7 +2632,10 @@ export class AiReadToolService implements OnModuleInit {
               ...(propertyId ? { propertyId: propertyId } : {}),
               ...(args?.category ? { category: args.category } : {}),
             },
-            include: { property: { select: { name: true } }, unit: { select: { unitNumber: true } } },
+            include: {
+              property: { select: { name: true } },
+              unit: { select: { unitNumber: true } },
+            },
             take: this.resolveSmartLimit(args, 10, 25),
             orderBy: { date: 'desc' },
           });
@@ -1975,7 +2647,8 @@ export class AiReadToolService implements OnModuleInit {
             where: { id: args.expenseId },
             include: { property: true, unit: true },
           });
-          if (!expense || expense.companyId !== context.companyId) return { error: 'Expense not found.' };
+          if (!expense || expense.companyId !== context.companyId)
+            return { error: 'Expense not found.' };
           return expense;
         }
 
@@ -2001,7 +2674,9 @@ export class AiReadToolService implements OnModuleInit {
         }
 
         case 'search_units': {
-          const query = (args?.query || args?.unitNumber || args?.name || '').toString().trim();
+          const query = (args?.query || args?.unitNumber || args?.name || '')
+            .toString()
+            .trim();
           const isGeneric = this.isGenericQuery(query);
           const vectorIds =
             !isGeneric && query
@@ -2043,21 +2718,46 @@ export class AiReadToolService implements OnModuleInit {
             ALLOWED_LEASE_STATUS,
             'status',
           );
-          if (statusValue && typeof statusValue === 'object') return statusValue;
+          if (statusValue && typeof statusValue === 'object')
+            return statusValue;
 
           // Resolve names → IDs
           let leaseTenantId = args?.tenantId;
           if (!leaseTenantId && args?.tenantName) {
-            const resolved = await this.resolutionService.resolveId('tenant', args.tenantName, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'tenant',
+              args.tenantName,
+              context.companyId,
+            );
             if (resolved?.id) leaseTenantId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) return this.handleResolutionError(resolved, 'tenant', args.tenantName);
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            )
+              return this.handleResolutionError(
+                resolved,
+                'tenant',
+                args.tenantName,
+              );
             else return this.formatNotFoundError('tenant', args.tenantName);
           }
           let leasePropertyId = args?.propertyId;
           if (!leasePropertyId && args?.propertyName) {
-            const resolved = await this.resolutionService.resolveId('property', args.propertyName, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'property',
+              args.propertyName,
+              context.companyId,
+            );
             if (resolved?.id) leasePropertyId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) return this.handleResolutionError(resolved, 'property', args.propertyName);
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            )
+              return this.handleResolutionError(
+                resolved,
+                'property',
+                args.propertyName,
+              );
             else return this.formatNotFoundError('property', args.propertyName);
           }
 
@@ -2067,9 +2767,15 @@ export class AiReadToolService implements OnModuleInit {
               property: { companyId: context.companyId, deletedAt: null },
               ...(leaseTenantId ? { tenantId: leaseTenantId } : {}),
               ...(leasePropertyId ? { propertyId: leasePropertyId } : {}),
-              ...(typeof statusValue === 'string' ? { status: statusValue } : {}),
+              ...(typeof statusValue === 'string'
+                ? { status: statusValue }
+                : {}),
             } as any,
-            include: { tenant: { select: { firstName: true, lastName: true } }, property: { select: { name: true } }, unit: { select: { unitNumber: true } } },
+            include: {
+              tenant: { select: { firstName: true, lastName: true } },
+              property: { select: { name: true } },
+              unit: { select: { unitNumber: true } },
+            },
             take: this.resolveSmartLimit(args, 10, 25),
             orderBy: { createdAt: 'desc' },
           });
@@ -2348,7 +3054,7 @@ export class AiReadToolService implements OnModuleInit {
    * Default is conservative (10), hard cap prevents token blowup.
    * @param args - tool args from the AI
    * @param defaultLimit - sensible default if no limit provided
-   * @param hardCap - maximum rows ever returned, regardless of what the AI asks for  
+   * @param hardCap - maximum rows ever returned, regardless of what the AI asks for
    */
   private resolveSmartLimit(
     args: any,
@@ -2387,14 +3093,14 @@ export class AiReadToolService implements OnModuleInit {
     const start = args?.dateFrom
       ? new Date(args.dateFrom)
       : new Date(Date.now() - defaultDays * 24 * 60 * 60 * 1000);
-    
+
     let end = new Date();
     if (args?.dateTo) {
       end = new Date(args.dateTo);
       // Make end of day inclusive if it's a date string
       end.setHours(23, 59, 59, 999);
     }
-    
+
     return { start, end };
   }
 }

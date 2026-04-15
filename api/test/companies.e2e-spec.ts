@@ -38,18 +38,29 @@ describe('Companies (e2e)', () => {
     }),
     findAll: jest.fn().mockImplementation((actor) => {
       if (actor.role !== 'SUPER_ADMIN') {
-        throw new ForbiddenException('Only Super Admins can list all companies.');
+        throw new ForbiddenException(
+          'Only Super Admins can list all companies.',
+        );
       }
       return Promise.resolve([mockCompany]);
     }),
     testMpesa: jest.fn().mockImplementation((id, actor) => {
-      return Promise.resolve({ success: true, message: 'M-Pesa connection verified' });
+      return Promise.resolve({
+        success: true,
+        message: 'M-Pesa connection verified',
+      });
     }),
     testSms: jest.fn().mockImplementation((id, actor) => {
-      return Promise.resolve({ success: true, message: 'SMS service verified' });
+      return Promise.resolve({
+        success: true,
+        message: 'SMS service verified',
+      });
     }),
     testMaps: jest.fn().mockImplementation((id, actor) => {
-      return Promise.resolve({ success: true, message: 'Map services verified' });
+      return Promise.resolve({
+        success: true,
+        message: 'Map services verified',
+      });
     }),
   };
 
@@ -116,11 +127,11 @@ describe('Companies (e2e)', () => {
           passwordPolicy: 'Strong',
           twoFactorAuthEnabled: true,
           rentReminderDaysBefore: 5,
-          smsProvider: "Twilio",
+          smsProvider: 'Twilio',
           autoInvoicingEnabled: true,
           invoicingDay: 5,
-          africaTalkingApiKey: "AT_API_KEY",
-          mapboxAccessToken: "MAPBOX_TOKEN"
+          africaTalkingApiKey: 'AT_API_KEY',
+          mapboxAccessToken: 'MAPBOX_TOKEN',
         })
         .expect(200);
     });

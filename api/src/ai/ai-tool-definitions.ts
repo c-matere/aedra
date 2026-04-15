@@ -3,13 +3,23 @@ import { SchemaType } from '@google/generative-ai';
 export const AI_TOOL_DEFINITIONS = [
   {
     name: 'get_unit_details',
-    description: 'Get detailed information about a specific unit, including its status and current tenant.',
+    description:
+      'Get detailed information about a specific unit, including its status and current tenant.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        unitId: { type: SchemaType.STRING, description: 'The UUID of the unit' },
-        unitNumber: { type: SchemaType.STRING, description: 'The unit number (e.g. B4)' },
-        propertyId: { type: SchemaType.STRING, description: 'The UUID of the property' },
+        unitId: {
+          type: SchemaType.STRING,
+          description: 'The UUID of the unit',
+        },
+        unitNumber: {
+          type: SchemaType.STRING,
+          description: 'The unit number (e.g. B4)',
+        },
+        propertyId: {
+          type: SchemaType.STRING,
+          description: 'The UUID of the property',
+        },
       },
     },
   },
@@ -19,7 +29,10 @@ export const AI_TOOL_DEFINITIONS = [
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        query: { type: SchemaType.STRING, description: 'The search query (name, phone, or ID)' },
+        query: {
+          type: SchemaType.STRING,
+          description: 'The search query (name, phone, or ID)',
+        },
       },
       required: ['query'],
     },
@@ -30,8 +43,14 @@ export const AI_TOOL_DEFINITIONS = [
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        tenantId: { type: SchemaType.STRING, description: 'The UUID of the tenant' },
-        tenantName: { type: SchemaType.STRING, description: 'Full name of the tenant' },
+        tenantId: {
+          type: SchemaType.STRING,
+          description: 'The UUID of the tenant',
+        },
+        tenantName: {
+          type: SchemaType.STRING,
+          description: 'Full name of the tenant',
+        },
       },
     },
   },
@@ -49,9 +68,18 @@ export const AI_TOOL_DEFINITIONS = [
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        unitNumber: { type: SchemaType.STRING, description: 'The unit number where the issue is' },
-        description: { type: SchemaType.STRING, description: 'Detailed description of the issue' },
-        isUrgent: { type: SchemaType.BOOLEAN, description: 'Whether the issue is an emergency' },
+        unitNumber: {
+          type: SchemaType.STRING,
+          description: 'The unit number where the issue is',
+        },
+        description: {
+          type: SchemaType.STRING,
+          description: 'Detailed description of the issue',
+        },
+        isUrgent: {
+          type: SchemaType.BOOLEAN,
+          description: 'Whether the issue is an emergency',
+        },
       },
       required: ['description', 'unitNumber'],
     },

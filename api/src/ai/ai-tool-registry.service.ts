@@ -20,61 +20,135 @@ export class AiToolRegistryService {
 
   private readonly ROLE_TOOL_ALLOWLIST: Record<string, string[]> = {
     [UserRole.TENANT]: [
-      'get_unit_details', 'get_tenant_details', 'get_tenant_arrears',
-      'list_payments', 'list_invoices', 'get_lease_details',
-      'log_maintenance_issue', 'get_maintenance_status',
+      'get_unit_details',
+      'get_tenant_details',
+      'get_tenant_arrears',
+      'list_payments',
+      'list_invoices',
+      'get_lease_details',
+      'log_maintenance_issue',
+      'get_maintenance_status',
       'create_maintenance_request',
-      'generate_statement', 'log_tenant_incident', 'log_payment_promise',
-      'send_notification', 'notify_tenant', 'initiate_payment'
+      'generate_statement',
+      'log_tenant_incident',
+      'log_payment_promise',
+      'send_notification',
+      'notify_tenant',
+      'initiate_payment',
     ],
     [UserRole.COMPANY_STAFF]: [
       // Staff can do almost everything
-      'list_properties', 'get_property_details', 'get_units', 'get_unit_details',
-      'list_units', 'create_property', 'update_property', 'create_unit',
-      'update_unit', 'update_unit_status', 'create_lease', 'update_lease',
-      'get_portfolio_arrears', 'list_vacant_units',
-      'search_tenants', 'list_tenants', 'get_tenant_details', 'get_tenant_arrears',
+      'list_properties',
+      'get_property_details',
+      'get_units',
+      'get_unit_details',
+      'list_units',
+      'create_property',
+      'update_property',
+      'create_unit',
+      'update_unit',
+      'update_unit_status',
+      'create_lease',
+      'update_lease',
+      'get_portfolio_arrears',
+      'list_vacant_units',
+      'search_tenants',
+      'list_tenants',
+      'get_tenant_details',
+      'get_tenant_arrears',
       'get_tenant_statement',
-      'list_payments', 'get_payment_details', 'get_lease_details',
-      'get_collection_rate', 'get_occupancy_stats', 'get_maintenance_status',
-      'list_maintenance_tickets', 'generate_rent_roll', 'generate_statement',
+      'list_payments',
+      'get_payment_details',
+      'get_lease_details',
+      'get_collection_rate',
+      'get_occupancy_stats',
+      'get_maintenance_status',
+      'list_maintenance_tickets',
+      'generate_rent_roll',
+      'generate_statement',
       'generate_report_file',
       'get_financial_report',
       'get_financial_summary',
-      'get_revenue_summary', 'get_monthly_summary', 'generate_monthly_summary',
-      'check_payment_status', 'get_payment_status',
-      'register_tenant', 'create_tenant', 'bulk_create_tenants', 'import_tenants', 'update_tenant_contact', 'log_maintenance_issue',
-      'update_ticket_status', 'process_payment', 'record_payment', 'create_invoice', 'update_invoice',
-      'record_expense', 'log_maintenance', 'log_tenant_incident', 'log_payment_promise',
-      'send_notification', 'notify_tenant', 'update_maintenance_request',
-      'send_rent_reminders', 'send_bulk_reminder', 'bulk_generate_invoices', 'initiate_payment'
+      'get_revenue_summary',
+      'get_monthly_summary',
+      'generate_monthly_summary',
+      'check_payment_status',
+      'get_payment_status',
+      'register_tenant',
+      'create_tenant',
+      'bulk_create_tenants',
+      'import_tenants',
+      'update_tenant_contact',
+      'log_maintenance_issue',
+      'update_ticket_status',
+      'process_payment',
+      'record_payment',
+      'create_invoice',
+      'update_invoice',
+      'record_expense',
+      'log_maintenance',
+      'log_tenant_incident',
+      'log_payment_promise',
+      'send_notification',
+      'notify_tenant',
+      'update_maintenance_request',
+      'send_rent_reminders',
+      'send_bulk_reminder',
+      'bulk_generate_invoices',
+      'initiate_payment',
     ],
     [UserRole.LANDLORD]: [
-      'get_revenue_summary', 'get_collection_rate', 'list_properties',
-      'get_property_details', 'get_occupancy_stats', 'generate_rent_roll',
-      'get_portfolio_arrears', 'list_vacant_units', 'generate_report_file',
-      'get_maintenance_status', 'list_maintenance_tickets'
+      'get_revenue_summary',
+      'get_collection_rate',
+      'list_properties',
+      'get_property_details',
+      'get_occupancy_stats',
+      'generate_rent_roll',
+      'get_portfolio_arrears',
+      'list_vacant_units',
+      'generate_report_file',
+      'get_maintenance_status',
+      'list_maintenance_tickets',
     ],
     [UserRole.SUPER_ADMIN]: [
-      'list_companies', 'search_companies', 'select_company', 'register_company',
-      'configure_whatsapp', 'analyze_agent_goal', 'evaluate_agent_progress',
+      'list_companies',
+      'search_companies',
+      'select_company',
+      'register_company',
+      'configure_whatsapp',
+      'analyze_agent_goal',
+      'evaluate_agent_progress',
       // Include staff tools as fallback visibility
-      'list_properties', 'get_property_details', 'get_units', 'get_unit_details',
+      'list_properties',
+      'get_property_details',
+      'get_units',
+      'get_unit_details',
       'list_units',
-      'search_tenants', 'get_tenant_details', 'get_tenant_arrears',
+      'search_tenants',
+      'get_tenant_details',
+      'get_tenant_arrears',
       'get_tenant_statement',
-      'list_payments', 'get_payment_details', 'get_lease_details',
-      'get_collection_rate', 'get_occupancy_stats', 'get_maintenance_status',
-      'list_maintenance_tickets', 'generate_rent_roll', 'generate_statement',
+      'list_payments',
+      'get_payment_details',
+      'get_lease_details',
+      'get_collection_rate',
+      'get_occupancy_stats',
+      'get_maintenance_status',
+      'list_maintenance_tickets',
+      'generate_rent_roll',
+      'generate_statement',
       'generate_report_file',
       'get_financial_report',
       'get_financial_summary',
-      'get_revenue_summary', 'get_monthly_summary', 'generate_monthly_summary',
-      'check_payment_status', 'get_payment_status', 'create_staff', 'update_staff_profile'
+      'get_revenue_summary',
+      'get_monthly_summary',
+      'generate_monthly_summary',
+      'check_payment_status',
+      'get_payment_status',
+      'create_staff',
+      'update_staff_profile',
     ],
-    [UserRole.UNIDENTIFIED]: [
-      'register_company',
-    ],
+    [UserRole.UNIDENTIFIED]: ['register_company'],
   };
 
   async executeTool(
@@ -151,10 +225,13 @@ export class AiToolRegistryService {
           success: true,
           action: nextTask.action,
           result,
-          remaining: plan.tasks.filter((t: any) => t.status === 'pending').length,
+          remaining: plan.tasks.filter((t: any) => t.status === 'pending')
+            .length,
         };
       } catch (error) {
-        this.logger.error(`[Agent] Task ${nextTask.action} failed: ${error.message}`);
+        this.logger.error(
+          `[Agent] Task ${nextTask.action} failed: ${error.message}`,
+        );
         nextTask.status = 'failed';
         nextTask.error = error.message;
         throw error;
@@ -203,7 +280,13 @@ export class AiToolRegistryService {
 
     // send_notification: alias for a simple log/message action
     if (toolName === 'send_notification' || toolName === 'notify_tenant') {
-      return await this.writeTools.executeWriteTool('send_notification', args, context, role, language);
+      return await this.writeTools.executeWriteTool(
+        'send_notification',
+        args,
+        context,
+        role,
+        language,
+      );
     }
 
     // Default to write tools for everything else (mutative)
@@ -232,27 +315,39 @@ export class AiToolRegistryService {
    */
   isToolAllowed(name: string, role: string): boolean {
     const r = role.toUpperCase();
-    
+
     // v5.5 SUPER_ADMIN Security Logic: Global Read, Scoped Write
     if (r === UserRole.SUPER_ADMIN) {
       if (this.isReadTool(name)) return true; // Global Read Visibility
-      
+
       const allowedAdminActions = [
-        'register_company', 'process_risk_analysis', 'process_data_sync', 
-        'onboard_landlord', 'analyze_agent_goal', 'evaluate_agent_progress'
+        'register_company',
+        'process_risk_analysis',
+        'process_data_sync',
+        'onboard_landlord',
+        'analyze_agent_goal',
+        'evaluate_agent_progress',
       ];
       if (allowedAdminActions.includes(name)) return true;
-      
+
       // Fallback: Super Admin can also do anything Staff can do, but it's audited.
       return this.ROLE_TOOL_ALLOWLIST[UserRole.COMPANY_STAFF].includes(name);
     }
 
-    const effectiveRole = r === UserRole.COMPANY_ADMIN ? UserRole.COMPANY_STAFF : r;
+    const effectiveRole =
+      r === UserRole.COMPANY_ADMIN ? UserRole.COMPANY_STAFF : r;
 
     const allowed = this.ROLE_TOOL_ALLOWLIST[effectiveRole] || [];
 
     // Explicitly allow agent tools for internal workflow if they are part of the system
-    const agentTools = ['analyze_agent_goal', 'evaluate_agent_progress', 'process_agent_feedback', 'notify_agent_plan', 'send_agent_heartbeat', 'execute_agent_chunk'];
+    const agentTools = [
+      'analyze_agent_goal',
+      'evaluate_agent_progress',
+      'process_agent_feedback',
+      'notify_agent_plan',
+      'send_agent_heartbeat',
+      'execute_agent_chunk',
+    ];
     if (agentTools.includes(name)) {
       return true;
     }
@@ -293,13 +388,20 @@ export class AiToolRegistryService {
       'generate_monthly_summary',
       'register_tenant',
       'send_notification',
-      'notify_tenant'
+      'notify_tenant',
     ];
     return highStakesTools.includes(name);
   }
 
   private isReadTool(name: string): boolean {
-    const readPrefixes = ['list_', 'get_', 'search_', 'view_', 'generate_', 'check_'];
+    const readPrefixes = [
+      'list_',
+      'get_',
+      'search_',
+      'view_',
+      'generate_',
+      'check_',
+    ];
     const isRead =
       readPrefixes.some((p) => name.startsWith(p)) ||
       name === 'select_company' ||

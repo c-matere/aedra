@@ -11,23 +11,39 @@ export class TenantIntentStrategy implements AiStrategy {
 
   constructor(private readonly classifier: AiClassifierService) {}
 
-  async resolveIntent(message: string, history: any[], context: any): Promise<Partial<Interpretation>> {
-    this.logger.log(`[TenantStrategy] Resolving intent for message: ${message.substring(0, 30)}...`);
+  async resolveIntent(
+    message: string,
+    history: any[],
+    context: any,
+  ): Promise<Partial<Interpretation>> {
+    this.logger.log(
+      `[TenantStrategy] Resolving intent for message: ${message.substring(0, 30)}...`,
+    );
     const text = (message || '').toLowerCase();
 
     // 1. DETERMINISTIC ACTION GATING (Bypass LLM for known patterns)
     // Emergency / Maintenance Outage
-    if (/(maji.*limepotea|no water|bomba.*imepasuka|burst.*pipe|flood|moto|fire)/i.test(text)) {
+    if (
+      /(maji.*limepotea|no water|bomba.*imepasuka|burst.*pipe|flood|moto|fire)/i.test(
+        text,
+      )
+    ) {
       this.logger.log('[TenantStrategy] Gating: Emergency/Outage detected.');
       return {
-        intent: text.includes('maji') || text.includes('water') ? AiIntent.UTILITY_OUTAGE : AiIntent.EMERGENCY,
+        intent:
+          text.includes('maji') || text.includes('water')
+            ? AiIntent.UTILITY_OUTAGE
+            : AiIntent.EMERGENCY,
         priority: 'EMERGENCY',
         confidence: 1.0,
       };
     }
 
     // Payment Declaration
-    if (/(nimetuma|nimepay|nimelipa|i have paid|sent.*money)/i.test(text) || /[A-Z0-9]{10}/.test(message)) {
+    if (
+      /(nimetuma|nimepay|nimelipa|i have paid|sent.*money)/i.test(text) ||
+      /[A-Z0-9]{10}/.test(message)
+    ) {
       this.logger.log('[TenantStrategy] Gating: Payment Declaration detected.');
       return {
         intent: AiIntent.PAYMENT_DECLARATION,
@@ -45,16 +61,20 @@ export class TenantIntentStrategy implements AiStrategy {
     }
 
     // 2. LLM-BASED REFINEMENT (Role-Isolated Intent Space)
-    const result = await this.classifier.classifyForRole(message, 'TENANT', context);
-    
+    const result = await this.classifier.classifyForRole(
+      message,
+      'TENANT',
+      context,
+    );
+
     // Map internal strings to AiIntent enum
     const intentMap: Record<string, AiIntent> = {
-      'maintenance_request': AiIntent.MAINTENANCE_REQUEST,
-      'payment_promise': AiIntent.PAYMENT_PROMISE,
-      'payment_declaration': AiIntent.PAYMENT_DECLARATION,
-      'tenant_complaint': AiIntent.TENANT_COMPLAINT,
-      'emergency_escalation': AiIntent.EMERGENCY,
-      'general_query': AiIntent.GENERAL_QUERY,
+      maintenance_request: AiIntent.MAINTENANCE_REQUEST,
+      payment_promise: AiIntent.PAYMENT_PROMISE,
+      payment_declaration: AiIntent.PAYMENT_DECLARATION,
+      tenant_complaint: AiIntent.TENANT_COMPLAINT,
+      emergency_escalation: AiIntent.EMERGENCY,
+      general_query: AiIntent.GENERAL_QUERY,
     };
 
     return {
@@ -69,10 +89,13 @@ export class TenantIntentStrategy implements AiStrategy {
   projectTruth(rawTruth: any): any {
     // Tenant-specific projection: Human readable, no internal IDs or raw tables
     if (!rawTruth) return null;
-    
+
     return {
       summary: rawTruth.summary || rawTruth.message || 'Details retrieved.',
-      verifiedData: rawTruth.amount !== undefined ? { amount: rawTruth.amount, status: rawTruth.status } : undefined,
+      verifiedData:
+        rawTruth.amount !== undefined
+          ? { amount: rawTruth.amount, status: rawTruth.status }
+          : undefined,
       timestamp: new Date().toISOString(),
     };
   }

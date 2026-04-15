@@ -24,7 +24,13 @@ export class DailyTodoJob {
       where: {
         isActive: true,
         deletedAt: null,
-        role: { in: [UserRole.COMPANY_STAFF, UserRole.COMPANY_ADMIN, UserRole.SUPER_ADMIN] },
+        role: {
+          in: [
+            UserRole.COMPANY_STAFF,
+            UserRole.COMPANY_ADMIN,
+            UserRole.SUPER_ADMIN,
+          ],
+        },
       },
     });
 
@@ -40,7 +46,9 @@ export class DailyTodoJob {
 
             // 1. Queue Email if address exists
             if (member.email) {
-              this.logger.log(`Sending daily tasks email to ${member.email}...`);
+              this.logger.log(
+                `Sending daily tasks email to ${member.email}...`,
+              );
               const html = this.emailService.generateTodoEmailHtml(
                 member.firstName,
                 tasks,
@@ -49,7 +57,9 @@ export class DailyTodoJob {
                 this.emailService
                   .sendMail(member.email, 'Your Daily To-Do List - Aedra', html)
                   .then(() =>
-                    this.logger.log(`Daily to-do email sent to ${member.email}`),
+                    this.logger.log(
+                      `Daily to-do email sent to ${member.email}`,
+                    ),
                   ),
               );
             }

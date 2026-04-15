@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
-import { 
-  JengaAuthConfig, 
-  JengaTokenResponse, 
-  JengaStkPushRequest, 
-  JengaStkPushResponse 
+import {
+  JengaAuthConfig,
+  JengaTokenResponse,
+  JengaStkPushRequest,
+  JengaStkPushResponse,
 } from './types';
 import { IConnector } from '../types';
 
@@ -12,7 +12,7 @@ import { IConnector } from '../types';
 export class JengaConnector implements IConnector {
   private readonly logger = new Logger(JengaConnector.name);
   public name = 'Jenga API';
-  
+
   private config: JengaAuthConfig;
   private token: JengaTokenResponse | null = null;
   private tokenExpiry: number = 0;
@@ -38,7 +38,7 @@ export class JengaConnector implements IConnector {
 
     this.logger.log('Acquiring fresh Jenga OAuth token...');
     const url = 'https://api.jengaapi.io/authentication/v1/login';
-    
+
     // In Jenga, credentials are sent as x-www-form-urlencoded or JSON depending on version
     // Typically: username=merchantCode&password=apiKey
     const params = new URLSearchParams();
@@ -64,7 +64,7 @@ export class JengaConnector implements IConnector {
     this.token = data;
     // expires_in is usually in seconds
     this.tokenExpiry = now + parseInt(data.expires_in) * 1000 - 60000; // 1 min buffer
-    
+
     return data.access_token;
   }
 
@@ -76,7 +76,7 @@ export class JengaConnector implements IConnector {
     const signer = crypto.createSign('SHA256');
     signer.update(data);
     signer.end();
-    
+
     const signature = signer.sign(this.config.privateKey, 'base64');
     return signature;
   }
@@ -89,13 +89,15 @@ export class JengaConnector implements IConnector {
   /**
    * Initiate an STK Push payment request.
    */
-  async initiateStkPush(request: JengaStkPushRequest): Promise<JengaStkPushResponse> {
+  async initiateStkPush(
+    request: JengaStkPushRequest,
+  ): Promise<JengaStkPushResponse> {
     const accessToken = await this.ensureToken();
     const url = 'https://api.jengaapi.io/transaction/v1/stkpush';
 
     // Signature concatenation for STK Push (standard Jenga pattern):
     // amount + currency + reference + merchantCode
-    // Note: Actual fields depend on Jenga documentation version. 
+    // Note: Actual fields depend on Jenga documentation version.
     // This is a common pattern.
     const signatureData = `${request.transaction.amount}KES${request.transaction.reference}${this.config.merchantCode}`;
     const signature = this.generateSignature(signatureData);
@@ -103,8 +105,8 @@ export class JengaConnector implements IConnector {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Signature': signature,
+        Authorization: `Bearer ${accessToken}`,
+        Signature: signature,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -120,7 +122,10 @@ export class JengaConnector implements IConnector {
   /**
    * Check account balance.
    */
-  async getAccountBalance(accountId: string, countryCode: string = 'KE'): Promise<any> {
+  async getAccountBalance(
+    accountId: string,
+    countryCode: string = 'KE',
+  ): Promise<any> {
     const accessToken = await this.ensureToken();
     const url = `https://api.jengaapi.io/account/v1/accounts/balance/${countryCode}/${accountId}`;
 
@@ -130,8 +135,8 @@ export class JengaConnector implements IConnector {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Signature': signature,
+        Authorization: `Bearer ${accessToken}`,
+        Signature: signature,
       },
     });
 

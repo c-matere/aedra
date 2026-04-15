@@ -1,5 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Interpretation, ActionContract, AiIntent, OperationalIntent, ExecutionTrace } from '../ai-contracts.types';
+import {
+  Interpretation,
+  ActionContract,
+  AiIntent,
+  OperationalIntent,
+  ExecutionTrace,
+} from '../ai-contracts.types';
 
 @Injectable()
 export class DecisionLayer {
@@ -8,13 +14,17 @@ export class DecisionLayer {
   resolveAction(trace: ExecutionTrace): ExecutionTrace {
     const { interpretation, role } = trace;
     if (!interpretation) {
-        this.logger.error(`[Decision] Missing interpretation in trace: ${trace.id}`);
-        trace.status = 'FAILED';
-        trace.errors.push('Missing interpretation for decision resolution.');
-        return trace;
+      this.logger.error(
+        `[Decision] Missing interpretation in trace: ${trace.id}`,
+      );
+      trace.status = 'FAILED';
+      trace.errors.push('Missing interpretation for decision resolution.');
+      return trace;
     }
 
-    this.logger.log(`[Decision] Resolving action for ROLE: ${role} | intent: ${interpretation.intent}`);
+    this.logger.log(
+      `[Decision] Resolving action for ROLE: ${role} | intent: ${interpretation.intent}`,
+    );
     trace.status = 'DECIDING';
 
     // 1. Role-Based Contract Lookup (Deterministic Intent Lock)
@@ -31,9 +41,15 @@ export class DecisionLayer {
             intent: AiIntent.MAINTENANCE_REQUEST,
             requiredTools: ['log_maintenance_issue', 'get_unit_details'],
             requiresContext: trace.metadata?.activeUnitId ? [] : ['unitId'],
-            forbiddenActions: ['Do not ask for unit if it is in the context.', 'Acknowledge before asking for details.'],
+            forbiddenActions: [
+              'Do not ask for unit if it is in the context.',
+              'Acknowledge before asking for details.',
+            ],
             actionPriority: 'ACK_FIRST',
-            completionCriteria: { mandatoryTools: ['log_maintenance_issue'], requiredFields: ['maintenanceId'] },
+            completionCriteria: {
+              mandatoryTools: ['log_maintenance_issue'],
+              requiredFields: ['maintenanceId'],
+            },
           };
           break;
         case AiIntent.PAYMENT_DECLARATION:
@@ -42,9 +58,14 @@ export class DecisionLayer {
             intent: AiIntent.PAYMENT_DECLARATION,
             requiredTools: ['record_payment', 'get_tenant_details'],
             requiresContext: trace.metadata?.activeTenantId ? [] : ['tenantId'],
-            forbiddenActions: ['Do not accept partial payments without acknowledgement.'],
+            forbiddenActions: [
+              'Do not accept partial payments without acknowledgement.',
+            ],
             actionPriority: 'DATA_FIRST',
-            completionCriteria: { mandatoryTools: ['record_payment'], requiredFields: ['amount', 'paymentId'] },
+            completionCriteria: {
+              mandatoryTools: ['record_payment'],
+              requiredFields: ['amount', 'paymentId'],
+            },
           };
           break;
         case AiIntent.UTILITY_OUTAGE:
@@ -72,18 +93,28 @@ export class DecisionLayer {
             requiresContext: ['propertyId'],
             forbiddenActions: [],
             actionPriority: 'DATA_FIRST',
-            completionCriteria: { mandatoryTools: ['onboard_property'], requiredFields: ['propertyId'] },
+            completionCriteria: {
+              mandatoryTools: ['onboard_property'],
+              requiredFields: ['propertyId'],
+            },
           };
           break;
         case AiIntent.FINANCIAL_REPORTING:
           contract = {
             type: OperationalIntent.STANDARD,
             intent: AiIntent.FINANCIAL_REPORTING,
-            requiredTools: ['get_revenue_summary', 'get_collection_rate', 'list_payments'],
+            requiredTools: [
+              'get_revenue_summary',
+              'get_collection_rate',
+              'list_payments',
+            ],
             requiresContext: [],
             forbiddenActions: ['Use manual aggregation if primary tools fail.'],
             actionPriority: 'DATA_FIRST',
-            completionCriteria: { mandatoryTools: ['get_revenue_summary'], requiredFields: ['revenueData'] },
+            completionCriteria: {
+              mandatoryTools: ['get_revenue_summary'],
+              requiredFields: ['revenueData'],
+            },
           };
           break;
         default:
@@ -97,7 +128,10 @@ export class DecisionLayer {
         requiredTools: [],
         requiresContext: [],
         forbiddenActions: [],
-        actionPriority: interpretation.intent === AiIntent.SYSTEM_FAILURE ? 'IMMEDIATE' : 'ACK_FIRST',
+        actionPriority:
+          interpretation.intent === AiIntent.SYSTEM_FAILURE
+            ? 'IMMEDIATE'
+            : 'ACK_FIRST',
       };
     }
 
@@ -111,7 +145,10 @@ export class DecisionLayer {
       intent,
       requiredTools: [],
       requiresContext: [],
-      forbiddenActions: ['NEVER show staff-level financial tables.', 'Do not reveal unit vacancies.'],
+      forbiddenActions: [
+        'NEVER show staff-level financial tables.',
+        'Do not reveal unit vacancies.',
+      ],
       actionPriority: 'ACK_FIRST',
     };
   }

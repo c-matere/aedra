@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { UserRole } from '../auth/roles.enum';
@@ -21,7 +25,7 @@ export class RolesService {
 
   async findAll(actor: AuthenticatedUser) {
     const isSuperAdmin = actor.role === UserRole.SUPER_ADMIN;
-    
+
     return this.prisma.role.findMany({
       where: {
         OR: [
@@ -56,12 +60,13 @@ export class RolesService {
 
   async create(data: CreateRoleDto, actor: AuthenticatedUser) {
     const isSuperAdmin = actor.role === UserRole.SUPER_ADMIN;
-    
-    // If Super Admin has a non-UUID companyId (like "bench-company-001"), 
+
+    // If Super Admin has a non-UUID companyId (like "bench-company-001"),
     // treat it as a system-wide role creation.
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     const isValidUuid = actor.companyId && uuidRegex.test(actor.companyId);
-    
+
     const companyId = isSuperAdmin && !isValidUuid ? null : actor.companyId;
     const isSystem = isSuperAdmin && !isValidUuid;
 
@@ -82,7 +87,9 @@ export class RolesService {
     const role = await this.findOne(id, actor);
 
     if (role.isSystem && actor.role !== UserRole.SUPER_ADMIN) {
-      throw new ForbiddenException('Only Super Admins can update system roles.');
+      throw new ForbiddenException(
+        'Only Super Admins can update system roles.',
+      );
     }
 
     return this.prisma.role.update({

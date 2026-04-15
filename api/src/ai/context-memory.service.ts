@@ -50,12 +50,22 @@ export interface SessionContext {
   activeCompanyId?: string;
   companyId?: string;
   activeMaintenanceId?: string;
-  activeTenant?: { id: string; name: string; unit?: string; arrears?: number; phone?: string };
+  activeTenant?: {
+    id: string;
+    name: string;
+    unit?: string;
+    arrears?: number;
+    phone?: string;
+  };
   activeProperty?: { id: string; name: string; address?: string };
   activeIssue?: { id: string; type: string; status: string; unit?: string };
   activeTransaction?: ActiveTransaction;
   activeWorkflow?: ActiveWorkflow;
-  virtualLedger?: { recordedArrears: number; recordedPayments: number; balance: number };
+  virtualLedger?: {
+    recordedArrears: number;
+    recordedPayments: number;
+    balance: number;
+  };
   pendingAction?: string;
   lastIntent?: string;
   activeTenantName?: string;
@@ -93,11 +103,16 @@ export class ContextMemoryService {
       return { updatedAt: Date.now() };
     }
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    this.logger.log(`[ContextMemory] Retrieved for ${uid}: lockedIntent=${parsed.lastIntent}`);
+    this.logger.log(
+      `[ContextMemory] Retrieved for ${uid}: lockedIntent=${parsed.lastIntent}`,
+    );
     return parsed;
   }
 
-  async setContext(uid: string, context: Partial<SessionContext>): Promise<void> {
+  async setContext(
+    uid: string,
+    context: Partial<SessionContext>,
+  ): Promise<void> {
     const current = await this.getContext(uid);
     // LAYER 4: State Locking - Prevent overwriting a locked intent with undefined
     if (current.lastIntent && context.lastIntent === undefined) {
@@ -115,24 +130,48 @@ export class ContextMemoryService {
   /**
    * Resolve entities from a list of tool results or message content
    */
-  async stitch(uid: string, entities: Array<{ type: string; id: string; name?: string }>): Promise<void> {
+  async stitch(
+    uid: string,
+    entities: Array<{ type: string; id: string; name?: string }>,
+  ): Promise<void> {
     const context: Partial<SessionContext> = {};
-    
+
     for (const entity of entities) {
-      if (entity.type === 'property' || entity.type === 'get_property_details') {
+      if (
+        entity.type === 'property' ||
+        entity.type === 'get_property_details'
+      ) {
         context.activePropertyId = entity.id;
-        context.activeProperty = { id: entity.id, name: entity.name || 'Property' };
+        context.activeProperty = {
+          id: entity.id,
+          name: entity.name || 'Property',
+        };
       }
-      if (entity.type === 'tenant' || entity.type === 'kernel_search' || entity.type === 'search_tenants') {
+      if (
+        entity.type === 'tenant' ||
+        entity.type === 'kernel_search' ||
+        entity.type === 'search_tenants'
+      ) {
         context.activeTenantId = entity.id;
         context.activeTenant = { id: entity.id, name: entity.name || 'Tenant' };
       }
-      if (entity.type === 'unit' || entity.type === 'kernel_unit_resolution' || entity.type === 'get_unit_details') {
+      if (
+        entity.type === 'unit' ||
+        entity.type === 'kernel_unit_resolution' ||
+        entity.type === 'get_unit_details'
+      ) {
         context.activeUnitId = entity.id;
       }
-      if (entity.type === 'maintenance' || entity.type === 'log_maintenance_request') {
+      if (
+        entity.type === 'maintenance' ||
+        entity.type === 'log_maintenance_request'
+      ) {
         context.activeMaintenanceId = entity.id;
-        context.activeIssue = { id: entity.id, type: 'MAINTENANCE', status: 'PENDING' };
+        context.activeIssue = {
+          id: entity.id,
+          type: 'MAINTENANCE',
+          status: 'PENDING',
+        };
       }
       if (entity.type === 'kernel_intercept') {
         // Intercepts are handled via ActiveTransaction
@@ -143,7 +182,9 @@ export class ContextMemoryService {
     }
 
     if (Object.keys(context).length > 0) {
-      this.logger.log(`[ContextMemory] Stitched entities for ${uid}: ${JSON.stringify(context)}`);
+      this.logger.log(
+        `[ContextMemory] Stitched entities for ${uid}: ${JSON.stringify(context)}`,
+      );
       await this.setContext(uid, context);
     }
   }
@@ -164,10 +205,10 @@ export class ContextMemoryService {
       pendingTenantName: null,
       pendingUnitNumber: null,
     };
-    
+
     if (!lockedState.executionHistory) lockedState.executionHistory = [];
     lockedState.executionHistory.push(toolName);
-    
+
     await this.setContext(uid, { lockedState });
   }
 

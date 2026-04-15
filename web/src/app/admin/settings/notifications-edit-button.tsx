@@ -32,6 +32,7 @@ export function NotificationsEditButton({ company, token }: NotificationsEditBut
         maintenanceUpdatesEnabled: company.maintenanceUpdatesEnabled ?? false,
         waAlertsEnabled: company.waAlertsEnabled ?? true,
         waPaymentConfirmationsEnabled: company.waPaymentConfirmationsEnabled ?? true,
+        waInvoiceNotificationsEnabled: company.waInvoiceNotificationsEnabled ?? true,
     });
     const router = useRouter();
 
@@ -131,6 +132,15 @@ export function NotificationsEditButton({ company, token }: NotificationsEditBut
                         <Switch
                             checked={formData.waPaymentConfirmationsEnabled}
                             onCheckedChange={(checked) => setFormData({ ...formData, waPaymentConfirmationsEnabled: checked })}
+                        />
+                    <div className="flex items-center justify-between py-2">
+                        <div className="space-y-0.5">
+                            <label className="text-sm font-medium text-emerald-400">WhatsApp Invoices</label>
+                            <p className="text-xs text-neutral-500">Notify tenants when invoices are created.</p>
+                        </div>
+                        <Switch
+                            checked={formData.waInvoiceNotificationsEnabled}
+                            onCheckedChange={(checked) => setFormData({ ...formData, waInvoiceNotificationsEnabled: checked })}
                         />
                     </div>
                 </div>

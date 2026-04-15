@@ -18,7 +18,10 @@ export class AiResponseValidatorService {
     let cleaned = text;
 
     // 1. Check for raw JSON blocks
-    if (text.includes('```json') || (text.includes('{') && text.includes('}') && text.includes('"'))) {
+    if (
+      text.includes('```json') ||
+      (text.includes('{') && text.includes('}') && text.includes('"'))
+    ) {
       violations.push('Raw JSON detected');
       // Strip JSON markdown if it's just a wrapper
       cleaned = cleaned.replace(/```json[\s\S]*?```/g, (match) => {
@@ -41,7 +44,10 @@ export class AiResponseValidatorService {
     }
 
     // 3. Check for "undefined" or "null" literals as strings
-    if (cleaned.toLowerCase().includes('undefined') || cleaned.toLowerCase().includes('null')) {
+    if (
+      cleaned.toLowerCase().includes('undefined') ||
+      cleaned.toLowerCase().includes('null')
+    ) {
       violations.push('Technical literals detected (undefined/null)');
       cleaned = cleaned.replace(/undefined|null/gi, '');
     }
@@ -53,13 +59,15 @@ export class AiResponseValidatorService {
 
     const isValid = violations.length === 0;
     if (!isValid) {
-      this.logger.warn(`[ResponseValidator] Violations found in response: ${violations.join(', ')}`);
+      this.logger.warn(
+        `[ResponseValidator] Violations found in response: ${violations.join(', ')}`,
+      );
     }
 
     return {
       isValid,
       cleanedText: cleaned.trim(),
-      violations
+      violations,
     };
   }
 
@@ -68,7 +76,10 @@ export class AiResponseValidatorService {
    */
   shouldReprompt(result: ValidationResult): boolean {
     // If it's a critical placeholder or completely empty after cleaning, re-prompt
-    return result.violations.includes('Cleaning resulted in empty response') || 
-           (result.violations.includes('Placeholders detected') && result.cleanedText.length < 10);
+    return (
+      result.violations.includes('Cleaning resulted in empty response') ||
+      (result.violations.includes('Placeholders detected') &&
+        result.cleanedText.length < 10)
+    );
   }
 }

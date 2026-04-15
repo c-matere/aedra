@@ -17,8 +17,9 @@ export const checkWorkflowGuard = (
     case 'report_maintenance': // Handle both triggers
       const missing = [];
       if (!entities.unit && !entities.unitNumber) missing.push('unitNumber');
-      if (!entities.issue_details && !entities.description) missing.push('description');
-      
+      if (!entities.issue_details && !entities.description)
+        missing.push('description');
+
       if (missing.length > 0) {
         return {
           allowed: false,
@@ -41,7 +42,11 @@ export const checkWorkflowGuard = (
       break;
 
     case 'tenant_import':
-      if (!classification.hasAttachments && !entities.unit && !entities.property_name) {
+      if (
+        !classification.hasAttachments &&
+        !entities.unit &&
+        !entities.property_name
+      ) {
         return {
           allowed: false,
           missingFields: ['data_source'],

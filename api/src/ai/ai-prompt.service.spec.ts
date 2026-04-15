@@ -8,28 +8,34 @@ describe('AiPromptService.generateUnifiedPlan', () => {
     const genAI: any = {};
     const groq: any = {};
     const toolRegistry: any = { getToolsForRole: jest.fn(async () => []) };
-    return { service: new AiPromptService(prisma, genAI, groq, toolRegistry), toolRegistry };
+    return {
+      service: new AiPromptService(prisma, genAI, groq, toolRegistry),
+      toolRegistry,
+    };
   };
 
   it('repairs invalid JSON output using the same model', async () => {
     const { service, toolRegistry } = makeService();
 
     const callModel = jest.spyOn(service as any, 'callModel');
-    callModel
-      .mockResolvedValueOnce('not json')
-      .mockResolvedValueOnce(
-        JSON.stringify({
-          intent: AiIntent.GENERAL_QUERY,
-          priority: 'NORMAL',
-          language: 'en',
-          immediateResponse: 'ok',
-          entities: {},
-          steps: [{ tool: 'get_unit_details', args: {}, required: false }],
-          planReasoning: '',
-        }),
-      );
+    callModel.mockResolvedValueOnce('not json').mockResolvedValueOnce(
+      JSON.stringify({
+        intent: AiIntent.GENERAL_QUERY,
+        priority: 'NORMAL',
+        language: 'en',
+        immediateResponse: 'ok',
+        entities: {},
+        steps: [{ tool: 'get_unit_details', args: {}, required: false }],
+        planReasoning: '',
+      }),
+    );
 
-    const plan = await service.generateUnifiedPlan('hello', UserRole.COMPANY_STAFF, { companyId: 'bench-company-001' }, []);
+    const plan = await service.generateUnifiedPlan(
+      'hello',
+      UserRole.COMPANY_STAFF,
+      { companyId: 'bench-company-001' },
+      [],
+    );
 
     expect(toolRegistry.getToolsForRole).toHaveBeenCalled();
     expect(plan.intent).toBe(AiIntent.GENERAL_QUERY);
@@ -40,9 +46,16 @@ describe('AiPromptService.generateUnifiedPlan', () => {
 
   it('returns a safe fallback plan when the LLM call fails', async () => {
     const { service } = makeService();
-    jest.spyOn(service as any, 'callModel').mockRejectedValueOnce(new Error('fetch failed'));
+    jest
+      .spyOn(service as any, 'callModel')
+      .mockRejectedValueOnce(new Error('fetch failed'));
 
-    const plan = await service.generateUnifiedPlan('hello', UserRole.COMPANY_STAFF, { companyId: 'bench-company-001' }, []);
+    const plan = await service.generateUnifiedPlan(
+      'hello',
+      UserRole.COMPANY_STAFF,
+      { companyId: 'bench-company-001' },
+      [],
+    );
 
     expect(plan.intent).toBe(AiIntent.GENERAL_QUERY);
     expect(plan.steps).toHaveLength(0);
@@ -51,13 +64,20 @@ describe('AiPromptService.generateUnifiedPlan', () => {
 
   it('generates takeover advice with suggestions-only JSON', async () => {
     const { service, toolRegistry } = makeService();
-    toolRegistry.getToolsForRole.mockResolvedValue(['get_financial_report', 'get_portfolio_arrears']);
+    toolRegistry.getToolsForRole.mockResolvedValue([
+      'get_financial_report',
+      'get_portfolio_arrears',
+    ]);
 
     jest.spyOn(service as any, 'callModel').mockResolvedValueOnce(
       JSON.stringify({
         text: 'The summary is brief. Should I generate a full report?',
         suggestions: [
-          { label: 'Full report', tool: 'get_financial_report', args: { range: 'last_30_days' } },
+          {
+            label: 'Full report',
+            tool: 'get_financial_report',
+            args: { range: 'last_30_days' },
+          },
         ],
       }),
     );
@@ -69,7 +89,10 @@ describe('AiPromptService.generateUnifiedPlan', () => {
         language: 'en',
         context: { companyId: 'bench-company-001', activePropertyId: 'p1' },
         lastAction: { name: 'get_financial_summary' },
-        lastResult: { totals: { payments: 200000 }, breakdown: { payments: [] } },
+        lastResult: {
+          totals: { payments: 200000 },
+          breakdown: { payments: [] },
+        },
         formattedText: 'Payments: 200,000',
       },
       [],

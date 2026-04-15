@@ -34,26 +34,38 @@ export function evaluateTakeover(
   const formattedText = options?.formattedText || '';
 
   if (!actionResult) {
-    return { shouldTakeover: true, reason: 'UNEXPECTED', details: 'Missing action result' };
+    return {
+      shouldTakeover: true,
+      reason: 'UNEXPECTED',
+      details: 'Missing action result',
+    };
   }
 
   if (actionResult.success === false) {
-    if ((actionResult.data as any)?.requires_clarification) {
+    if (actionResult.data?.requires_clarification) {
       return {
         shouldTakeover: true,
         reason: 'REQUIRES_CLARIFICATION',
-        details: (actionResult.data as any)?.message || actionResult.message || 'Needs clarification',
+        details:
+          actionResult.data?.message ||
+          actionResult.message ||
+          'Needs clarification',
       };
     }
     return {
       shouldTakeover: true,
       reason: 'TOOL_ERROR',
-      details: actionResult.message || actionResult.error || 'Tool reported failure',
+      details:
+        actionResult.message || actionResult.error || 'Tool reported failure',
     };
   }
 
   if (actionResult.error) {
-    return { shouldTakeover: true, reason: 'TOOL_ERROR', details: String(actionResult.error) };
+    return {
+      shouldTakeover: true,
+      reason: 'TOOL_ERROR',
+      details: String(actionResult.error),
+    };
   }
 
   // Truncation signals (common pattern: tools report caps/limits)
@@ -61,19 +73,30 @@ export function evaluateTakeover(
   const capped = data?.capped;
   if (capped && typeof capped === 'object') {
     const looksTruncated = Object.values(capped).some(
-      (c: any) => c && typeof c === 'object' && typeof c.limit === 'number' && typeof c.returned === 'number' && c.returned >= c.limit,
+      (c: any) =>
+        c &&
+        typeof c === 'object' &&
+        typeof c.limit === 'number' &&
+        typeof c.returned === 'number' &&
+        c.returned >= c.limit,
     );
     if (looksTruncated) {
-      return { shouldTakeover: true, reason: 'TRUNCATED', details: 'Tool result was capped/truncated' };
+      return {
+        shouldTakeover: true,
+        reason: 'TRUNCATED',
+        details: 'Tool result was capped/truncated',
+      };
     }
   }
 
   // "Too simple" heuristics for financial reporting:
   // Totals exist but breakdown is empty => user likely expects details.
   if (
-    ['get_financial_report', 'get_financial_summary', 'get_portfolio_arrears'].includes(
-      actionResult.action,
-    )
+    [
+      'get_financial_report',
+      'get_financial_summary',
+      'get_portfolio_arrears',
+    ].includes(actionResult.action)
   ) {
     const breakdown = data?.breakdown;
     const breakdownEmpty =
@@ -97,20 +120,29 @@ export function evaluateTakeover(
       userText,
     )
   ) {
-    return { shouldTakeover: true, reason: 'UNEXPECTED', details: 'User dissatisfaction signal' };
+    return {
+      shouldTakeover: true,
+      reason: 'UNEXPECTED',
+      details: 'User dissatisfaction signal',
+    };
   }
 
   // If formatter produced a very short output for a complex action, suggest richer options.
   if (
-    ['get_financial_report', 'get_financial_summary', 'get_portfolio_arrears'].includes(
-      actionResult.action,
-    ) &&
+    [
+      'get_financial_report',
+      'get_financial_summary',
+      'get_portfolio_arrears',
+    ].includes(actionResult.action) &&
     formattedText.trim().length > 0 &&
     formattedText.trim().length < 120
   ) {
-    return { shouldTakeover: true, reason: 'TOO_SIMPLE', details: 'Response looks too brief for report-type action' };
+    return {
+      shouldTakeover: true,
+      reason: 'TOO_SIMPLE',
+      details: 'Response looks too brief for report-type action',
+    };
   }
 
   return { shouldTakeover: false };
 }
-

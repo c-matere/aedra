@@ -1,4 +1,7 @@
-import { InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import {
+  InternalServerErrorException,
+  BadRequestException,
+} from '@nestjs/common';
 import { WhatsappService } from './whatsapp.service';
 
 describe('WhatsappService', () => {
@@ -39,7 +42,9 @@ describe('WhatsappService', () => {
       ok: false,
       status: 400,
       text: async () =>
-        JSON.stringify({ error: { message: 'Invalid parameter', code: 131009 } }),
+        JSON.stringify({
+          error: { message: 'Invalid parameter', code: 131009 },
+        }),
     });
 
     try {
@@ -48,7 +53,7 @@ describe('WhatsappService', () => {
     } catch (e: any) {
       expect(e).toBeInstanceOf(InternalServerErrorException);
       const resp = typeof e.getResponse === 'function' ? e.getResponse() : null;
-      const msg = (resp as any)?.message || '';
+      const msg = resp?.message || '';
       expect(String(msg)).toContain('Invalid parameter');
       expect(String(msg)).toContain('code=131009');
     }
@@ -68,9 +73,12 @@ describe('WhatsappService', () => {
     await expect(
       service.sendInteractiveMessage({
         to: '254700000000',
-        interactive: { type: 'button', body: { text: 'x' }, action: { buttons: [] } },
+        interactive: {
+          type: 'button',
+          body: { text: 'x' },
+          action: { buttons: [] },
+        },
       }),
     ).rejects.toBeInstanceOf(InternalServerErrorException);
   });
 });
-

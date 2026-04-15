@@ -1,4 +1,7 @@
-import { AiClassifierService, type ClassificationResult } from './ai-classifier.service';
+import {
+  AiClassifierService,
+  type ClassificationResult,
+} from './ai-classifier.service';
 
 describe('AiClassifierService guardrails', () => {
   it('treats property interest as read intent (not add_tenant)', () => {

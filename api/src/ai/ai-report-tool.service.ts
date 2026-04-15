@@ -72,8 +72,31 @@ export class AiReportToolService {
       const words = n.split(/\s+/).filter(Boolean);
       if (words.length >= 4) {
         const stop = new Set([
-          'the','a','an','and','or','to','for','with','of','in','on','at','from','by','please','kindly',
-          'show','send','generate','give','get','make','do','report','status',
+          'the',
+          'a',
+          'an',
+          'and',
+          'or',
+          'to',
+          'for',
+          'with',
+          'of',
+          'in',
+          'on',
+          'at',
+          'from',
+          'by',
+          'please',
+          'kindly',
+          'show',
+          'send',
+          'generate',
+          'give',
+          'get',
+          'make',
+          'do',
+          'report',
+          'status',
         ]);
         const stopCount = words.filter((w: string) => stop.has(w)).length;
         if (stopCount / words.length >= 0.5) return true;
@@ -107,7 +130,11 @@ export class AiReportToolService {
         if (looksLikeAccidentalPropertyName(args.propertyName)) {
           // Downgrade to company scope rather than failing on a non-property phrase.
           // The user can still ask "report property <name>" explicitly.
-          return { ok: true, args: { ...args, scope: 'company', propertyName: undefined }, scope: 'company' };
+          return {
+            ok: true,
+            args: { ...args, scope: 'company', propertyName: undefined },
+            scope: 'company',
+          };
         }
         const resolved = await this.resolutionService.resolveId(
           'property',
@@ -162,7 +189,8 @@ export class AiReportToolService {
             (args?.jobId ||
               context?.lastReportJobId ||
               context?.lastReportJob?.id ||
-              '') ?? '',
+              '') ??
+              '',
           ).trim();
           if (!jobId) {
             return {
@@ -174,7 +202,9 @@ export class AiReportToolService {
             };
           }
 
-          const job = await this.backgroundQueue.getJob(jobId).catch(() => null);
+          const job = await this.backgroundQueue
+            .getJob(jobId)
+            .catch(() => null);
           if (!job) {
             return {
               requires_clarification: true,
@@ -480,19 +510,21 @@ export class AiReportToolService {
           if (!args?.email) {
             return {
               requires_clarification: true,
-              message: 'To register your company, I need your email address. Could you please share it?',
+              message:
+                'To register your company, I need your email address. Could you please share it?',
             };
           }
           if (!args?.companyName) {
             return {
               requires_clarification: true,
-              message: 'What is the name of the company you would like to register?',
+              message:
+                'What is the name of the company you would like to register?',
             };
           }
           return await this.authService.registerCompany({
             companyName: args.companyName,
             email: args.email,
-            password: args.password || 'Temporary123!', 
+            password: args.password || 'Temporary123!',
             firstName: args.firstName || 'User',
             lastName: args.lastName || 'Owner',
             phone: context.phone,
@@ -606,7 +638,12 @@ export class AiReportToolService {
             return { error: resolved.error, message: resolved.message };
 
           const data = await this.getFinancialReportData(
-            { ...resolved.args, dateFrom: resolved.args.dateFrom || new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString() },
+            {
+              ...resolved.args,
+              dateFrom:
+                resolved.args.dateFrom ||
+                new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(),
+            },
             context,
             resolved.scope,
           );
@@ -614,31 +651,31 @@ export class AiReportToolService {
           // Fetch Full Property Details if scope is property
           let property: any = null;
           if (resolved.scope === 'property' && resolved.args.propertyId) {
-             property = await this.prisma.property.findUnique({
-                where: { id: resolved.args.propertyId },
-                include: { units: true }
-             });
+            property = await this.prisma.property.findUnique({
+              where: { id: resolved.args.propertyId },
+              include: { units: true },
+            });
           }
 
           // Fetch Tenant Payment History for Heatmap
           const tenantPayments = await this.prisma.payment.findMany({
             where: {
+              deletedAt: null,
+              lease: {
+                propertyId: resolved.args.propertyId,
                 deletedAt: null,
-                lease: {
-                    propertyId: resolved.args.propertyId,
-                    deletedAt: null
-                }
+              },
             },
             include: {
-                lease: {
-                    include: {
-                        tenant: true,
-                        unit: true
-                    }
-                }
+              lease: {
+                include: {
+                  tenant: true,
+                  unit: true,
+                },
+              },
             },
             orderBy: { paidAt: 'desc' },
-            take: 200
+            take: 200,
           });
 
           // Process tenantPayments into heatmap format
@@ -648,47 +685,62 @@ export class AiReportToolService {
             if (!t) continue;
             const key = t.id;
             if (!heatmapGrouped.has(key)) {
-                heatmapGrouped.set(key, {
-                    name: `${t.firstName} ${t.lastName}`,
-                    unit: p.lease.unit?.unitNumber || '?',
-                    payments: [],
-                    ltv: 90 // Default
-                });
+              heatmapGrouped.set(key, {
+                name: `${t.firstName} ${t.lastName}`,
+                unit: p.lease.unit?.unitNumber || '?',
+                payments: [],
+                ltv: 90, // Default
+              });
             }
-            const month = new Date(p.paidAt).toLocaleDateString(undefined, { month: 'short' });
+            const month = new Date(p.paidAt).toLocaleDateString(undefined, {
+              month: 'short',
+            });
             heatmapGrouped.get(key).payments.push({ month, status: 'ok' });
           }
 
-          const occupancy = property?.units?.length 
-            ? Math.round((property.units.filter((u: any) => u.status === 'OCCUPIED').length / property.units.length) * 100)
+          const occupancy = property?.units?.length
+            ? Math.round(
+                (property.units.filter((u: any) => u.status === 'OCCUPIED')
+                  .length /
+                  property.units.length) *
+                  100,
+              )
             : 0;
 
           const combinedData = {
             ...data,
             property: {
-                ...property,
-                manager: property?.managedBy || 'Aedra'
+              ...property,
+              manager: property?.managedBy || 'Aedra',
             },
             totals: {
-                ...data.totals,
-                occupancy,
-                units: property?.units?.length || 0,
-                occupied: property?.units?.filter((u: any) => u.status === 'OCCUPIED').length || 0
+              ...data.totals,
+              occupancy,
+              units: property?.units?.length || 0,
+              occupied:
+                property?.units?.filter((u: any) => u.status === 'OCCUPIED')
+                  .length || 0,
             },
             maintenance: {
-                open: data.expenses.length, // Rough proxy for activity
-                resolved: 0
+              open: data.expenses.length, // Rough proxy for activity
+              resolved: 0,
             },
             tenantPayments: Array.from(heatmapGrouped.values()),
-            month: new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
-            companyId: context.companyId
+            month: new Date().toLocaleDateString(undefined, {
+              month: 'long',
+              year: 'numeric',
+            }),
+            companyId: context.companyId,
           };
 
-          this.logger.log(`Generating McKinsey insights for property ${resolved.args.propertyId}...`);
-          const insights = await this.reportIntelligence.generatePremiumInsights(
-            combinedData,
-            this.modelName,
+          this.logger.log(
+            `Generating McKinsey insights for property ${resolved.args.propertyId}...`,
           );
+          const insights =
+            await this.reportIntelligence.generatePremiumInsights(
+              combinedData,
+              this.modelName,
+            );
 
           const timestamp = Date.now();
           const fileName = `mckinsey_report_${resolved.args.propertyId}_${timestamp}.pdf`;
@@ -721,7 +773,10 @@ export class AiReportToolService {
       );
       // Propagate specific error messages if they exist
       return {
-        error: error.response?.message || error.message || 'Report generation failed. Please try again.',
+        error:
+          error.response?.message ||
+          error.message ||
+          'Report generation failed. Please try again.',
       };
     }
   }
@@ -767,7 +822,9 @@ export class AiReportToolService {
       expenseCompanyFilter.propertyId = args.propertyId;
     }
 
-    this.logger.log(`Fetching financial data for scope: ${scope}, propertyId: ${args?.propertyId || 'none'}`);
+    this.logger.log(
+      `Fetching financial data for scope: ${scope}, propertyId: ${args?.propertyId || 'none'}`,
+    );
 
     const [payments, expenses, invoices]: [any[], any[], any[]] =
       await Promise.all([

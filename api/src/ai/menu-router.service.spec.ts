@@ -13,7 +13,11 @@ describe('MenuRouterService', () => {
     );
 
     const uuid = '007805c2-ee65-4d9d-b2f4-5956a6811175';
-    const res = await service.routeMessage('uid_1', `get_tenant_arrears:${uuid}`, 'en');
+    const res = await service.routeMessage(
+      'uid_1',
+      `get_tenant_arrears:${uuid}`,
+      'en',
+    );
     expect(res.handled).toBe(true);
     expect(res.tool).toEqual({
       name: 'get_tenant_arrears',
@@ -26,7 +30,11 @@ describe('MenuRouterService', () => {
     const formatterMock: any = {};
     const mainMenuMock: any = {};
 
-    const service = new MenuRouterService(cacheManagerMock, formatterMock, mainMenuMock);
+    const service = new MenuRouterService(
+      cacheManagerMock,
+      formatterMock,
+      mainMenuMock,
+    );
 
     const res = await service.routeMessage('uid_1', 'list tenants', 'en');
     expect(res.handled).toBe(true);
@@ -38,9 +46,17 @@ describe('MenuRouterService', () => {
     const formatterMock: any = {};
     const mainMenuMock: any = {};
 
-    const service = new MenuRouterService(cacheManagerMock, formatterMock, mainMenuMock);
+    const service = new MenuRouterService(
+      cacheManagerMock,
+      formatterMock,
+      mainMenuMock,
+    );
 
-    const res = await service.routeMessage('uid_1', 'List of properties.', 'en');
+    const res = await service.routeMessage(
+      'uid_1',
+      'List of properties.',
+      'en',
+    );
     expect(res.handled).toBe(true);
     expect(res.tool).toEqual({ name: 'list_properties' });
   });
@@ -50,9 +66,17 @@ describe('MenuRouterService', () => {
     const formatterMock: any = {};
     const mainMenuMock: any = {};
 
-    const service = new MenuRouterService(cacheManagerMock, formatterMock, mainMenuMock);
+    const service = new MenuRouterService(
+      cacheManagerMock,
+      formatterMock,
+      mainMenuMock,
+    );
 
-    const res = await service.routeMessage('uid_1', 'List our properties', 'en');
+    const res = await service.routeMessage(
+      'uid_1',
+      'List our properties',
+      'en',
+    );
     expect(res.handled).toBe(true);
     expect(res.tool).toEqual({ name: 'list_properties' });
   });
@@ -62,9 +86,17 @@ describe('MenuRouterService', () => {
     const formatterMock: any = {};
     const mainMenuMock: any = {};
 
-    const service = new MenuRouterService(cacheManagerMock, formatterMock, mainMenuMock);
+    const service = new MenuRouterService(
+      cacheManagerMock,
+      formatterMock,
+      mainMenuMock,
+    );
 
-    const res = await service.routeMessage('uid_1', 'show me the list of our properties', 'en');
+    const res = await service.routeMessage(
+      'uid_1',
+      'show me the list of our properties',
+      'en',
+    );
     expect(res.handled).toBe(true);
     expect(res.tool).toEqual({ name: 'list_properties' });
   });
@@ -73,16 +105,26 @@ describe('MenuRouterService', () => {
     const cacheManagerMock: any = {
       get: jest.fn().mockResolvedValue({
         awaitingSelection: 'property',
-        lastResults: [{ id: 'bench-prop-palmgrove', name: 'Palm Grove', type: 'property' }],
+        lastResults: [
+          { id: 'bench-prop-palmgrove', name: 'Palm Grove', type: 'property' },
+        ],
       }),
       set: jest.fn(),
     };
     const formatterMock: any = {};
     const mainMenuMock: any = {};
 
-    const service = new MenuRouterService(cacheManagerMock, formatterMock, mainMenuMock);
+    const service = new MenuRouterService(
+      cacheManagerMock,
+      formatterMock,
+      mainMenuMock,
+    );
 
-    const res = await service.routeMessage('uid_1', 'bench-prop-palmgrove', 'en');
+    const res = await service.routeMessage(
+      'uid_1',
+      'bench-prop-palmgrove',
+      'en',
+    );
     expect(res.handled).toBe(true);
     expect(res.tool).toEqual({
       name: 'get_property_details',
@@ -95,7 +137,11 @@ describe('MenuRouterService', () => {
     const formatterMock: any = {};
     const mainMenuMock: any = {};
 
-    const service = new MenuRouterService(cacheManagerMock, formatterMock, mainMenuMock);
+    const service = new MenuRouterService(
+      cacheManagerMock,
+      formatterMock,
+      mainMenuMock,
+    );
 
     const res = await service.routeMessage('uid_1', 'report', 'en');
     expect(res.handled).toBe(true);
@@ -110,7 +156,11 @@ describe('MenuRouterService', () => {
     const formatterMock: any = {};
     const mainMenuMock: any = {};
 
-    const service = new MenuRouterService(cacheManagerMock, formatterMock, mainMenuMock);
+    const service = new MenuRouterService(
+      cacheManagerMock,
+      formatterMock,
+      mainMenuMock,
+    );
 
     const res = await service.routeMessage('uid_1', 'report platform', 'en');
     expect(res.handled).toBe(true);
@@ -125,9 +175,17 @@ describe('MenuRouterService', () => {
     const formatterMock: any = {};
     const mainMenuMock: any = {};
 
-    const service = new MenuRouterService(cacheManagerMock, formatterMock, mainMenuMock);
+    const service = new MenuRouterService(
+      cacheManagerMock,
+      formatterMock,
+      mainMenuMock,
+    );
 
-    const res = await service.routeMessage('uid_1', 'report property Palm Grove', 'en');
+    const res = await service.routeMessage(
+      'uid_1',
+      'report property Palm Grove',
+      'en',
+    );
     expect(res.handled).toBe(true);
     expect(res.tool).toEqual({
       name: 'generate_report_file',
@@ -145,9 +203,17 @@ describe('MenuRouterService', () => {
     const formatterMock: any = {};
     const mainMenuMock: any = {};
 
-    const service = new MenuRouterService(cacheManagerMock, formatterMock, mainMenuMock);
+    const service = new MenuRouterService(
+      cacheManagerMock,
+      formatterMock,
+      mainMenuMock,
+    );
 
-    const res = await service.routeMessage('uid_1', 'generate full portfolio report', 'en');
+    const res = await service.routeMessage(
+      'uid_1',
+      'generate full portfolio report',
+      'en',
+    );
     expect(res.handled).toBe(true);
     expect(res.tool).toEqual({
       name: 'generate_report_file',
@@ -160,9 +226,17 @@ describe('MenuRouterService', () => {
     const formatterMock: any = {};
     const mainMenuMock: any = {};
 
-    const service = new MenuRouterService(cacheManagerMock, formatterMock, mainMenuMock);
+    const service = new MenuRouterService(
+      cacheManagerMock,
+      formatterMock,
+      mainMenuMock,
+    );
 
-    const res = await service.routeMessage('uid_1', 'how are our properties doing', 'en');
+    const res = await service.routeMessage(
+      'uid_1',
+      'how are our properties doing',
+      'en',
+    );
     expect(res.handled).toBe(true);
     expect(res.tool).toEqual({
       name: 'generate_report_file',
@@ -175,7 +249,11 @@ describe('MenuRouterService', () => {
     const formatterMock: any = {};
     const mainMenuMock: any = {};
 
-    const service = new MenuRouterService(cacheManagerMock, formatterMock, mainMenuMock);
+    const service = new MenuRouterService(
+      cacheManagerMock,
+      formatterMock,
+      mainMenuMock,
+    );
 
     const res = await service.routeMessage('uid_1', 'report status', 'en');
     expect(res.handled).toBe(true);

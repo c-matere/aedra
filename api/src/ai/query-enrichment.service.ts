@@ -111,12 +111,20 @@ Provide ONLY the expanded prompt text. Strictly no prefixes or suffixes.
 
       const completion = await withRetry(() =>
         model.generateContent({
-          contents: [{ role: 'user', parts: [{ text: `${'You are a Query Enrichment specialist. Expand short messages into detailed requests.'}\n\n${prompt}` }] }]
-        })
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  text: `${'You are a Query Enrichment specialist. Expand short messages into detailed requests.'}\n\n${prompt}`,
+                },
+              ],
+            },
+          ],
+        }),
       );
 
-      const enriched =
-        completion.response.text()?.trim() || message;
+      const enriched = completion.response.text()?.trim() || message;
 
       this.logger.log(`Enriched query: "${enriched}"`);
       return enriched;

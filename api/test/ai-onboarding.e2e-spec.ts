@@ -59,16 +59,23 @@ describe('AI Onboarding (e2e)', () => {
 
   it('detects ONBOARDING as high-stakes and requests confirmation without hallucinating success', async () => {
     // Mock a property creation request
-    const message = 'I want to create a property called "Skyline Plaza" with 20 units at Westlands';
-    
+    const message =
+      'I want to create a property called "Skyline Plaza" with 20 units at Westlands';
+
     // We call the orchestrator directly to simulate WhatsApp flow
-    const result = await orchestrator.handleIncomingWhatsapp(phone, message, undefined, undefined, 'wamid.123');
-    
+    const result = await orchestrator.handleIncomingWhatsapp(
+      phone,
+      message,
+      undefined,
+      undefined,
+      'wamid.123',
+    );
+
     // The response should NOT say "Successfully created" because it requires confirmation
     expect(result.response).not.toContain('Successfully created');
     expect(result.response).not.toContain('Success!');
     expect(result.response).toContain('I need your confirmation');
-    
+
     // It should include interactive buttons (from our new orchestrator logic)
     // Note: orchestrator sends buttons via whatsappService mock/real.
     // In e2e, we check if result.interactive was populated.
@@ -80,13 +87,25 @@ describe('AI Onboarding (e2e)', () => {
   it('prevents duplicate processing of the same messageId', async () => {
     const message = 'Hello again';
     const messageId = 'wamid.duplicate.test';
-    
+
     // First call
-    await orchestrator.handleIncomingWhatsapp(phone, message, undefined, undefined, messageId);
-    
+    await orchestrator.handleIncomingWhatsapp(
+      phone,
+      message,
+      undefined,
+      undefined,
+      messageId,
+    );
+
     // Second call with same messageId
-    const result = await orchestrator.handleIncomingWhatsapp(phone, message, undefined, undefined, messageId);
-    
+    const result = await orchestrator.handleIncomingWhatsapp(
+      phone,
+      message,
+      undefined,
+      undefined,
+      messageId,
+    );
+
     // Should return undefined (skipped)
     expect(result).toBeUndefined();
   });

@@ -37,8 +37,8 @@ export class AiStateWorkflowEngine {
           action: {
             type: 'MESSAGE',
             name: 'acknowledge_late_payment',
-            next: 'CHECK_ARREARS'
-          }
+            next: 'CHECK_ARREARS',
+          },
         },
         CHECK_ARREARS: {
           name: 'CHECK_ARREARS',
@@ -47,8 +47,8 @@ export class AiStateWorkflowEngine {
             type: 'TOOL',
             name: 'get_tenant_arrears',
             onSuccess: 'DECIDE_NOTIFICATION',
-            onFailure: 'ERROR'
-          }
+            onFailure: 'ERROR',
+          },
         },
         DECIDE_NOTIFICATION: {
           name: 'DECIDE_NOTIFICATION',
@@ -57,8 +57,8 @@ export class AiStateWorkflowEngine {
             type: 'CONDITION',
             name: 'has_arrears',
             onSuccess: 'AWAIT_APPROVAL',
-            onFailure: 'CONFIRM_NO_ARREARS'
-          }
+            onFailure: 'CONFIRM_NO_ARREARS',
+          },
         },
         AWAIT_APPROVAL: {
           name: 'AWAIT_APPROVAL',
@@ -66,8 +66,8 @@ export class AiStateWorkflowEngine {
           action: {
             type: 'MESSAGE',
             name: 'ask_for_notification_approval',
-            next: 'END' // Will be resumed on user "Yes/No"
-          }
+            next: 'END', // Will be resumed on user "Yes/No"
+          },
         },
         NOTIFY: {
           name: 'NOTIFY',
@@ -75,8 +75,8 @@ export class AiStateWorkflowEngine {
           action: {
             type: 'TOOL',
             name: 'send_notification',
-            next: 'END'
-          }
+            next: 'END',
+          },
         },
         CONFIRM_NO_ARREARS: {
           name: 'CONFIRM_NO_ARREARS',
@@ -84,8 +84,8 @@ export class AiStateWorkflowEngine {
           action: {
             type: 'MESSAGE',
             name: 'confirm_clean_account',
-            next: 'END'
-          }
+            next: 'END',
+          },
         },
         ERROR: {
           name: 'ERROR',
@@ -93,11 +93,11 @@ export class AiStateWorkflowEngine {
           action: {
             type: 'MESSAGE',
             name: 'workflow_error',
-            next: 'END'
-          }
-        }
-      }
-    }
+            next: 'END',
+          },
+        },
+      },
+    },
   };
 
   constructor(private readonly contextMemory: ContextMemoryService) {}
@@ -114,12 +114,14 @@ export class AiStateWorkflowEngine {
     const currentStateName = ls.activeIssueId || wf.initialState; // Using activeIssueId as current state pointer for now
     const currentState = wf.states[currentStateName];
 
-    this.logger.log(`[WorkflowEngine] Intent=${ls.lockedIntent}, State=${currentStateName}`);
+    this.logger.log(
+      `[WorkflowEngine] Intent=${ls.lockedIntent}, State=${currentStateName}`,
+    );
 
     return {
       intent: ls.lockedIntent,
       state: currentState,
-      isComplete: currentStateName === 'END'
+      isComplete: currentStateName === 'END',
     };
   }
 

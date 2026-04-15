@@ -22,13 +22,19 @@ export interface WorkflowHandlers {
 
 const defaultHandlers = (instanceId: string): WorkflowHandlers => ({
   executeRule: async () => {
-    throw new Error(`WorkflowEngine rule handler not wired (Instance: ${instanceId}).`);
+    throw new Error(
+      `WorkflowEngine rule handler not wired (Instance: ${instanceId}).`,
+    );
   },
   executeTool: async () => {
-    throw new Error(`WorkflowEngine tool handler not wired (Instance: ${instanceId}).`);
+    throw new Error(
+      `WorkflowEngine tool handler not wired (Instance: ${instanceId}).`,
+    );
   },
   executeAI: async () => {
-    throw new Error(`WorkflowEngine AI handler not wired (Instance: ${instanceId}).`);
+    throw new Error(
+      `WorkflowEngine AI handler not wired (Instance: ${instanceId}).`,
+    );
   },
   onWait: async () => {},
 });
@@ -40,14 +46,20 @@ export class WorkflowEngine {
   private readonly instanceId = randomUUID();
 
   // Temporary in-memory cache for pending workflow states (multi-turn info gathering)
-  private readonly pendingStates = new Map<string, { intent: string; entities: Record<string, any> }>();
+  private readonly pendingStates = new Map<
+    string,
+    { intent: string; entities: Record<string, any> }
+  >();
 
   constructor(
     private readonly prisma: PrismaService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
     @Optional() handlers?: Partial<WorkflowHandlers>,
   ) {
-    this.handlers = { ...defaultHandlers(this.instanceId), ...handlers } as WorkflowHandlers;
+    this.handlers = {
+      ...defaultHandlers(this.instanceId),
+      ...handlers,
+    } as WorkflowHandlers;
     this.logger.log(`WorkflowEngine instance created: ${this.instanceId}`);
   }
 
@@ -55,7 +67,10 @@ export class WorkflowEngine {
     return this.pendingStates.get(chatId);
   }
 
-  async setPendingState(chatId: string, state: { intent: string; entities: Record<string, any> }) {
+  async setPendingState(
+    chatId: string,
+    state: { intent: string; entities: Record<string, any> },
+  ) {
     this.pendingStates.set(chatId, state);
   }
 
@@ -64,7 +79,9 @@ export class WorkflowEngine {
   }
 
   setHandlers(handlers: Partial<WorkflowHandlers>) {
-    this.logger.log(`[${this.instanceId}] Wiring new handlers: ${Object.keys(handlers).join(', ')}`);
+    this.logger.log(
+      `[${this.instanceId}] Wiring new handlers: ${Object.keys(handlers).join(', ')}`,
+    );
     Object.assign(this.handlers, handlers);
   }
 
@@ -74,9 +91,11 @@ export class WorkflowEngine {
     // but we can check if it was called via a flag if we wanted.
     // However, the error log says "WorkflowEngine tool handler not wired (Instance: ...)"
     // which comes from defaultHandlers.
-    // For now, assume if setHandlers was called, we are good, 
+    // For now, assume if setHandlers was called, we are good,
     // but better to check if any handler is NOT the default one.
-    return !this.handlers.executeTool.toString().includes('WorkflowEngine tool handler not wired');
+    return !this.handlers.executeTool
+      .toString()
+      .includes('WorkflowEngine tool handler not wired');
   }
 
   async create(
@@ -318,7 +337,10 @@ export class WorkflowEngine {
       createdAt: dbInstance.createdAt.toISOString(),
       updatedAt: dbInstance.updatedAt.toISOString(),
       completedSteps: dbInstance.steps.map((s) => s.action),
-      failedSteps: dbInstance.status === 'FAILED' ? [dbInstance.steps[dbInstance.steps.length - 1]?.action] : [],
+      failedSteps:
+        dbInstance.status === 'FAILED'
+          ? [dbInstance.steps[dbInstance.steps.length - 1]?.action]
+          : [],
       status: this.mapPrismaToWorkflowStatus(dbInstance.status),
     };
   }
@@ -392,11 +414,7 @@ export class WorkflowEngine {
     userId: string,
     instanceId: string,
   ): Promise<void> {
-    await this.cache.set(
-      this.activeKey(userId),
-      instanceId,
-      7 * 24 * 60 * 60,
-    );
+    await this.cache.set(this.activeKey(userId), instanceId, 7 * 24 * 60 * 60);
   }
 
   private getDefinition(workflowId: string): WorkflowDefinition {

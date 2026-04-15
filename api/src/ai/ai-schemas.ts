@@ -23,7 +23,7 @@ export const UNIFIED_PLAN_SCHEMA = {
         'EMERGENCY',
         'UTILITY_OUTAGE',
         'REVENUE_REPORT',
-        'REGISTER_COMPANY'
+        'REGISTER_COMPANY',
       ],
     },
     priority: {
@@ -46,7 +46,10 @@ export const UNIFIED_PLAN_SCHEMA = {
         propertyName: { type: SchemaType.STRING },
         amount: { type: SchemaType.NUMBER },
         date: { type: SchemaType.STRING },
-        issueDescription: { type: SchemaType.STRING, description: 'Brief summary of the maintenance/issue' },
+        issueDescription: {
+          type: SchemaType.STRING,
+          description: 'Brief summary of the maintenance/issue',
+        },
         unitCount: { type: SchemaType.NUMBER },
         propertyAddress: { type: SchemaType.STRING },
         email: { type: SchemaType.STRING },
@@ -61,10 +64,22 @@ export const UNIFIED_PLAN_SCHEMA = {
       items: {
         type: SchemaType.OBJECT,
         properties: {
-          tool: { type: SchemaType.STRING, description: 'Name of the tool to execute' },
-          args: { type: SchemaType.OBJECT, description: 'Arguments for the tool' },
-          dependsOn: { type: SchemaType.STRING, description: 'Optional: name of the tool this step depends on' },
-          required: { type: SchemaType.BOOLEAN, description: 'If true, failure stops execution' },
+          tool: {
+            type: SchemaType.STRING,
+            description: 'Name of the tool to execute',
+          },
+          args: {
+            type: SchemaType.OBJECT,
+            description: 'Arguments for the tool',
+          },
+          dependsOn: {
+            type: SchemaType.STRING,
+            description: 'Optional: name of the tool this step depends on',
+          },
+          required: {
+            type: SchemaType.BOOLEAN,
+            description: 'If true, failure stops execution',
+          },
         },
         required: ['tool', 'args', 'required'],
       },

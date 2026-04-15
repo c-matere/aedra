@@ -427,13 +427,22 @@ export const SKILLS_REGISTRY: AedraSkill[] = [
     skill_id: 'update_property',
     name: 'Property Data Synchronizer',
     description: 'Updates details or feeds new data into an existing property.',
-    trigger_intents: ['update_property', 'feed_data_property', 'log_property_changes'],
+    trigger_intents: [
+      'update_property',
+      'feed_data_property',
+      'log_property_changes',
+    ],
     tier_required: 2,
     persona_id: UserPersona.STAFF,
-    objective: 'Update existing property records with accurate data from user input or attachments.',
+    objective:
+      'Update existing property records with accurate data from user input or attachments.',
     system_prompt_injection:
       'You are updating an existing property record. Match the property by name or ID. Extract updated fields (address, landlord, commission, etc.) from the user or attachment. IMAGE ATTACHMENTS: You can see images directly; use your vision to extract data. DO NOT use run_python_script for OCR on images. Use update_property tool to save changes. Summarize what was updated.',
-    tools_required: ['update_property', 'get_property_details', 'list_properties'],
+    tools_required: [
+      'update_property',
+      'get_property_details',
+      'list_properties',
+    ],
     outputSchema: {
       type: 'object',
       properties: {

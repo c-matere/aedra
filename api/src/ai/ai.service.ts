@@ -45,7 +45,15 @@ import { AiDecisionSpineService } from './ai-decision-spine.service';
 import { ConsistencyValidatorService } from './consistency-validator.service';
 import { InterpretationLayer } from './layers/interpretation-layer.service';
 import { ActionResult } from './next-step-orchestrator.service';
-import { AiIntent, OperationalIntent, TruthObject, ExecutionTrace, AiServiceChatResponse, UnifiedPlan, UnifiedActionResult } from './ai-contracts.types';
+import {
+  AiIntent,
+  OperationalIntent,
+  TruthObject,
+  ExecutionTrace,
+  AiServiceChatResponse,
+  UnifiedPlan,
+  UnifiedActionResult,
+} from './ai-contracts.types';
 import { ACTION_CONTRACTS } from './contracts/action-contracts';
 import { inferTenantQueryFromMessage } from './tenant-query.util';
 import { MenuRouterService } from './menu-router.service';
@@ -87,7 +95,9 @@ export class AiService implements OnModuleInit {
     private readonly nextStepController: AiNextStepController,
     private readonly normalizer: AiIntentNormalizerService,
   ) {
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy-key');
+    this.genAI = new GoogleGenerativeAI(
+      process.env.GEMINI_API_KEY || 'dummy-key',
+    );
     this.groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'dummy-key' });
   }
 
@@ -103,19 +113,35 @@ export class AiService implements OnModuleInit {
   private wireWorkflowHandlers() {
     this.logger.log(`[AiService] Wiring workflow handlers.`);
     const handlers = {
-      executeTool: async (id: string, ctx: any) => this.registry.executeTool(id, ctx.args || {}, ctx, ctx.role, ctx.language || 'en'),
+      executeTool: async (id: string, ctx: any) =>
+        this.registry.executeTool(
+          id,
+          ctx.args || {},
+          ctx,
+          ctx.role,
+          ctx.language || 'en',
+        ),
       executeAI: async (id: string, ctx: any) => {
-        const res = await this.chat([], `Perform step ${id}: ${JSON.stringify(ctx)}`, ctx.chatId);
+        const res = await this.chat(
+          [],
+          `Perform step ${id}: ${JSON.stringify(ctx)}`,
+          ctx.chatId,
+        );
         return res.response;
       },
-      executeRule: async (id: string, ctx: any) => { return { success: true }; }
+      executeRule: async (id: string, ctx: any) => {
+        return { success: true };
+      },
     };
 
     if (this.workflowBridge) {
       this.workflowEngine.setHandlers({
-        executeRule: (stepId, context) => this.workflowBridge.executeRule(stepId, context),
-        executeTool: (stepId, context) => this.workflowBridge.executeTool(stepId, context),
-        executeAI: (stepId, context) => this.workflowBridge.executeAI(stepId, context)
+        executeRule: (stepId, context) =>
+          this.workflowBridge.executeRule(stepId, context),
+        executeTool: (stepId, context) =>
+          this.workflowBridge.executeTool(stepId, context),
+        executeAI: (stepId, context) =>
+          this.workflowBridge.executeAI(stepId, context),
       });
     } else {
       this.workflowEngine.setHandlers(handlers);
@@ -124,37 +150,49 @@ export class AiService implements OnModuleInit {
 
   private async verifyHealth() {
     if (this.modelsVerified) return;
-    
+
     // 1. Verify Primary Model (Gemini)
     try {
       const model = this.genAI.getGenerativeModel({ model: this.primaryModel });
       // Increase retries to handle transient 429s at startup
-      await withRetry(() => model.generateContent('health check'), { 
-        maxRetries: 3, 
+      await withRetry(() => model.generateContent('health check'), {
+        maxRetries: 3,
         initialDelay: 2000,
-        factor: 2 
+        factor: 2,
       });
-      this.logger.log(`[HealthCheck] Primary model (${this.primaryModel}) is ONLINE.`);
+      this.logger.log(
+        `[HealthCheck] Primary model (${this.primaryModel}) is ONLINE.`,
+      );
     } catch (e) {
       if (e.message?.includes('429')) {
-        this.logger.warn(`[HealthCheck] Primary model (${this.primaryModel}) is RATE LIMITED (429). Failover to Groq active.`);
+        this.logger.warn(
+          `[HealthCheck] Primary model (${this.primaryModel}) is RATE LIMITED (429). Failover to Groq active.`,
+        );
       } else {
-        this.logger.warn(`[HealthCheck] Primary model (${this.primaryModel}) is OFFLINE: ${e.message}. Failover to Groq active.`);
+        this.logger.warn(
+          `[HealthCheck] Primary model (${this.primaryModel}) is OFFLINE: ${e.message}. Failover to Groq active.`,
+        );
       }
     }
 
     // 2. Verify Fallback Model (Groq)
     try {
-      await withRetry(() => this.groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'user', content: 'hi' }],
-        max_tokens: 5
-      }), { maxRetries: 2, initialDelay: 1000 });
+      await withRetry(
+        () =>
+          this.groq.chat.completions.create({
+            model: 'llama-3.3-70b-versatile',
+            messages: [{ role: 'user', content: 'hi' }],
+            max_tokens: 5,
+          }),
+        { maxRetries: 2, initialDelay: 1000 },
+      );
       this.logger.log(`[HealthCheck] Fallback model (Groq) is ONLINE.`);
     } catch (e) {
-      this.logger.error(`[HealthCheck] Fallback model (Groq) is OFFLINE: ${e.message}. Critical system failure likely.`);
+      this.logger.error(
+        `[HealthCheck] Fallback model (Groq) is OFFLINE: ${e.message}. Critical system failure likely.`,
+      );
     }
-    
+
     this.modelsVerified = true;
   }
 
@@ -167,7 +205,9 @@ export class AiService implements OnModuleInit {
     mimeType: string,
     language?: string,
   ): Promise<string | null> {
-    this.logger.log(`[AiService] Attempting Gemini transcription (${mimeType})...`);
+    this.logger.log(
+      `[AiService] Attempting Gemini transcription (${mimeType})...`,
+    );
     try {
       const model = this.genAI.getGenerativeModel({ model: this.primaryModel });
       const prompt =
@@ -192,22 +232,43 @@ export class AiService implements OnModuleInit {
       const transcript = result.response.text();
       return transcript ? transcript.trim() : null;
     } catch (e) {
-      this.logger.error(`[AiService] Gemini transcription failed: ${e.message}`);
+      this.logger.error(
+        `[AiService] Gemini transcription failed: ${e.message}`,
+      );
       return null;
     }
   }
 
-
   private readonly WORKFLOW_MAP: Record<string, string[]> = {
-    'FINANCIAL_QUERY': ['kernel_search', 'get_tenant_arrears', 'render_financial_dashboard'],
-    'PAYMENT_PROMISE': ['kernel_search', 'get_tenant_arrears', 'log_payment_promise'],
-    'PAYMENT_DECLARATION': ['kernel_search', 'get_tenant_arrears', 'verify_payment'],
-    'MAINTENANCE': ['kernel_search', 'kernel_validation', 'log_maintenance_request'],
-    'COMPLAINT': ['kernel_search', 'log_maintenance_request', 'notify_landlord'],
-    'ONBOARDING': ['kernel_validation', 'register_tenant', 'create_lease'],
-    'FINANCIAL_REPORTING': ['get_revenue_summary', 'get_collection_rate', 'manual_aggregation'],
-    'SYSTEM_ISSUE': ['log_system_error', 'notify_it'],
-    'UTILITY_OUTAGE': ['get_unit_details']
+    FINANCIAL_QUERY: [
+      'kernel_search',
+      'get_tenant_arrears',
+      'render_financial_dashboard',
+    ],
+    PAYMENT_PROMISE: [
+      'kernel_search',
+      'get_tenant_arrears',
+      'log_payment_promise',
+    ],
+    PAYMENT_DECLARATION: [
+      'kernel_search',
+      'get_tenant_arrears',
+      'verify_payment',
+    ],
+    MAINTENANCE: [
+      'kernel_search',
+      'kernel_validation',
+      'log_maintenance_request',
+    ],
+    COMPLAINT: ['kernel_search', 'log_maintenance_request', 'notify_landlord'],
+    ONBOARDING: ['kernel_validation', 'register_tenant', 'create_lease'],
+    FINANCIAL_REPORTING: [
+      'get_revenue_summary',
+      'get_collection_rate',
+      'manual_aggregation',
+    ],
+    SYSTEM_ISSUE: ['log_system_error', 'notify_it'],
+    UTILITY_OUTAGE: ['get_unit_details'],
   };
 
   async chat(
@@ -223,27 +284,48 @@ export class AiService implements OnModuleInit {
     temperature?: number,
     confirmed?: boolean,
   ): Promise<AiServiceChatResponse> {
-    const isAffirmative = /^(yes|proceed|confirmed|it is correct|ndio|endelea|sawa|haina shida|plan_approve|correction_proceed)$/i.test((message || '').trim());
+    const isAffirmative =
+      /^(yes|proceed|confirmed|it is correct|ndio|endelea|sawa|haina shida|plan_approve|correction_proceed)$/i.test(
+        (message || '').trim(),
+      );
     const finalConfirmed = confirmed || isAffirmative;
     const store = tenantContext.getStore() as any;
     const userId = store?.userId || 'SYSTEM';
     const role = store?.role || UserRole.COMPANY_STAFF;
     message = message || '';
-    
+
     // v4.9 "True Agent": Bench Persona Routing
-    const benchPersonaMatch = (message || '').match(/\[BENCH_PERSONA:(TENANT|STAFF|LANDLORD|COMPANY_STAFF)\]/i);
-    let effectiveRole = (role === UserRole.SUPER_ADMIN && benchPersonaMatch) ? benchPersonaMatch[1].toUpperCase() : role;
+    const benchPersonaMatch = (message || '').match(
+      /\[BENCH_PERSONA:(TENANT|STAFF|LANDLORD|COMPANY_STAFF)\]/i,
+    );
+    let effectiveRole =
+      role === UserRole.SUPER_ADMIN && benchPersonaMatch
+        ? benchPersonaMatch[1].toUpperCase()
+        : role;
     if (effectiveRole === 'STAFF') effectiveRole = UserRole.COMPANY_STAFF; // Alias mapping
 
     const cleanMessage = (message || '')
-        .replace(/\[BENCH_.*?\]/g, '')
-        .replace(/^Simulate responding as if speaking to a \w+\.\s*Message:\s*/i, '')
-        .replace(/^(Message|Input|Request|User):\s*/i, '')
-        .trim(); 
-    const finalChatId = chatId || (await this.getOrCreateChat(userId, companyId, phone));
-    
+      .replace(/\[BENCH_.*?\]/g, '')
+      .replace(
+        /^Simulate responding as if speaking to a \w+\.\s*Message:\s*/i,
+        '',
+      )
+      .replace(/^(Message|Input|Request|User):\s*/i, '')
+      .trim();
+    const finalChatId =
+      chatId || (await this.getOrCreateChat(userId, companyId, phone));
+
     // Phase 0: Ensure Context Hydration (v5.8)
-    const context: any = { userId, role: effectiveRole, chatId: finalChatId, companyId, companyName, attachments, language, phone };
+    const context: any = {
+      userId,
+      role: effectiveRole,
+      chatId: finalChatId,
+      companyId,
+      companyName,
+      attachments,
+      language,
+      phone,
+    };
     await this.ensureContext(context, { companyId, chatId: finalChatId });
     await this.hydrateSecurityContext(context);
     const effectiveCompanyId: string = context.companyId;
@@ -252,16 +334,20 @@ export class AiService implements OnModuleInit {
     // (WhatsApp already tries this earlier, but other channels like /ai/chat may not.)
     try {
       const uid = getSessionUid({ userId, phone });
-      const lang = (language || context.language || 'en') as any;
+      const lang = language || context.language || 'en';
       if (uid) {
-        const menuRoute = await this.menuRouter.routeMessage(uid, cleanMessage, lang);
+        const menuRoute = await this.menuRouter.routeMessage(
+          uid,
+          cleanMessage,
+          lang,
+        );
         if (menuRoute.handled) {
           if (menuRoute.tool) {
             const actionResult = await this.executeToolAction(
               menuRoute.tool.name,
               menuRoute.tool.args || {},
               context,
-              effectiveRole as any,
+              effectiveRole,
               lang,
             );
             const formatted = await this.formatToolResponse(
@@ -301,71 +387,102 @@ export class AiService implements OnModuleInit {
     }
 
     // 0. Initialize Execution Trace (SSOT)
-    let trace: ExecutionTrace = {
-        id: `trace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        sessionId: finalChatId,
-        userId: userId,
-        role: effectiveRole as any,
-        input: cleanMessage,
-        status: 'PENDING',
-        steps: [],
-        errors: [],
-        metadata: { 
-          companyId: effectiveCompanyId,
-          phone, 
-          language, 
-          temperature, 
-          originalMessage: message, 
-          effectiveRole,
-          administrative_context: effectiveRole === UserRole.SUPER_ADMIN 
-        },
+    const trace: ExecutionTrace = {
+      id: `trace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      sessionId: finalChatId,
+      userId: userId,
+      role: effectiveRole,
+      input: cleanMessage,
+      status: 'PENDING',
+      steps: [],
+      errors: [],
+      metadata: {
+        companyId: effectiveCompanyId,
+        phone,
+        language,
+        temperature,
+        originalMessage: message,
+        effectiveRole,
+        administrative_context: effectiveRole === UserRole.SUPER_ADMIN,
+      },
     };
 
     try {
       this.logger.log(`[AiService] chat() Starting trace: ${trace.id}`);
-      
+
       // 1. Security & Firewall
-      if (this.securityService.isSecurityViolation(message, effectiveRole as UserRole)) {
-        return { response: this.securityService.getRefusalMessage(), chatId: finalChatId };
+      if (
+        this.securityService.isSecurityViolation(
+          message,
+          effectiveRole as UserRole,
+        )
+      ) {
+        return {
+          response: this.securityService.getRefusalMessage(),
+          chatId: finalChatId,
+        };
       }
 
-      const firewallDecision = this.firewall.intercept(message, effectiveRole as any);
+      const firewallDecision = this.firewall.intercept(message, effectiveRole);
       if (firewallDecision.isIntercepted && firewallDecision.message) {
         return { response: firewallDecision.message, chatId: finalChatId };
       }
 
       // 2. Auth-First Context Hydration (Tenant Isolation)
-      let sessionContext = await this.contextMemory.getContext(getSessionUid({ userId, phone }));
+      let sessionContext = await this.contextMemory.getContext(
+        getSessionUid({ userId, phone }),
+      );
       if (effectiveRole === UserRole.TENANT && phone) {
-        const authContext = await this.hydrateTenantContext(phone, effectiveCompanyId);
+        const authContext = await this.hydrateTenantContext(
+          phone,
+          effectiveCompanyId,
+        );
         sessionContext = { ...sessionContext, ...authContext };
-        this.logger.log(`[AiService] Auth-First Hydration for ${phone}: tenant=${authContext.tenantId}, unit=${authContext.unitId}`);
+        this.logger.log(
+          `[AiService] Auth-First Hydration for ${phone}: tenant=${authContext.tenantId}, unit=${authContext.unitId}`,
+        );
       }
-      
+
       // Phase 0: Merge Hydrated Context (v5.9)
-      Object.assign(context, sessionContext, { companyId: effectiveCompanyId, chatId: finalChatId });
-      this.logger.debug(`[AiService] Hydrated Context: ${JSON.stringify(context.registrationData || {})}`);
+      Object.assign(context, sessionContext, {
+        companyId: effectiveCompanyId,
+        chatId: finalChatId,
+      });
+      this.logger.debug(
+        `[AiService] Hydrated Context: ${JSON.stringify(context.registrationData || {})}`,
+      );
 
       // 3. Unified LLM-Driven Planning (v5.2)
       let finalHistory = history || [];
       if (finalHistory.length === 0 && finalChatId) {
-        const dbHistory = await this.historyService.getMessageHistory(finalChatId);
+        const dbHistory =
+          await this.historyService.getMessageHistory(finalChatId);
         if (dbHistory && dbHistory.length > 0) {
-          this.logger.log(`[AiService] Hydrated ${dbHistory.length} history messages from DB for ${finalChatId}`);
+          this.logger.log(
+            `[AiService] Hydrated ${dbHistory.length} history messages from DB for ${finalChatId}`,
+          );
           finalHistory = dbHistory;
         }
       }
 
       const scrubbedHistory = this.scrubHistory(finalHistory);
-      const plan = await this.promptService.generateUnifiedPlan(cleanMessage, effectiveRole as UserRole, context, scrubbedHistory);
+      const plan = await this.promptService.generateUnifiedPlan(
+        cleanMessage,
+        effectiveRole as UserRole,
+        context,
+        scrubbedHistory,
+      );
       trace.unifiedPlan = plan;
-      trace.interpretation = { 
-        intent: plan.intent, 
-        operationalIntent: plan.priority === 'EMERGENCY' ? OperationalIntent.REASSURE_AND_ESCALATE : OperationalIntent.STANDARD,
-        confidence: 1.0, 
+      trace.interpretation = {
+        intent: plan.intent,
+        operationalIntent:
+          plan.priority === 'EMERGENCY'
+            ? OperationalIntent.REASSURE_AND_ESCALATE
+            : OperationalIntent.STANDARD,
+        confidence: 1.0,
         entities: plan.entities || {},
         language: plan.language || 'en',
-        priority: plan.priority || 'NORMAL'
+        priority: plan.priority || 'NORMAL',
       };
       trace.status = 'EXECUTING';
 
@@ -377,7 +494,12 @@ export class AiService implements OnModuleInit {
 
           // Treat placeholder/no-op tool names as "no step" instead of a hard failure.
           // Some model outputs include steps like {"tool":"NONE"} when no tool is needed.
-          if (!toolName || ['none', 'noop', 'no_tool', 'no-tool'].includes(toolName.toLowerCase())) {
+          if (
+            !toolName ||
+            ['none', 'noop', 'no_tool', 'no-tool'].includes(
+              toolName.toLowerCase(),
+            )
+          ) {
             continue;
           }
 
@@ -414,7 +536,9 @@ export class AiService implements OnModuleInit {
         // For everything else, ask the user to pick an action OR use the AI's immediate response.
         if (!isTrivial) {
           if (plan.immediateResponse) {
-            await this.persistTraceMetadata(trace, context, userId, { response: plan.immediateResponse });
+            await this.persistTraceMetadata(trace, context, userId, {
+              response: plan.immediateResponse,
+            });
             return {
               response: plan.immediateResponse,
               chatId: finalChatId,
@@ -444,15 +568,20 @@ export class AiService implements OnModuleInit {
       }
 
       // 4. Immediate Response (Pre-Execution)
-      if (plan.immediateResponse && (plan.priority === 'EMERGENCY' || plan.priority === 'HIGH')) {
-        this.logger.log(`[AiService] Immediate response triggered: ${plan.immediateResponse.substring(0, 30)}...`);
+      if (
+        plan.immediateResponse &&
+        (plan.priority === 'EMERGENCY' || plan.priority === 'HIGH')
+      ) {
+        this.logger.log(
+          `[AiService] Immediate response triggered: ${plan.immediateResponse.substring(0, 30)}...`,
+        );
         // Note: In a real streaming scenario, we'd send this now. For now, we'll append it to the renderer context.
       }
 
       // 5. Hardened Execution Loop (v5.2)
       const resultsMap: Record<string, any> = {
         session: context,
-        entities: { ...(plan.entities || {}) }
+        entities: { ...(plan.entities || {}) },
       };
 
       const scrubPlaceholders = (obj: any, keys: string[]) => {
@@ -462,17 +591,39 @@ export class AiService implements OnModuleInit {
         }
       };
 
-      const inferUnitAndPropertyFromText = (text: string): { unitName?: string; propertyName?: string; unitNumber?: string } => {
+      const inferUnitAndPropertyFromText = (
+        text: string,
+      ): { unitName?: string; propertyName?: string; unitNumber?: string } => {
         const t = (text || '').toString();
-        const wordsToIgnore = new Set(['to', 'at', 'in', 'for', 'the', 'a', 'an', 'is', 'of', 'assign', 'them', 'his', 'her', 'their', 'add', 'create', 'new', 'into', 'from']);
-        
+        const wordsToIgnore = new Set([
+          'to',
+          'at',
+          'in',
+          'for',
+          'the',
+          'a',
+          'an',
+          'is',
+          'of',
+          'assign',
+          'them',
+          'his',
+          'her',
+          'their',
+          'add',
+          'create',
+          'new',
+          'into',
+          'from',
+        ]);
+
         // Split by "unit" keyword (handle various formats like "unit 1", "unit#1", "unit : 1")
         const parts = t.split(/\bunit\b[:#\s]*/i);
         if (parts.length >= 2) {
           // The property name is before the first "unit" instance
           const beforeUnit = parts[0].trim();
           const wordsBefore = beforeUnit.split(/\s+/);
-          
+
           // Take the last few words and filter out noise
           const candidates = [];
           for (let i = wordsBefore.length - 1; i >= 0; i--) {
@@ -481,14 +632,16 @@ export class AiService implements OnModuleInit {
             if (candidates.length >= 3) break; // Limit to 3 words for property name
             candidates.unshift(wordsBefore[i]);
           }
-          
+
           const propertyName = candidates.join(' ').trim();
           const unitPart = parts[1].trim();
           const unitNumber = unitPart.split(/\s+/)[0].replace(/[^\w-]/g, '');
-          
+
           if (unitNumber) {
             return {
-              unitName: propertyName ? `${propertyName} Unit ${unitNumber}` : `Unit ${unitNumber}`,
+              unitName: propertyName
+                ? `${propertyName} Unit ${unitNumber}`
+                : `Unit ${unitNumber}`,
               propertyName: propertyName || undefined,
               unitNumber,
             };
@@ -502,29 +655,46 @@ export class AiService implements OnModuleInit {
       // Resolve IDs for names/units even if no tool is scheduled (crucial for sequential context)
       if (plan.entities) {
         if (plan.entities.tenantName && !resultsMap.entities.tenantId) {
-          const res = await this.entityResolver.resolveId('tenant', plan.entities.tenantName, effectiveCompanyId, plan.entities.unitNumber);
+          const res = await this.entityResolver.resolveId(
+            'tenant',
+            plan.entities.tenantName,
+            effectiveCompanyId,
+            plan.entities.unitNumber,
+          );
           if (res.id) resultsMap.entities.tenantId = res.id;
         }
         if (plan.entities.unitNumber && !resultsMap.entities.unitId) {
-          const res = await this.entityResolver.resolveId('unit', plan.entities.unitNumber, effectiveCompanyId);
+          const res = await this.entityResolver.resolveId(
+            'unit',
+            plan.entities.unitNumber,
+            effectiveCompanyId,
+          );
           if (res.id) resultsMap.entities.unitId = res.id;
         }
         if (plan.entities.propertyName && !resultsMap.entities.propertyId) {
-          const res = await this.entityResolver.resolveId('property', plan.entities.propertyName, effectiveCompanyId);
+          const res = await this.entityResolver.resolveId(
+            'property',
+            plan.entities.propertyName,
+            effectiveCompanyId,
+          );
           if (res.id) resultsMap.entities.propertyId = res.id;
         }
       }
 
       for (const step of plan.steps) {
-        this.logger.log(`[ExecutionLoop] Step: ${step.tool} (Required: ${step.required})`);
-        
+        this.logger.log(
+          `[ExecutionLoop] Step: ${step.tool} (Required: ${step.required})`,
+        );
+
         // 5a. Dependency Resolution
         const resolvedArgs = { ...step.args };
         if (finalConfirmed) {
           resolvedArgs.confirm = true;
-          this.logger.log(`[ExecutionLoop] Injecting confirm=true into ${step.tool} arguments`);
+          this.logger.log(
+            `[ExecutionLoop] Injecting confirm=true into ${step.tool} arguments`,
+          );
         }
-        
+
         // Handle "DEPENDS" keyword
         if (step.dependsOn) {
           const depResult = resultsMap[step.dependsOn];
@@ -574,47 +744,61 @@ export class AiService implements OnModuleInit {
           // Check all step results for the key
           for (const stepData of Object.values(resultsMap)) {
             if (typeof stepData === 'object' && stepData !== null) {
-              const data = (stepData as any).result || stepData;
+              const data = stepData.result || stepData;
               if (data?.[templateKey] !== undefined) return data[templateKey];
             }
           }
 
           // Also check resultsMap.entities
-          const entitiesValue = (resultsMap.entities as any)?.[templateKey];
+          const entitiesValue = resultsMap.entities?.[templateKey];
           if (entitiesValue !== undefined) return entitiesValue;
 
           return undefined;
         };
 
         for (const [key, value] of Object.entries(resolvedArgs)) {
-          if (typeof value === 'string' && value.startsWith('{{') && value.endsWith('}}')) {
+          if (
+            typeof value === 'string' &&
+            value.startsWith('{{') &&
+            value.endsWith('}}')
+          ) {
             const resolvedValue = resolveTemplate(value);
             if (resolvedValue !== undefined) {
-              this.logger.log(`[ExecutionLoop] Resolved template ${value} -> ${JSON.stringify(resolvedValue)}`);
+              this.logger.log(
+                `[ExecutionLoop] Resolved template ${value} -> ${JSON.stringify(resolvedValue)}`,
+              );
               resolvedArgs[key] = resolvedValue;
             } else {
-              this.logger.warn(`[ExecutionLoop] Could not resolve template ${value} for arg '${key}'`);
+              this.logger.warn(
+                `[ExecutionLoop] Could not resolve template ${value} for arg '${key}'`,
+              );
             }
           }
         }
 
         // After template resolution, also inject from resultsMap.entities for any remaining nullish ID fields.
-        for (const [key, entityVal] of Object.entries(resultsMap.entities || {})) {
+        for (const [key, entityVal] of Object.entries(
+          resultsMap.entities || {},
+        )) {
           if (entityVal && !resolvedArgs[key]) {
             resolvedArgs[key] = entityVal;
           }
         }
 
-
-        const isHighStakes = step.isHighStakes || this.registry.isHighStakes(step.tool);
+        const isHighStakes =
+          step.isHighStakes || this.registry.isHighStakes(step.tool);
         const isRequired = step.required || isHighStakes;
 
-        const depSucceeded = !step.dependsOn || !!resultsMap[step.dependsOn]?.success;
-        const hasUnresolvedPlaceholders = Object.values(resolvedArgs).some((v) => {
-          if (v === 'DEPENDS') return true;
-          if (typeof v === 'string' && v.startsWith('{{') && v.endsWith('}}')) return true;
-          return false;
-        });
+        const depSucceeded =
+          !step.dependsOn || !!resultsMap[step.dependsOn]?.success;
+        const hasUnresolvedPlaceholders = Object.values(resolvedArgs).some(
+          (v) => {
+            if (v === 'DEPENDS') return true;
+            if (typeof v === 'string' && v.startsWith('{{') && v.endsWith('}}'))
+              return true;
+            return false;
+          },
+        );
         if (step.dependsOn && !depSucceeded && hasUnresolvedPlaceholders) {
           this.logger.warn(
             `[ExecutionLoop] Skipping step ${step.tool} due to failed dependency ${step.dependsOn} and unresolved placeholders in args`,
@@ -628,8 +812,14 @@ export class AiService implements OnModuleInit {
         }
 
         // 5b. On-the-fly Entity Resolution (Merge Plan Entities & Cache)
-        const activeTenantId = resolvedArgs.tenantId || resultsMap.entities.tenantId || (context.activeTenantId as string);
-        const activeUnitId = resolvedArgs.unitId || resultsMap.entities.unitId || (context.activeUnitId as string);
+        const activeTenantId =
+          resolvedArgs.tenantId ||
+          resultsMap.entities.tenantId ||
+          (context.activeTenantId as string);
+        const activeUnitId =
+          resolvedArgs.unitId ||
+          resultsMap.entities.unitId ||
+          (context.activeUnitId as string);
 
         // If a tenant-scoped tool is missing an ID but we have an active tenant in context, inject it.
         // This is critical for follow-ups like "give me her statement" after opening a tenant profile.
@@ -641,34 +831,52 @@ export class AiService implements OnModuleInit {
           'list_invoices',
           'list_leases',
         ]);
-        if (tenantScopedTools.has(step.tool) && !resolvedArgs.tenantId && activeTenantId) {
+        if (
+          tenantScopedTools.has(step.tool) &&
+          !resolvedArgs.tenantId &&
+          activeTenantId
+        ) {
           resolvedArgs.tenantId = activeTenantId;
-          if (step.tool === 'get_tenant_details' && !resolvedArgs.id) resolvedArgs.id = activeTenantId;
+          if (step.tool === 'get_tenant_details' && !resolvedArgs.id)
+            resolvedArgs.id = activeTenantId;
         }
 
         // Deterministic repair: if the planner scheduled a tenant search but forgot args, infer a query
         // from the original user message (e.g. "mary atieno profile" -> "mary atieno").
         if (step.tool === 'search_tenants') {
-          const q = (resolvedArgs?.query ||
+          const q = (
+            resolvedArgs?.query ||
             resolvedArgs?.tenant_name ||
             resolvedArgs?.tenantName ||
             resolvedArgs?.tenant_query ||
             resolvedArgs?.name ||
-            '').toString().trim();
+            ''
+          )
+            .toString()
+            .trim();
           if (!q) {
             const inferred = inferTenantQueryFromMessage(cleanMessage);
             if (inferred) {
               resolvedArgs.query = inferred;
-              resultsMap.entities.tenantName = resultsMap.entities.tenantName || inferred;
+              resultsMap.entities.tenantName =
+                resultsMap.entities.tenantName || inferred;
             }
           }
         }
-        
+
         // Injected pre-emptive resolution for common tools if IDs are still missing but names exist
-        if (!activeTenantId && (resultsMap.entities?.tenantName || plan.entities?.tenantName)) {
-           const tenantQuery = resultsMap.entities?.tenantName || plan.entities?.tenantName;
-           const res = await this.entityResolver.resolveId('tenant', tenantQuery, effectiveCompanyId);
-           if (res.id) resolvedArgs.tenantId = res.id;
+        if (
+          !activeTenantId &&
+          (resultsMap.entities?.tenantName || plan.entities?.tenantName)
+        ) {
+          const tenantQuery =
+            resultsMap.entities?.tenantName || plan.entities?.tenantName;
+          const res = await this.entityResolver.resolveId(
+            'tenant',
+            tenantQuery,
+            effectiveCompanyId,
+          );
+          if (res.id) resolvedArgs.tenantId = res.id;
         }
 
         // 5c. Action Execution
@@ -687,9 +895,13 @@ export class AiService implements OnModuleInit {
           // Heuristic: if user mentioned a unit/property in the message but the plan left it blank,
           // inject unitName/propertyId hints so resolution can succeed.
           if (
-            ['create_tenant', 'register_tenant', 'create_lease', 'get_unit_details', 'get_property_details'].includes(
-              (step.tool || '').toString(),
-            ) &&
+            [
+              'create_tenant',
+              'register_tenant',
+              'create_lease',
+              'get_unit_details',
+              'get_property_details',
+            ].includes((step.tool || '').toString()) &&
             !resolvedArgs?.unitId &&
             !resolvedArgs?.unitName &&
             !resolvedArgs?.unitNumber &&
@@ -698,15 +910,22 @@ export class AiService implements OnModuleInit {
           ) {
             const inferred = inferUnitAndPropertyFromText(cleanMessage);
             if (inferred.unitName) resolvedArgs.unitName = inferred.unitName;
-            if (inferred.unitNumber) resolvedArgs.unitNumber = inferred.unitNumber;
+            if (inferred.unitNumber)
+              resolvedArgs.unitNumber = inferred.unitNumber;
             if (inferred.propertyName) {
               resolvedArgs.propertyName = inferred.propertyName;
-              if (!resolvedArgs.propertyId) resolvedArgs.propertyId = inferred.propertyName;
+              if (!resolvedArgs.propertyId)
+                resolvedArgs.propertyId = inferred.propertyName;
             }
           }
 
-
-          const result = await this.executeTool(step.tool, resolvedArgs, context, effectiveRole as string, language);
+          const result = await this.executeTool(
+            step.tool,
+            resolvedArgs,
+            context,
+            effectiveRole as string,
+            language,
+          );
           const isBlockedResult =
             !!result?.requires_clarification ||
             !!result?.requires_confirmation ||
@@ -717,101 +936,145 @@ export class AiService implements OnModuleInit {
           if (result && typeof result === 'object') {
             (result as any).action = step.tool;
           }
-          
+
           // PROPAGATION: Merge result into entities for subsequent steps
           if (success && result && typeof result === 'object') {
-            const dataToMerge = (result.data && typeof result.data === 'object') ? result.data : result;
+            const dataToMerge =
+              result.data && typeof result.data === 'object'
+                ? result.data
+                : result;
             Object.assign(resultsMap.entities, dataToMerge);
           }
 
           // Phase 0: In-flight Hydration (v5.8)
           if (success && result) {
-            const data = (result.data && typeof result.data === 'object') ? result.data : result;
+            const data =
+              result.data && typeof result.data === 'object'
+                ? result.data
+                : result;
             if (data.companyId) context.companyId = data.companyId;
             if (data.tenantId) context.tenantId = data.tenantId;
             if (data.unitId) context.unitId = data.unitId;
             if (data.propertyId) context.propertyId = data.propertyId;
 
             // Harvest common entities for sequential context when tools return raw Prisma models.
-            if (['get_tenant_details', 'create_tenant', 'register_tenant'].includes(step.tool) && data?.id) {
+            if (
+              [
+                'get_tenant_details',
+                'create_tenant',
+                'register_tenant',
+              ].includes(step.tool) &&
+              data?.id
+            ) {
               resultsMap.entities.tenantId = data.id;
               if (data.firstName) {
-                resultsMap.entities.tenantName = `${data.firstName} ${data.lastName || ''}`.trim();
+                resultsMap.entities.tenantName =
+                  `${data.firstName} ${data.lastName || ''}`.trim();
               }
             }
-            if (['get_unit_details', 'create_unit'].includes(step.tool) && data?.id) {
+            if (
+              ['get_unit_details', 'create_unit'].includes(step.tool) &&
+              data?.id
+            ) {
               resultsMap.entities.unitId = data.id;
-              if (data.unitNumber) resultsMap.entities.unitNumber = data.unitNumber;
+              if (data.unitNumber)
+                resultsMap.entities.unitNumber = data.unitNumber;
             }
-            if (['get_property_details', 'create_property'].includes(step.tool) && data?.id) {
+            if (
+              ['get_property_details', 'create_property'].includes(step.tool) &&
+              data?.id
+            ) {
               resultsMap.entities.propertyId = data.id;
               if (data.name) resultsMap.entities.propertyName = data.name;
             }
-            
+
             // Sync to trace metadata for integrity checks
             trace.metadata.companyId = context.companyId;
-            trace.metadata.activeUnitId = data.unitId || trace.metadata.activeUnitId;
+            trace.metadata.activeUnitId =
+              data.unitId || trace.metadata.activeUnitId;
           }
-          
+
           resultsMap[step.tool] = { success, result };
-          trace.steps.push({ 
-            tool: step.tool, 
-            args: resolvedArgs, 
-            result, 
-            success, 
+          trace.steps.push({
+            tool: step.tool,
+            args: resolvedArgs,
+            result,
+            success,
             required: isRequired,
-            timestamp: new Date().toISOString() 
+            timestamp: new Date().toISOString(),
           });
 
           // If a required/high-stakes tool ended in a "blocked" state, record it as an error for gating.
           if (!success && isRequired && isBlockedResult) {
-            const reason =
-              result?.requires_clarification
-                ? 'requires_clarification'
-                : result?.requires_confirmation
-                  ? 'requires_confirmation'
-                  : result?.requires_authorization
-                    ? 'requires_authorization'
-                    : 'tool_reported_failure';
-            trace.errors.push(`Critical tool '${step.tool}' did not complete (${reason}).`);
+            const reason = result?.requires_clarification
+              ? 'requires_clarification'
+              : result?.requires_confirmation
+                ? 'requires_confirmation'
+                : result?.requires_authorization
+                  ? 'requires_authorization'
+                  : 'tool_reported_failure';
+            trace.errors.push(
+              `Critical tool '${step.tool}' did not complete (${reason}).`,
+            );
             if (isRequired) break; // v5.9: Stop early if we hit a wall on a critical step
           }
         } catch (e) {
-          this.logger.error(`[ExecutionLoop] Tool ${step.tool} failed: ${e.message}`);
-          trace.steps.push({ tool: step.tool, args: resolvedArgs, result: { error: e.message }, success: false, required: isRequired, timestamp: new Date().toISOString() });
+          this.logger.error(
+            `[ExecutionLoop] Tool ${step.tool} failed: ${e.message}`,
+          );
+          trace.steps.push({
+            tool: step.tool,
+            args: resolvedArgs,
+            result: { error: e.message },
+            success: false,
+            required: isRequired,
+            timestamp: new Date().toISOString(),
+          });
           if (isRequired) {
-            trace.errors.push(`Critical tool '${step.tool}' failed: ${e.message}`);
+            trace.errors.push(
+              `Critical tool '${step.tool}' failed: ${e.message}`,
+            );
             break; // v5.9: Stop early on fatal tool error
           }
         }
       }
 
       // 6. Final Integrity & Truth Aggregation
-      trace.truth = await this.aggregateTruth(trace, context, context.virtualLedger || {}, {});
+      trace.truth = await this.aggregateTruth(
+        trace,
+        context,
+        context.virtualLedger || {},
+        {},
+      );
       const integrity = this.validateActionIntegrity(plan, trace, trace.truth);
-      
+
       this.logger.log(`[DEBUG_TRUTH] ${JSON.stringify(trace.truth, null, 2)}`);
-      
+
       if (!integrity.isValid) {
         this.logger.warn(`[IntegrityFailure] ${integrity.reason}`);
         return {
-          response: await this.generateSafePartialResponse(plan, integrity.fixedTruth || trace.truth, trace, cleanMessage),
+          response: await this.generateSafePartialResponse(
+            plan,
+            integrity.fixedTruth || trace.truth,
+            trace,
+            cleanMessage,
+          ),
           chatId: finalChatId,
-          metadata: { 
-            status: 'PARTIAL', 
-            traceId: trace.id, 
+          metadata: {
+            status: 'PARTIAL',
+            traceId: trace.id,
             intent: plan.intent,
-            integrityReason: integrity.reason
-          }
+            integrityReason: integrity.reason,
+          },
         };
       }
 
       // 7. Rendering (Gated by Success)
       const gate = this.canRender(trace, plan);
       this.logger.log(
-        `[DecisionGate] canRender: ${gate.canRender} (${gate.reason || 'ok'}), steps: ${trace.steps.length}, successes: ${trace.steps.filter(s => s.success).length}, errors: ${trace.errors.length}, truth: ${trace.truth?.status}`,
+        `[DecisionGate] canRender: ${gate.canRender} (${gate.reason || 'ok'}), steps: ${trace.steps.length}, successes: ${trace.steps.filter((s) => s.success).length}, errors: ${trace.errors.length}, truth: ${trace.truth?.status}`,
       );
-      
+
       let finalResponse = '';
       if (gate.canRender) {
         finalResponse = await this.promptService.generateFinalResponse(
@@ -820,48 +1083,69 @@ export class AiService implements OnModuleInit {
           plan.language || 'en',
           context.virtualLedger || {},
           trace.workflowState || {},
-          trace.truth!,
+          trace.truth,
           effectiveRole as UserRole,
           trace.errors,
           plan.immediateResponse,
           scrubbedHistory,
-          cleanMessage
+          cleanMessage,
         );
       } else {
-        finalResponse = await this.generateSafePartialResponse(plan, trace.truth!, trace, cleanMessage);
+        finalResponse = await this.generateSafePartialResponse(
+          plan,
+          trace.truth,
+          trace,
+          cleanMessage,
+        );
       }
 
       // Prepend immediate response if not already present and rendering was successful
       // v4.3: Prevent redundant acknowledgments if the renderer already confirmed action.
       // IMPORTANT: Never prepend `immediateResponse` onto a safe-partial response, because it can create Action-Integrity contradictions.
-      if (gate.canRender && plan.immediateResponse && !finalResponse.toLowerCase().includes(plan.immediateResponse.toLowerCase().substring(0, 15))) {
+      if (
+        gate.canRender &&
+        plan.immediateResponse &&
+        !finalResponse
+          .toLowerCase()
+          .includes(plan.immediateResponse.toLowerCase().substring(0, 15))
+      ) {
         finalResponse = `${plan.immediateResponse}\n\n${finalResponse}`;
       }
 
       // Append report URL deterministically if it exists but is missing from the response
-      if (trace.truth?.data?.reportUrl && !finalResponse.includes(trace.truth.data.reportUrl)) {
+      if (
+        trace.truth?.data?.reportUrl &&
+        !finalResponse.includes(trace.truth.data.reportUrl)
+      ) {
         finalResponse = `${finalResponse}\n\nYou can download the full report here: ${trace.truth.data.reportUrl}`;
       }
 
       // 8. Session Persistence
-      await this.persistTraceMetadata(trace, context, userId, resultsMap.entities);
+      await this.persistTraceMetadata(
+        trace,
+        context,
+        userId,
+        resultsMap.entities,
+      );
 
-      return { 
-        response: finalResponse, 
-        chatId: finalChatId, 
-        metadata: { 
-            status: trace.status, 
-            traceId: trace.id, 
-            intent: plan.intent,
-            tools: trace.steps.map(s => s.tool),
-            clarificationNeeded: trace.steps.some((s: any) => 
-               s?.result?.requires_clarification || 
-               s?.result?.data?.requires_clarification
-            ),
-            requires_confirmation: trace.steps.some((s: any) => 
-               s?.result?.requires_confirmation || 
-               s?.result?.data?.requires_confirmation
-            ),
+      return {
+        response: finalResponse,
+        chatId: finalChatId,
+        metadata: {
+          status: trace.status,
+          traceId: trace.id,
+          intent: plan.intent,
+          tools: trace.steps.map((s) => s.tool),
+          clarificationNeeded: trace.steps.some(
+            (s: any) =>
+              s?.result?.requires_clarification ||
+              s?.result?.data?.requires_clarification,
+          ),
+          requires_confirmation: trace.steps.some(
+            (s: any) =>
+              s?.result?.requires_confirmation ||
+              s?.result?.data?.requires_confirmation,
+          ),
         },
         // Collect the first _vc (version-control) summary from successful write steps so
         // the WhatsApp orchestrator can render the View Diff / Rollback buttons.
@@ -874,40 +1158,56 @@ export class AiService implements OnModuleInit {
           return undefined;
         })(),
       };
-
     } catch (e) {
-      this.logger.error(`[AiService] chat() Fatal Error: ${e.message}`, e.stack);
-      return { 
-        response: this.generateFallback(trace.interpretation?.intent || 'GENERAL_QUERY'), 
-        chatId: finalChatId 
+      this.logger.error(
+        `[AiService] chat() Fatal Error: ${e.message}`,
+        e.stack,
+      );
+      return {
+        response: this.generateFallback(
+          trace.interpretation?.intent || 'GENERAL_QUERY',
+        ),
+        chatId: finalChatId,
       };
     }
   }
 
   private safeUserResponse(response: string, intent: string): string {
     const errorPatterns = [
-        'error generating a summary',
-        'hit a technical snag',
-        'encountered an error',
-        'technical error',
-        'failed to'
+      'error generating a summary',
+      'hit a technical snag',
+      'encountered an error',
+      'technical error',
+      'failed to',
     ];
-    
-    const isSystemError = errorPatterns.some(p => response.toLowerCase().includes(p)) || !response.trim();
-    
+
+    const isSystemError =
+      errorPatterns.some((p) => response.toLowerCase().includes(p)) ||
+      !response.trim();
+
     if (isSystemError) {
-      this.logger.warn(`[SafeResponse] System error string detected in AI response. Triggering fallback for ${intent}`);
+      this.logger.warn(
+        `[SafeResponse] System error string detected in AI response. Triggering fallback for ${intent}`,
+      );
       return this.generateFallback(intent);
     }
     return response;
   }
 
-  private async hydrateTenantContext(phone: string, companyId?: string): Promise<any> {
+  private async hydrateTenantContext(
+    phone: string,
+    companyId?: string,
+  ): Promise<any> {
     try {
       // Primary lookup: Phone number match in Tenant table
       const tenant = await this.prisma.tenant.findFirst({
         where: { phone: { contains: phone.replace('+', '') } },
-        include: { leases: { where: { status: 'ACTIVE', deletedAt: null }, include: { unit: { include: { property: true } } } } }
+        include: {
+          leases: {
+            where: { status: 'ACTIVE', deletedAt: null },
+            include: { unit: { include: { property: true } } },
+          },
+        },
       });
 
       if (tenant && tenant.leases.length > 0) {
@@ -919,8 +1219,11 @@ export class AiService implements OnModuleInit {
           unitNumber: activeLease.unit?.unitNumber,
           propertyId: activeLease.unit?.propertyId,
           // Prefer explicit companyId, else tenant.companyId, else property.companyId.
-          companyId: companyId || tenant.companyId || activeLease.unit?.property?.companyId,
-          virtualLedger: { balance: (activeLease as any).balance || 0 }
+          companyId:
+            companyId ||
+            tenant.companyId ||
+            activeLease.unit?.property?.companyId,
+          virtualLedger: { balance: (activeLease as any).balance || 0 },
         };
       }
       return {};
@@ -933,81 +1236,117 @@ export class AiService implements OnModuleInit {
   private isIdentityConflicting(plan: UnifiedPlan, context: any): boolean {
     const newName = plan.entities?.tenantName;
     const oldName = context.activeTenantName;
-    if (newName && oldName && newName.toLowerCase().trim() !== oldName.toLowerCase().trim()) {
+    if (
+      newName &&
+      oldName &&
+      newName.toLowerCase().trim() !== oldName.toLowerCase().trim()
+    ) {
       return true;
     }
     return false;
   }
 
-  private async persistTraceMetadata(trace: ExecutionTrace, context: any, userId: string, resolvedEntities?: any) {
+  private async persistTraceMetadata(
+    trace: ExecutionTrace,
+    context: any,
+    userId: string,
+    resolvedEntities?: any,
+  ) {
     const contextUid = getSessionUid({ userId, phone: trace.metadata.phone });
     const plan = trace.unifiedPlan;
     if (!plan) return;
 
     const turnCount = (context.lockedState?.turnCount || 0) + 1;
     const isConflict = this.isIdentityConflicting(plan, context);
-    
-    this.logger.debug(`[AiService] Persisting Meta: unit=${resolvedEntities?.unitId || (isConflict ? undefined : context.activeUnitId)}, tenant=${resolvedEntities?.tenantId || (isConflict ? undefined : context.activeTenantId)}`);
-    
-    const newTenantId = resolvedEntities?.tenantId || (isConflict ? undefined : context.activeTenantId);
-    const newUnitId = resolvedEntities?.unitId || (isConflict ? undefined : context.activeUnitId);
-    const newPropId = resolvedEntities?.propertyId || (isConflict ? undefined : context.activePropertyId);
+
+    this.logger.debug(
+      `[AiService] Persisting Meta: unit=${resolvedEntities?.unitId || (isConflict ? undefined : context.activeUnitId)}, tenant=${resolvedEntities?.tenantId || (isConflict ? undefined : context.activeTenantId)}`,
+    );
+
+    const newTenantId =
+      resolvedEntities?.tenantId ||
+      (isConflict ? undefined : context.activeTenantId);
+    const newUnitId =
+      resolvedEntities?.unitId ||
+      (isConflict ? undefined : context.activeUnitId);
+    const newPropId =
+      resolvedEntities?.propertyId ||
+      (isConflict ? undefined : context.activePropertyId);
 
     const existingData = context.registrationData || {};
     const newData = { ...existingData };
-    
+
     // Additive merge: only update if the new entity has a truthy value
     if (plan.entities) {
       for (const [key, value] of Object.entries(plan.entities)) {
         if (!value || this.isPlaceholder(value)) continue;
-        
+
         // Normalize keys for Property/Company Onboarding
         let targetKey = key;
-        if (key === 'name' || key === 'propName' || key === 'company') targetKey = 'companyName';
-        if (key === 'address' || key === 'propAddress') targetKey = 'propertyAddress';
+        if (key === 'name' || key === 'propName' || key === 'company')
+          targetKey = 'companyName';
+        if (key === 'address' || key === 'propAddress')
+          targetKey = 'propertyAddress';
         if (key === 'units' || key === 'count') targetKey = 'unitCount';
-        if (key === 'first_name' || key === 'fname' || key === 'adminFirst') targetKey = 'firstName';
-        if (key === 'last_name' || key === 'lname' || key === 'adminLast') targetKey = 'lastName';
+        if (key === 'first_name' || key === 'fname' || key === 'adminFirst')
+          targetKey = 'firstName';
+        if (key === 'last_name' || key === 'lname' || key === 'adminLast')
+          targetKey = 'lastName';
         if (key === 'adminEmail' || key === 'userEmail') targetKey = 'email';
         if (key === 'pass' || key === 'adminPassword') targetKey = 'password';
-        
+
         newData[targetKey] = value as string;
       }
     }
 
-    this.logger.debug(`[AiService] Persisting RegistrationData: ${JSON.stringify(newData)}`);
+    this.logger.debug(
+      `[AiService] Persisting RegistrationData: ${JSON.stringify(newData)}`,
+    );
 
-    await this.contextMemory.setContext(contextUid, { 
+    await this.contextMemory.setContext(contextUid, {
       lastIntent: plan.intent,
       lastPriority: plan.priority,
       activeTenantId: newTenantId,
       activeUnitId: newUnitId,
       activePropertyId: newPropId,
-      activeUnitNumber: plan.entities?.unitNumber || (isConflict ? undefined : context.activeUnitNumber),
-      activeTenantName: plan.entities?.tenantName || (isConflict ? undefined : context.activeTenantName),
+      activeUnitNumber:
+        plan.entities?.unitNumber ||
+        (isConflict ? undefined : context.activeUnitNumber),
+      activeTenantName:
+        plan.entities?.tenantName ||
+        (isConflict ? undefined : context.activeTenantName),
       registrationData: newData,
       lockedState: {
-        lockedIntent: plan.intent !== AiIntent.GENERAL_QUERY ? plan.intent : (context.lockedState?.lockedIntent || null),
+        lockedIntent:
+          plan.intent !== AiIntent.GENERAL_QUERY
+            ? plan.intent
+            : context.lockedState?.lockedIntent || null,
         activeTenantId: newTenantId || null,
         activeUnitId: newUnitId || null,
         activePropertyId: newPropId || null,
-        activeUnitNumber: plan.entities?.unitNumber || (isConflict ? undefined : context.activeUnitNumber) || null,
-        activeTenantName: plan.entities?.tenantName || (isConflict ? undefined : context.activeTenantName) || null,
-        turnCount
-      }
+        activeUnitNumber:
+          plan.entities?.unitNumber ||
+          (isConflict ? undefined : context.activeUnitNumber) ||
+          null,
+        activeTenantName:
+          plan.entities?.tenantName ||
+          (isConflict ? undefined : context.activeTenantName) ||
+          null,
+        turnCount,
+      },
     });
   }
 
   private generateFallback(intent: string): string {
-    switch(intent) {
+    switch (intent) {
       case 'MAINTENANCE':
       case 'EMERGENCY':
         return "I understand there's a maintenance issue. I've flagged this for our team—could you please share your unit number or address so we can follow up quickly?";
-      
+
       case 'WORKFLOW_DEPENDENCY':
       case 'ONBOARDING':
         return "Got it — you're trying to add a tenant. Let me confirm a few details first (like unit number and name) to proceed correctly.";
-      
+
       case 'FINANCIAL_REPORTING':
       case 'LATE_PAYMENT':
         return "I've received your request regarding payments. I'm checking the records now—could you please confirm which property or tenant you're looking for?";
@@ -1022,7 +1361,10 @@ export class AiService implements OnModuleInit {
     return text
       .replace(/```json[\s\S]*?```/g, '')
       .replace(/<thinking>[\s\S]*?<\/thinking>/g, '')
-      .replace(/\b(ID:?\s*PENDING|Status:?\s*PENDING|tenantId:?\s*PENDING|ID:?\s*NONE|Unit:?\s*PENDING)\b/gi, '')
+      .replace(
+        /\b(ID:?\s*PENDING|Status:?\s*PENDING|tenantId:?\s*PENDING|ID:?\s*NONE|Unit:?\s*PENDING)\b/gi,
+        '',
+      )
       .replace(/\(ID:?\s*PENDING\)/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
@@ -1034,7 +1376,7 @@ export class AiService implements OnModuleInit {
       await this.workflowEngine.clearActiveInstance(userId);
       if (chatId) await this.contextMemory.clear(chatId);
       await this.contextMemory.clear(uid);
-      
+
       const keys = [
         `ai_session:${uid}`,
         `ai_session:${uid}:identity`,
@@ -1046,10 +1388,15 @@ export class AiService implements OnModuleInit {
       for (const key of keys) {
         await this.cacheManager.del(key);
       }
-      
-      const outcome = await this.historyService.clearMessageHistory(chatId, userId);
-      this.logger.log(`[Governance] Reset session for userId: ${userId}, chatId: ${chatId}.`);
-      
+
+      const outcome = await this.historyService.clearMessageHistory(
+        chatId,
+        userId,
+      );
+      this.logger.log(
+        `[Governance] Reset session for userId: ${userId}, chatId: ${chatId}.`,
+      );
+
       return {
         cleared: true,
         clearedActiveInstance: true,
@@ -1059,14 +1406,23 @@ export class AiService implements OnModuleInit {
         ...outcome,
       };
     } catch (e) {
-      this.logger.error(`[AiService] resetSession Failed: ${e.message}`, e.stack);
+      this.logger.error(
+        `[AiService] resetSession Failed: ${e.message}`,
+        e.stack,
+      );
       throw e;
     }
   }
 
-  async getOrCreateChat(userId: string | null, companyId?: string, phone?: string): Promise<string> {
-    const effectiveUserId = (userId === 'unidentified' || userId === 'SYSTEM') ? null : userId;
-    const effectiveCompanyId = (companyId === 'NONE' || !companyId) ? null : companyId;
+  async getOrCreateChat(
+    userId: string | null,
+    companyId?: string,
+    phone?: string,
+  ): Promise<string> {
+    const effectiveUserId =
+      userId === 'unidentified' || userId === 'SYSTEM' ? null : userId;
+    const effectiveCompanyId =
+      companyId === 'NONE' || !companyId ? null : companyId;
 
     if (effectiveUserId) {
       const existing = await this.prisma.chatHistory.findFirst({
@@ -1103,7 +1459,10 @@ export class AiService implements OnModuleInit {
   async getCollectionRate(companyId: string): Promise<number> {
     try {
       const summary = await this.prisma.payment.aggregate({
-        where: { lease: { unit: { property: { companyId } } }, deletedAt: null },
+        where: {
+          lease: { unit: { property: { companyId } } },
+          deletedAt: null,
+        },
         _sum: { amount: true },
       });
       return summary?._sum?.amount ? 85 : 0;
@@ -1115,17 +1474,23 @@ export class AiService implements OnModuleInit {
 
   async summarizeForWhatsApp(text: string, language: string): Promise<string> {
     return this.promptService.generateFinalResponse(
-      AiIntent.GENERAL_QUERY, 
-      [{ tool: 'none', result: text, success: true, required: true }], 
-      language, 
-      {}, 
-      {}, 
-      { status: 'COMPLETE', data: { response: text }, computedAt: new Date().toISOString(), intent: AiIntent.GENERAL_QUERY, context: {} } as any, 
+      AiIntent.GENERAL_QUERY,
+      [{ tool: 'none', result: text, success: true, required: true }],
+      language,
+      {},
+      {},
+      {
+        status: 'COMPLETE',
+        data: { response: text },
+        computedAt: new Date().toISOString(),
+        intent: AiIntent.GENERAL_QUERY,
+        context: {},
+      } as any,
       UserRole.TENANT,
       [],
       '',
       [],
-      text
+      text,
     );
   }
 
@@ -1140,11 +1505,19 @@ export class AiService implements OnModuleInit {
     lastAction?: { name: string; args?: any } | null;
     lastResult?: any;
     formattedText?: string;
-  }): Promise<{ text: string; suggestions: Array<{ label: string; tool: string; args: any }> }> {
+  }): Promise<{
+    text: string;
+    suggestions: Array<{ label: string; tool: string; args: any }>;
+  }> {
     const language = params.language || 'en';
-    const contextUid = getSessionUid({ userId: params.userId, phone: params.phone });
+    const contextUid = getSessionUid({
+      userId: params.userId,
+      phone: params.phone,
+    });
     const context = await this.contextMemory.getContext(contextUid);
-    const history = params.chatId ? await this.getChatHistory(params.chatId) : [];
+    const history = params.chatId
+      ? await this.getChatHistory(params.chatId)
+      : [];
     return this.promptService.generateTakeoverAdvice(
       {
         userMessage: params.userMessage,
@@ -1186,7 +1559,10 @@ export class AiService implements OnModuleInit {
       return { success: true, message: 'Thank you for your feedback!' };
     } catch (error) {
       this.logger.error(`Failed to save feedback: ${error.message}`);
-      return { success: false, message: 'Could not save feedback at this time.' };
+      return {
+        success: false,
+        message: 'Could not save feedback at this time.',
+      };
     }
   }
 
@@ -1194,13 +1570,20 @@ export class AiService implements OnModuleInit {
     return { status: 'approved', actionId, approverId };
   }
 
-
-  async executeTool(name: string, args: any, context: any, role?: string, language?: string): Promise<ActionResult> {
+  async executeTool(
+    name: string,
+    args: any,
+    context: any,
+    role?: string,
+    language?: string,
+  ): Promise<ActionResult> {
     // Safety check: if role looks like a language code (e.g. 'en', 'sw'), it might be a swap
     let finalRole = role;
     let finalLang = language;
     if (role && (role.toLowerCase() === 'en' || role.toLowerCase() === 'sw')) {
-      this.logger.warn(`[AiService] Detected potential role/language swap! role=${role}, recovering role from context...`);
+      this.logger.warn(
+        `[AiService] Detected potential role/language swap! role=${role}, recovering role from context...`,
+      );
       finalRole = context?.role || context?.userRole || role;
       finalLang = role;
     }
@@ -1225,7 +1608,10 @@ export class AiService implements OnModuleInit {
             'lastReportJob',
           ];
           for (const k of keys) {
-            if (context?.[k] === undefined && (stored as any)[k] !== undefined) {
+            if (
+              context?.[k] === undefined &&
+              (stored as any)[k] !== undefined
+            ) {
               context[k] = (stored as any)[k];
             }
           }
@@ -1240,11 +1626,11 @@ export class AiService implements OnModuleInit {
     await this.hydrateSecurityContext(context);
 
     const raw = await this.registry.executeTool(
-      name, 
-      args, 
-      context, 
-      (finalRole || UserRole.COMPANY_STAFF) as UserRole, 
-      finalLang || 'en'
+      name,
+      args,
+      context,
+      (finalRole || UserRole.COMPANY_STAFF) as UserRole,
+      finalLang || 'en',
     );
 
     return this.normalizeAndPersistToolResult(name, args, context, raw);
@@ -1260,9 +1646,9 @@ export class AiService implements OnModuleInit {
     if (
       raw &&
       typeof raw === 'object' &&
-      typeof (raw as any).success === 'boolean' &&
-      typeof (raw as any).action === 'string' &&
-      'data' in (raw as any)
+      typeof raw.success === 'boolean' &&
+      typeof raw.action === 'string' &&
+      'data' in raw
     ) {
       const normalized = raw as ActionResult;
       await this.persistActionContext(name, args, normalized?.data, context);
@@ -1276,7 +1662,10 @@ export class AiService implements OnModuleInit {
         const normalized = {
           success: false,
           action: name,
-          data: { error: normalizedString.error, message: normalizedString.message },
+          data: {
+            error: normalizedString.error,
+            message: normalizedString.message,
+          },
           message: normalizedString.message,
           error: normalizedString.error,
           requires_clarification: true,
@@ -1295,12 +1684,12 @@ export class AiService implements OnModuleInit {
     }
 
     // Tool-level "confirmation" should be handled as a blocked action
-    if (raw && typeof raw === 'object' && (raw as any).requires_confirmation) {
+    if (raw && typeof raw === 'object' && raw.requires_confirmation) {
       const normalized = {
         success: false,
         action: name,
         data: raw,
-        message: (raw as any).message || 'This action requires confirmation.',
+        message: raw.message || 'This action requires confirmation.',
         requires_confirmation: true,
       } as any as ActionResult;
       await this.persistActionContext(name, args, normalized?.data, context);
@@ -1308,29 +1697,29 @@ export class AiService implements OnModuleInit {
     }
 
     // Tool-level "clarification" should be rendered to the user, not treated as a generic crash.
-    if (raw && typeof raw === 'object' && (raw as any).requires_clarification) {
+    if (raw && typeof raw === 'object' && raw.requires_clarification) {
       const normalized = {
         success: false,
         action: name,
         data: raw,
-        message: (raw as any).message || 'More details are required to proceed.',
+        message: raw.message || 'More details are required to proceed.',
         error: 'REQUIRES_CLARIFICATION',
         requires_clarification: true,
-        options: (raw as any).options,
+        options: raw.options,
       } as ActionResult;
       await this.persistActionContext(name, args, normalized?.data, context);
       return normalized;
     }
 
     // Common error shape from read tools: { error, message? }
-    if (raw && typeof raw === 'object' && (raw as any).error) {
+    if (raw && typeof raw === 'object' && raw.error) {
       const toolErr = normalizeToolErrorShape(raw);
 
       const normalized = {
         success: false,
         action: name,
         data: raw,
-        message: (raw as any).message,
+        message: raw.message,
         error: toolErr.error,
         requires_clarification: toolErr.requires_clarification,
         options: toolErr.options,
@@ -1340,8 +1729,12 @@ export class AiService implements OnModuleInit {
     }
 
     // Fallback: Default to successful data capture
-    const normalized = { success: true, action: name, data: raw } as ActionResult;
-    
+    const normalized = {
+      success: true,
+      action: name,
+      data: raw,
+    } as ActionResult;
+
     // Propagate session-critical fields for legacy loop compatibility
     if (raw && typeof raw === 'object') {
       if (raw.companyId) normalized.companyId = raw.companyId;
@@ -1368,8 +1761,18 @@ export class AiService implements OnModuleInit {
     return this.executeTool(name, args, context, role, language);
   }
 
-  async formatToolResponse(result: ActionResult, sender: any, companyId: string, language: string) {
-    return this.formatterService.formatToolResponse(result, sender, companyId, language);
+  async formatToolResponse(
+    result: ActionResult,
+    sender: any,
+    companyId: string,
+    language: string,
+  ) {
+    return this.formatterService.formatToolResponse(
+      result,
+      sender,
+      companyId,
+      language,
+    );
   }
 
   private async persistActionContext(
@@ -1379,15 +1782,19 @@ export class AiService implements OnModuleInit {
     context: any,
   ): Promise<void> {
     try {
-      const contextUid = getSessionUid({ userId: context?.userId, phone: context?.phone });
+      const contextUid = getSessionUid({
+        userId: context?.userId,
+        phone: context?.phone,
+      });
       if (!contextUid) return;
 
       await this.contextMemory.recordHistory(contextUid, action);
 
       if (action === 'get_tenant_details') {
         const tenantId = data?.id || args?.tenantId || args?.id;
-        const tenantName =
-          data?.firstName ? `${data.firstName} ${data?.lastName || ''}`.trim() : undefined;
+        const tenantName = data?.firstName
+          ? `${data.firstName} ${data?.lastName || ''}`.trim()
+          : undefined;
         if (tenantId) {
           await this.contextMemory.setContext(contextUid, {
             activeTenantId: tenantId,
@@ -1401,7 +1808,9 @@ export class AiService implements OnModuleInit {
         if (propertyId) {
           await this.contextMemory.setContext(contextUid, {
             activePropertyId: propertyId,
-            ...(propertyName ? { activeProperty: { id: propertyId, name: propertyName } } : {}),
+            ...(propertyName
+              ? { activeProperty: { id: propertyId, name: propertyName } }
+              : {}),
           });
         }
       }
@@ -1441,14 +1850,19 @@ export class AiService implements OnModuleInit {
    */
   private async ensureContext(context: any, reqBody: any): Promise<void> {
     if (!context.companyId || context.companyId === 'bench-company-001') {
-      const resolved = await this.getCompanyIdForContext(context.phone, context.userId);
+      const resolved = await this.getCompanyIdForContext(
+        context.phone,
+        context.userId,
+      );
       if (resolved) {
         context.companyId = resolved;
         this.logger.debug(`[ContextHydration] Resolved companyId: ${resolved}`);
       } else {
         context.companyId = reqBody?.companyId || 'bench-company-001';
         if (!reqBody?.companyId) {
-          this.logger.warn(`[ContextHydration] Missing companyId — using fallback for bench: ${context.companyId}`);
+          this.logger.warn(
+            `[ContextHydration] Missing companyId — using fallback for bench: ${context.companyId}`,
+          );
         }
       }
     }
@@ -1491,23 +1905,23 @@ export class AiService implements OnModuleInit {
     const lastChat = await this.prisma.chatHistory.findFirst({
       where: { waPhone: phone, deletedAt: null },
       orderBy: { createdAt: 'desc' },
-      include: { messages: { orderBy: { createdAt: 'desc' }, take: 20 } }
+      include: { messages: { orderBy: { createdAt: 'desc' }, take: 20 } },
     });
 
     const history = (lastChat?.messages || [])
       .reverse()
-      .map(m => ({ role: m.role, content: m.content }));
+      .map((m) => ({ role: m.role, content: m.content }));
 
     return this.chat(
-      history, 
-      message || '', 
-      lastChat?.id || 'session-fallback', 
-      lastChat?.companyId || undefined, 
-      userId, 
-      [], 
-      'en', 
-      undefined, 
-      phone
+      history,
+      message || '',
+      lastChat?.id || 'session-fallback',
+      lastChat?.companyId || undefined,
+      userId,
+      [],
+      'en',
+      undefined,
+      phone,
     );
   }
 
@@ -1519,7 +1933,7 @@ export class AiService implements OnModuleInit {
     trace: ExecutionTrace,
     context: any,
     virtualLedger: any,
-    activeTransaction: any
+    activeTransaction: any,
   ): Promise<TruthObject> {
     const plan = trace.unifiedPlan;
     const intent = plan?.intent || AiIntent.GENERAL_QUERY;
@@ -1528,55 +1942,105 @@ export class AiService implements OnModuleInit {
       computedAt: new Date().toISOString(),
       intent,
       operationalAction: {} as any, // Legacy field
-      data: { virtualLedger, activeTransaction, entities: plan?.entities || {} },
+      data: {
+        virtualLedger,
+        activeTransaction,
+        entities: plan?.entities || {},
+      },
       context,
-      status: 'INSUFFICIENT_DATA'
+      status: 'INSUFFICIENT_DATA',
     };
 
     // 1. Identity Truth (from session or tool results)
-    const unitResult = trace.steps.find(s => (s.tool === 'get_unit_details' || s.tool === 'get_tenant_details') && s.success)?.result;
-    
+    const unitResult = trace.steps.find(
+      (s) =>
+        (s.tool === 'get_unit_details' || s.tool === 'get_tenant_details') &&
+        s.success,
+    )?.result;
+
     // CRITICAL: Only set tenantIdentity if the user IS a tenant. Otherwise, it's a searchedEntity.
     const identityData = {
-        id: context.tenantId || unitResult?.tenantId || context.lockedState?.activeTenantId,
-        name: context.tenantName || unitResult?.name || plan?.entities?.tenantName || (context.tenantId ? 'Sarah Otieno' : undefined), // Sarah is our primary bench persona
-        unit: context.unitNumber || unitResult?.unitNumber || plan?.entities?.unitNumber || context.lockedState?.activeUnitId
+      id:
+        context.tenantId ||
+        unitResult?.tenantId ||
+        context.lockedState?.activeTenantId,
+      name:
+        context.tenantName ||
+        unitResult?.name ||
+        plan?.entities?.tenantName ||
+        (context.tenantId ? 'Sarah Otieno' : undefined), // Sarah is our primary bench persona
+      unit:
+        context.unitNumber ||
+        unitResult?.unitNumber ||
+        plan?.entities?.unitNumber ||
+        context.lockedState?.activeUnitId,
     };
 
     if (trace.role === UserRole.TENANT) {
-        truthObject.data.tenantIdentity = identityData;
+      truthObject.data.tenantIdentity = identityData;
     } else {
-        truthObject.data.searchedEntity = identityData;
+      truthObject.data.searchedEntity = identityData;
     }
 
     // 2. Financial & Status Truth (Greedy Harvester)
-    const financialIntents = [AiIntent.FINANCIAL_QUERY, AiIntent.REVENUE_REPORT, AiIntent.DISPUTE, AiIntent.FINANCIAL_REPORTING, AiIntent.FINANCIAL_MANAGEMENT];
+    const financialIntents = [
+      AiIntent.FINANCIAL_QUERY,
+      AiIntent.REVENUE_REPORT,
+      AiIntent.DISPUTE,
+      AiIntent.FINANCIAL_REPORTING,
+      AiIntent.FINANCIAL_MANAGEMENT,
+    ];
     if (financialIntents.includes(intent)) {
-       const revenueResult = trace.steps.find(s => (s.tool === 'get_revenue_summary' || s.tool === 'get_collection_rate' || s.tool === 'get_company_summary') && s.success)?.result;
-       const paymentResult = trace.steps.find(s => (s.tool === 'list_payments' || s.tool === 'get_tenant_arrears') && s.success)?.result;
-       const financialReportResult = trace.steps.find(s => (s.tool === 'get_financial_report') && s.success)?.result;
-       const financialSummaryResult = trace.steps.find(s => (s.tool === 'get_financial_summary') && s.success)?.result;
-       
-       truthObject.data.revenue = revenueResult?.totalRevenue || revenueResult?.amount || revenueResult?.data?.revenue;
-       truthObject.data.collectionRate = revenueResult?.collectionRate || revenueResult?.data?.collectionRate;
-       truthObject.data.paymentHistory = paymentResult?.payments || paymentResult?.data || [];
-       truthObject.data.balance = paymentResult?.balance || paymentResult?.data?.balance;
-       truthObject.data.status = paymentResult?.status || revenueResult?.status || 'Active';
+      const revenueResult = trace.steps.find(
+        (s) =>
+          (s.tool === 'get_revenue_summary' ||
+            s.tool === 'get_collection_rate' ||
+            s.tool === 'get_company_summary') &&
+          s.success,
+      )?.result;
+      const paymentResult = trace.steps.find(
+        (s) =>
+          (s.tool === 'list_payments' || s.tool === 'get_tenant_arrears') &&
+          s.success,
+      )?.result;
+      const financialReportResult = trace.steps.find(
+        (s) => s.tool === 'get_financial_report' && s.success,
+      )?.result;
+      const financialSummaryResult = trace.steps.find(
+        (s) => s.tool === 'get_financial_summary' && s.success,
+      )?.result;
 
-       // Harvest report/summary totals for FINANCIAL_REPORTING (covers get_financial_report / get_financial_summary).
-       const totals = financialReportResult?.totals || financialSummaryResult?.totals;
-       if (totals && typeof totals === 'object') {
-         truthObject.data.financialTotals = totals;
-         // Treat "payments" aggregate as revenue proxy for high-level reporting UX.
-         if (truthObject.data.revenue === undefined && totals.payments !== undefined) {
-           truthObject.data.revenue = totals.payments;
-         }
-       }
+      truthObject.data.revenue =
+        revenueResult?.totalRevenue ||
+        revenueResult?.amount ||
+        revenueResult?.data?.revenue;
+      truthObject.data.collectionRate =
+        revenueResult?.collectionRate || revenueResult?.data?.collectionRate;
+      truthObject.data.paymentHistory =
+        paymentResult?.payments || paymentResult?.data || [];
+      truthObject.data.balance =
+        paymentResult?.balance || paymentResult?.data?.balance;
+      truthObject.data.status =
+        paymentResult?.status || revenueResult?.status || 'Active';
 
-       // Also surface reportUrl if the report tool produced it (the global URL harvester also covers this).
-       if (financialReportResult?.url && !truthObject.data.reportUrl) {
-         truthObject.data.reportUrl = financialReportResult.url;
-       }
+      // Harvest report/summary totals for FINANCIAL_REPORTING (covers get_financial_report / get_financial_summary).
+      const totals =
+        financialReportResult?.totals || financialSummaryResult?.totals;
+      if (totals && typeof totals === 'object') {
+        truthObject.data.financialTotals = totals;
+        // Treat "payments" aggregate as revenue proxy for high-level reporting UX.
+        if (
+          truthObject.data.revenue === undefined &&
+          totals.payments !== undefined
+        ) {
+          truthObject.data.revenue = totals.payments;
+        }
+      }
+
+      // Also surface reportUrl if the report tool produced it (the global URL harvester also covers this).
+      if (financialReportResult?.url && !truthObject.data.reportUrl) {
+        truthObject.data.reportUrl = financialReportResult.url;
+      }
     }
 
     // Explicit Provisioning: Only accept URLs from explicit report artifacts (avoid stale/auxiliary URLs).
@@ -1638,27 +2102,53 @@ export class AiService implements OnModuleInit {
     }
 
     // 3. Maintenance Truth
-    if (intent === AiIntent.MAINTENANCE || intent === AiIntent.MAINTENANCE_REQUEST || intent === AiIntent.EMERGENCY) {
-       const issueResult = trace.steps.find(s => s.tool === 'log_maintenance_issue' && s.success)?.result;
-       truthObject.data.issueId = issueResult?.id || issueResult?.maintenanceId;
-       truthObject.data.isUrgent = plan?.priority === 'EMERGENCY' || plan?.priority === 'HIGH';
+    if (
+      intent === AiIntent.MAINTENANCE ||
+      intent === AiIntent.MAINTENANCE_REQUEST ||
+      intent === AiIntent.EMERGENCY
+    ) {
+      const issueResult = trace.steps.find(
+        (s) => s.tool === 'log_maintenance_issue' && s.success,
+      )?.result;
+      truthObject.data.issueId = issueResult?.id || issueResult?.maintenanceId;
+      truthObject.data.isUrgent =
+        plan?.priority === 'EMERGENCY' || plan?.priority === 'HIGH';
     }
 
     // 4. Status Check
-    const hasAmbiguity = trace.steps.some((s) => s.result?.error === 'AMBIGUOUS_MATCH');
-    const hasCriticalSuccess = plan?.steps?.every(
-      (s) => !s.required || trace.steps.find((ts) => ts.tool === s.tool)?.success,
-    ) ?? true;
+    const hasAmbiguity = trace.steps.some(
+      (s) => s.result?.error === 'AMBIGUOUS_MATCH',
+    );
+    const hasCriticalSuccess =
+      plan?.steps?.every(
+        (s) =>
+          !s.required || trace.steps.find((ts) => ts.tool === s.tool)?.success,
+      ) ?? true;
 
     // Financial reporting can be considered complete if at least one authoritative financial tool succeeded.
     if (hasAmbiguity) {
       truthObject.status = 'AMBIGUOUS';
     } else if (financialIntents.includes(intent)) {
-      const hasRevenueTool = trace.steps.some((s) => s.tool === 'get_revenue_summary' && s.success);
-      const hasArrearsTool = trace.steps.some((s) => s.tool === 'get_tenant_arrears' && s.success);
-      const hasFinancialReportTool = trace.steps.some((s) => s.tool === 'get_financial_report' && s.success);
-      const hasFinancialSummaryTool = trace.steps.some((s) => s.tool === 'get_financial_summary' && s.success);
-      truthObject.status = (hasCriticalSuccess || hasRevenueTool || hasArrearsTool || hasFinancialReportTool || hasFinancialSummaryTool) ? 'COMPLETE' : 'PARTIAL';
+      const hasRevenueTool = trace.steps.some(
+        (s) => s.tool === 'get_revenue_summary' && s.success,
+      );
+      const hasArrearsTool = trace.steps.some(
+        (s) => s.tool === 'get_tenant_arrears' && s.success,
+      );
+      const hasFinancialReportTool = trace.steps.some(
+        (s) => s.tool === 'get_financial_report' && s.success,
+      );
+      const hasFinancialSummaryTool = trace.steps.some(
+        (s) => s.tool === 'get_financial_summary' && s.success,
+      );
+      truthObject.status =
+        hasCriticalSuccess ||
+        hasRevenueTool ||
+        hasArrearsTool ||
+        hasFinancialReportTool ||
+        hasFinancialSummaryTool
+          ? 'COMPLETE'
+          : 'PARTIAL';
     } else if (intent === AiIntent.ONBOARDING) {
       const hasCreationTool = trace.steps.some((s) => {
         const isCreation =
@@ -1672,21 +2162,31 @@ export class AiService implements OnModuleInit {
           !s.result?.requires_confirmation && !s.result?.requires_clarification;
         return isCreation && s.success && isConfirmed;
       });
-      truthObject.status = (hasCriticalSuccess && hasCreationTool) ? 'COMPLETE' : 'PARTIAL';
+      truthObject.status =
+        hasCriticalSuccess && hasCreationTool ? 'COMPLETE' : 'PARTIAL';
     } else {
-      truthObject.status = (hasCriticalSuccess && trace.steps.every(s => !s.result?.requires_confirmation)) ? 'COMPLETE' : 'PARTIAL';
+      truthObject.status =
+        hasCriticalSuccess &&
+        trace.steps.every((s) => !s.result?.requires_confirmation)
+          ? 'COMPLETE'
+          : 'PARTIAL';
     }
 
-    this.logger.log(`[Truth] Aggregated truth for ${intent}: ${truthObject.status}`);
+    this.logger.log(
+      `[Truth] Aggregated truth for ${intent}: ${truthObject.status}`,
+    );
 
     // Populate Verified Actions for Integrity Pipeline
-    truthObject.actions = trace.steps.map(step => ({
+    truthObject.actions = trace.steps.map((step) => ({
       tool: step.tool,
       success: step.success,
       status: step.success ? 'COMPLETE' : 'FAILED',
       result: step.success ? step.result : undefined,
-      errorMessage: !step.success ? (step.result?.message || step.result?.error || 'Unknown error') : undefined,
-      claimedByPlan: plan?.steps.find(s => s.tool === step.tool)?.claimedByPlan
+      errorMessage: !step.success
+        ? step.result?.message || step.result?.error || 'Unknown error'
+        : undefined,
+      claimedByPlan: plan?.steps.find((s) => s.tool === step.tool)
+        ?.claimedByPlan,
     }));
 
     return truthObject;
@@ -1695,38 +2195,56 @@ export class AiService implements OnModuleInit {
   private validateActionIntegrity(
     plan: UnifiedPlan,
     trace: ExecutionTrace,
-    truth: TruthObject
+    truth: TruthObject,
   ): { isValid: boolean; reason?: string; fixedTruth?: TruthObject } {
     const violations: string[] = [];
 
     // 1. Prevent false completion claims
     for (const step of trace.steps) {
-      const verified = truth.actions?.find(a => a.tool === step.tool);
+      const verified = truth.actions?.find((a) => a.tool === step.tool);
       if (step.success && !verified?.success) {
-        violations.push(`Tool ${step.tool} reported success in trace but failed in truth aggregation`);
+        violations.push(
+          `Tool ${step.tool} reported success in trace but failed in truth aggregation`,
+        );
       }
-      
-      const planStep = plan.steps.find(s => s.tool === step.tool);
+
+      const planStep = plan.steps.find((s) => s.tool === step.tool);
       if (planStep?.claimedByPlan && !step.success) {
-        violations.push(`Plan claimed ${step.tool} would complete but it did not`);
+        violations.push(
+          `Plan claimed ${step.tool} would complete but it did not`,
+        );
       }
     }
 
     // 2. High-stakes financial/maintenance must have real data
-    const highStakesIntents = [AiIntent.FINANCIAL_QUERY, AiIntent.FINANCIAL_REPORTING, AiIntent.REVENUE_REPORT];
+    const highStakesIntents = [
+      AiIntent.FINANCIAL_QUERY,
+      AiIntent.FINANCIAL_REPORTING,
+      AiIntent.REVENUE_REPORT,
+    ];
     if (highStakesIntents.includes(plan.intent)) {
-      const hasBalance = truth.data.balance !== undefined && truth.data.balance !== null;
-      const hasRevenue = truth.data.revenue !== undefined && truth.data.revenue !== null;
-      const hasHistory = Array.isArray(truth.data.paymentHistory) && truth.data.paymentHistory.length > 0;
+      const hasBalance =
+        truth.data.balance !== undefined && truth.data.balance !== null;
+      const hasRevenue =
+        truth.data.revenue !== undefined && truth.data.revenue !== null;
+      const hasHistory =
+        Array.isArray(truth.data.paymentHistory) &&
+        truth.data.paymentHistory.length > 0;
       if (!hasBalance && !hasRevenue && !hasHistory) {
-        violations.push('Financial query completed without any data in truth object');
+        violations.push(
+          'Financial query completed without any data in truth object',
+        );
       }
     }
 
     if (violations.length > 0) {
       // Auto-repair: force partial status and return violations
       truth.status = 'PARTIAL';
-      return { isValid: false, reason: violations.join('; '), fixedTruth: truth };
+      return {
+        isValid: false,
+        reason: violations.join('; '),
+        fixedTruth: truth,
+      };
     }
 
     return { isValid: true };
@@ -1736,25 +2254,36 @@ export class AiService implements OnModuleInit {
     plan: UnifiedPlan,
     truth: TruthObject,
     trace: ExecutionTrace,
-    originalMessage: string
+    originalMessage: string,
   ): Promise<string> {
-    const toolFailed = (name: string) => trace.steps.find((s) => s.tool === name && !s.success);
-    const toolSucceeded = (name: string) => trace.steps.find((s) => s.tool === name && s.success);
+    const toolFailed = (name: string) =>
+      trace.steps.find((s) => s.tool === name && !s.success);
+    const toolSucceeded = (name: string) =>
+      trace.steps.find((s) => s.tool === name && s.success);
     const anySucceeded = trace.steps.some((s) => s.success);
-    const clarification = trace.steps.find((s) => 
-      ((s as any)?.result?.requires_clarification || (s as any)?.result?.requires_confirmation) && 
-      (s as any)?.result?.message
+    const clarification = trace.steps.find(
+      (s) =>
+        ((s as any)?.result?.requires_clarification ||
+          (s as any)?.result?.requires_confirmation) &&
+        (s as any)?.result?.message,
     );
-    this.logger.debug(`[AiService] generateSafePartialResponse: clarificationFound=${!!clarification}, steps=${trace.steps.length}`);
-    if (clarification) this.logger.debug(`[AiService] Found clarification/confirmation: ${(clarification as any).result.message}`);
+    this.logger.debug(
+      `[AiService] generateSafePartialResponse: clarificationFound=${!!clarification}, steps=${trace.steps.length}`,
+    );
+    if (clarification)
+      this.logger.debug(
+        `[AiService] Found clarification/confirmation: ${(clarification as any).result.message}`,
+      );
 
     // Emergency: always lead with safety instructions, never claim logging unless tool succeeded.
     if (plan.intent === AiIntent.EMERGENCY) {
-      const safety = plan.immediateResponse || [
-        'If this is a burst pipe or major leak: please shut off the main water valve immediately.',
-        'If there is any electrical risk: avoid the area and switch off power if safe.',
-        'If anyone is in danger, call local emergency services right now.',
-      ].join(' ');
+      const safety =
+        plan.immediateResponse ||
+        [
+          'If this is a burst pipe or major leak: please shut off the main water valve immediately.',
+          'If there is any electrical risk: avoid the area and switch off power if safe.',
+          'If anyone is in danger, call local emergency services right now.',
+        ].join(' ');
 
       if (toolSucceeded('log_maintenance_issue')) {
         const issueId = truth.data?.issueId || '[PENDING_ID]';
@@ -1765,7 +2294,10 @@ export class AiService implements OnModuleInit {
     }
 
     // Maintenance: acknowledge, request missing identity, only confirm “logged” on tool success.
-    if (plan.intent === AiIntent.MAINTENANCE || plan.intent === AiIntent.MAINTENANCE_REQUEST) {
+    if (
+      plan.intent === AiIntent.MAINTENANCE ||
+      plan.intent === AiIntent.MAINTENANCE_REQUEST
+    ) {
       if (toolSucceeded('log_maintenance_issue')) {
         const issueId = truth.data?.issueId || '[PENDING_ID]';
         return `Sawa — I’ve logged your maintenance request (Ticket ID: ${issueId}). If you have photos or a good time window for access, share it here.`;
@@ -1777,7 +2309,10 @@ export class AiService implements OnModuleInit {
     }
 
     // Payment promise: handle clarification explicitly.
-    if (plan.intent === AiIntent.PAYMENT_PROMISE || plan.intent === AiIntent.PAYMENT_DECLARATION) {
+    if (
+      plan.intent === AiIntent.PAYMENT_PROMISE ||
+      plan.intent === AiIntent.PAYMENT_DECLARATION
+    ) {
       const step = trace.steps.find((s) => s.tool === 'log_payment_promise');
       if (step?.result?.requires_clarification) {
         return `Asante — I have your payment promise, but I need the exact payment date to record it properly. What date will you pay (e.g. “2026-03-31” or “Friday”)?`;
@@ -1792,7 +2327,11 @@ export class AiService implements OnModuleInit {
     }
 
     // Financial: show whatever data exists, and be explicit about missing parts.
-    if (plan.intent === AiIntent.FINANCIAL_QUERY || plan.intent === AiIntent.FINANCIAL_REPORTING || plan.intent === AiIntent.REVENUE_REPORT) {
+    if (
+      plan.intent === AiIntent.FINANCIAL_QUERY ||
+      plan.intent === AiIntent.FINANCIAL_REPORTING ||
+      plan.intent === AiIntent.REVENUE_REPORT
+    ) {
       const askedForPortfolioReport =
         plan.steps?.some((s) => s.tool === 'generate_report_file') ||
         /\bportfolio\b.*\b(repor(t|ts)?|summary)\b|\b(repor(t|ts)?|summary)\b.*\bportfolio\b/i.test(
@@ -1803,8 +2342,10 @@ export class AiService implements OnModuleInit {
       const balance = truth.data?.balance;
 
       const lines: string[] = [];
-      if (balance !== undefined && balance !== null) lines.push(`- Balance: KSh ${Number(balance).toLocaleString()}`);
-      if (revenue !== undefined && revenue !== null) lines.push(`- Revenue: KSh ${Number(revenue).toLocaleString()}`);
+      if (balance !== undefined && balance !== null)
+        lines.push(`- Balance: KSh ${Number(balance).toLocaleString()}`);
+      if (revenue !== undefined && revenue !== null)
+        lines.push(`- Revenue: KSh ${Number(revenue).toLocaleString()}`);
       if (collectionRate) lines.push(`- Collection Rate: ${collectionRate}`);
 
       if (lines.length > 0) {
@@ -1819,7 +2360,9 @@ export class AiService implements OnModuleInit {
 
       // If nothing was retrieved, be honest and ask for the missing identity.
       if (askedForPortfolioReport) {
-        const companyHint = trace?.metadata?.companyId ? '' : ' Please confirm which company workspace this is for.';
+        const companyHint = trace?.metadata?.companyId
+          ? ''
+          : ' Please confirm which company workspace this is for.';
         return `I checked our records, but I couldn’t generate the full portfolio report right now.${companyHint} If you want a single-property report, share the property name (e.g. “Bahari Ridge”).`;
       }
       return `I checked our records, but I couldn’t retrieve the financial details right now. Please share the tenant name and/or unit number, and I’ll try again.`;
@@ -1844,15 +2387,27 @@ export class AiService implements OnModuleInit {
     return `I was able to complete part of your request, but some steps didn’t finish successfully. Please share the missing details and I’ll continue.`;
   }
 
-  private async getCompanyIdForContext(phone?: string, userId?: string): Promise<string | undefined> {
+  private async getCompanyIdForContext(
+    phone?: string,
+    userId?: string,
+  ): Promise<string | undefined> {
     if (phone) {
-      const user = await this.prisma.user.findFirst({ where: { phone, deletedAt: null }, select: { companyId: true } });
+      const user = await this.prisma.user.findFirst({
+        where: { phone, deletedAt: null },
+        select: { companyId: true },
+      });
       if (user?.companyId) return user.companyId;
-      const tenant = await this.prisma.tenant.findFirst({ where: { phone, deletedAt: null }, select: { companyId: true } });
+      const tenant = await this.prisma.tenant.findFirst({
+        where: { phone, deletedAt: null },
+        select: { companyId: true },
+      });
       if (tenant?.companyId) return tenant.companyId;
     }
     if (userId) {
-      const user = await this.prisma.user.findUnique({ where: { id: userId, deletedAt: null }, select: { companyId: true } });
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId, deletedAt: null },
+        select: { companyId: true },
+      });
       return user?.companyId || undefined;
     }
     return undefined;
@@ -1865,36 +2420,57 @@ export class AiService implements OnModuleInit {
     for (const h of history) {
       if (h.user || h.ai) {
         // Handle {user, ai} pair format
-        if (h.user) scrubbed.push({ role: 'user', content: this.cleanHistoryText(h.user) });
-        if (h.ai) scrubbed.push({ role: 'assistant', content: this.cleanHistoryText(h.ai) });
+        if (h.user)
+          scrubbed.push({
+            role: 'user',
+            content: this.cleanHistoryText(h.user),
+          });
+        if (h.ai)
+          scrubbed.push({
+            role: 'assistant',
+            content: this.cleanHistoryText(h.ai),
+          });
       } else {
         // Handle {role, content/message/parts} format
-        const role = h.role === 'assistant' || h.role === 'model' ? 'assistant' : 'user';
+        const role =
+          h.role === 'assistant' || h.role === 'model' ? 'assistant' : 'user';
         const rawContent = h.parts?.[0]?.text || h.content || h.message || '';
-        const content = typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent);
+        const content =
+          typeof rawContent === 'string'
+            ? rawContent
+            : JSON.stringify(rawContent);
         if (content) {
           scrubbed.push({ role, content: this.cleanHistoryText(content) });
         }
       }
     }
-    return scrubbed.filter(h => h.content);
+    return scrubbed.filter((h) => h.content);
   }
 
   private cleanHistoryText(text: string): string {
     if (!text) return '';
     // Mombasa Pipe Patch v4.1: Strip UUIDs, timestamps, and large technical tables
-    return text.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '[ID]')
-               .replace(/202[0-9]-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z/g, '[TIMESTAMP]')
-               .replace(/^\|.*computedat.*\|$/gim, '')
-               .replace(/^\|.*intent.*\|$/gim, '')
-               .replace(/^\|.*operationalaction.*\|$/gim, '')
-               .replace(/```json[\s\S]*?```/g, '[JSON_BLOCK]') // Strip large JSON blobs from history
-               .trim();
+    return text
+      .replace(
+        /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+        '[ID]',
+      )
+      .replace(
+        /202[0-9]-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z/g,
+        '[TIMESTAMP]',
+      )
+      .replace(/^\|.*computedat.*\|$/gim, '')
+      .replace(/^\|.*intent.*\|$/gim, '')
+      .replace(/^\|.*operationalaction.*\|$/gim, '')
+      .replace(/```json[\s\S]*?```/g, '[JSON_BLOCK]') // Strip large JSON blobs from history
+      .trim();
   }
 
-  private interceptSwahiliEmergency(input: string): ClassificationResult | null {
+  private interceptSwahiliEmergency(
+    input: string,
+  ): ClassificationResult | null {
     const msg = input.toLowerCase();
-    
+
     // Mombasa Market Hard-Interception (Pattern A Fix)
     const combinations = [
       { keywords: ['maji', 'imepotea'], intent: 'utility_outage' },
@@ -1907,7 +2483,7 @@ export class AiService implements OnModuleInit {
     ];
 
     for (const combo of combinations) {
-      if (combo.keywords.every(k => msg.includes(k))) {
+      if (combo.keywords.every((k) => msg.includes(k))) {
         return {
           intent: combo.intent,
           complexity: 2,
@@ -1923,13 +2499,19 @@ export class AiService implements OnModuleInit {
     return null;
   }
 
-  private canRender(trace: ExecutionTrace, plan: UnifiedPlan): { canRender: boolean; reason?: string } {
-    if (!plan || !plan.intent) return { canRender: false, reason: 'invalid_plan' };
-    
+  private canRender(
+    trace: ExecutionTrace,
+    plan: UnifiedPlan,
+  ): { canRender: boolean; reason?: string } {
+    if (!plan || !plan.intent)
+      return { canRender: false, reason: 'invalid_plan' };
+
     // ACTION INTEGRITY: Check that all required steps succeeded
-    const failedRequired = trace.steps.filter(s => s.required && !s.success);
+    const failedRequired = trace.steps.filter((s) => s.required && !s.success);
     if (failedRequired.length > 0) {
-      this.logger.warn(`[AiService] Gating render: Required tools failed: ${failedRequired.map(s => s.tool).join(', ')}`);
+      this.logger.warn(
+        `[AiService] Gating render: Required tools failed: ${failedRequired.map((s) => s.tool).join(', ')}`,
+      );
       return { canRender: false, reason: 'required_steps_failed' };
     }
 
@@ -1938,7 +2520,10 @@ export class AiService implements OnModuleInit {
       (s) => s.required || this.registry.isHighStakes(s.tool),
     );
     if (expectsToolTruth && trace.truth && trace.truth.status !== 'COMPLETE') {
-      return { canRender: false, reason: `truth_${trace.truth.status.toLowerCase()}` };
+      return {
+        canRender: false,
+        reason: `truth_${trace.truth.status.toLowerCase()}`,
+      };
     }
 
     return { canRender: true };
@@ -1947,18 +2532,20 @@ export class AiService implements OnModuleInit {
   private logDecisionTrace(trace: ExecutionTrace, finalResponse: string) {
     const tableHeader = `| Layer | Action | Data/Result | Status |`;
     const tableDivider = `| :--- | :--- | :--- | :--- |`;
-    
+
     const rows = [
       `| **Input** | \`${trace.input.substring(0, 30).replace(/\n/g, ' ')}\` | Raw String | 📥 |`,
       `| **Interpretation** | \`intent: ${trace.interpretation?.intent}\` | \`conf: ${trace.interpretation?.confidence}\` | ✅ |`,
       `| **Entity Resolution** | \`resolve(${trace.interpretation?.entities ? Object.keys(trace.interpretation.entities).join(', ') : 'NONE'})\` | \`Tenant: ${trace.metadata?.activeTenantId?.substring(0, 8) || 'NONE'}\` | ✅ |`,
       `| **Decision** | \`contract: ${trace.interpretation?.intent}\` | \`tools: ${trace.steps?.length}\` | ✅ |`,
       `| **Integrity Gate** | \`check_auth(${trace.role})\` | \`STATUS: ${trace.status}\` | ✅ |`,
-      `| **Execution** | \`process_steps()\` | \`SUCCEEDED: ${trace.steps?.filter(s => s.success).length}\` | ✅ |`,
-      `| **Rendering** | \`apply_persona(${trace.role})\` | \`"${finalResponse.substring(0, 30).replace(/\n/g, ' ')}..."\` | 📤 |`
+      `| **Execution** | \`process_steps()\` | \`SUCCEEDED: ${trace.steps?.filter((s) => s.success).length}\` | ✅ |`,
+      `| **Rendering** | \`apply_persona(${trace.role})\` | \`"${finalResponse.substring(0, 30).replace(/\n/g, ' ')}..."\` | 📤 |`,
     ];
 
-    this.logger.log(`\n--- [DECISION TRACE: ${trace.id}] ---\n${tableHeader}\n${tableDivider}\n${rows.join('\n')}\n---`);
+    this.logger.log(
+      `\n--- [DECISION TRACE: ${trace.id}] ---\n${tableHeader}\n${tableDivider}\n${rows.join('\n')}\n---`,
+    );
   }
 
   private isPlaceholder(value: any): boolean {

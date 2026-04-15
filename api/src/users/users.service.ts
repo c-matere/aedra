@@ -175,7 +175,9 @@ export class UsersService {
       actor.role !== UserRole.SUPER_ADMIN &&
       existing.role === UserRole.COMPANY_ADMIN
     ) {
-      throw new ForbiddenException('Only Super Admin can modify Company Admins.');
+      throw new ForbiddenException(
+        'Only Super Admin can modify Company Admins.',
+      );
     }
 
     const nextData = this.enforceWritePolicy(actor, { ...data });
@@ -214,7 +216,9 @@ export class UsersService {
         existing.role === UserRole.SUPER_ADMIN ||
         existing.role === UserRole.COMPANY_ADMIN)
     ) {
-      throw new ForbiddenException('You cannot delete this user (Admins are protected).');
+      throw new ForbiddenException(
+        'You cannot delete this user (Admins are protected).',
+      );
     }
 
     return this.prisma.user.delete({ where: { id } });

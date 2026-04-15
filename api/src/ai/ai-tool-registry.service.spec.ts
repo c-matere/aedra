@@ -5,7 +5,9 @@ describe('AiToolRegistryService - Routing', () => {
   it('routes generate_report_file to reportTools (not readTools)', async () => {
     const readTools: any = { executeReadTool: jest.fn() };
     const writeTools: any = { executeWriteTool: jest.fn() };
-    const reportTools: any = { executeReportTool: jest.fn().mockResolvedValue({ ok: true }) };
+    const reportTools: any = {
+      executeReportTool: jest.fn().mockResolvedValue({ ok: true }),
+    };
     const historyTools: any = { executeHistoryTool: jest.fn() };
     const autonomousAgentService: any = {};
 
@@ -38,7 +40,9 @@ describe('AiToolRegistryService - Routing', () => {
   it('routes get_financial_report to reportTools (not readTools)', async () => {
     const readTools: any = { executeReadTool: jest.fn() };
     const writeTools: any = { executeWriteTool: jest.fn() };
-    const reportTools: any = { executeReportTool: jest.fn().mockResolvedValue({ ok: true }) };
+    const reportTools: any = {
+      executeReportTool: jest.fn().mockResolvedValue({ ok: true }),
+    };
     const historyTools: any = { executeHistoryTool: jest.fn() };
     const autonomousAgentService: any = {};
 
@@ -68,4 +72,3 @@ describe('AiToolRegistryService - Routing', () => {
     expect(readTools.executeReadTool).not.toHaveBeenCalled();
   });
 });
-

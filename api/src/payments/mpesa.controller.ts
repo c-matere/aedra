@@ -43,13 +43,18 @@ export class MpesaController {
   }
 
   @Post('callback/:companyId')
-  async handleCallbackScoped(@Body() body: any, @Param('companyId') companyId: string) {
+  async handleCallbackScoped(
+    @Body() body: any,
+    @Param('companyId') companyId: string,
+  ) {
     return this.processCallback(body, companyId);
   }
 
   private async processCallback(body: any, companyId?: string) {
-    this.logger.log(`M-Pesa STK Callback [Company: ${companyId || 'Global'}]: ${JSON.stringify(body)}`);
-    
+    this.logger.log(
+      `M-Pesa STK Callback [Company: ${companyId || 'Global'}]: ${JSON.stringify(body)}`,
+    );
+
     // STK push has a different structure (Body.stkCallback)
     const callbackData = body?.Body?.stkCallback;
     if (!callbackData) return { ResultCode: 1, ResultDesc: 'Invalid Payload' };
@@ -84,7 +89,9 @@ export class MpesaController {
    * TEST ENDPOINT: Trigger STK Push
    */
   @Post('test/stk-push')
-  async testStkPush(@Body() body: { phone: string, amount: number, reference: string }) {
+  async testStkPush(
+    @Body() body: { phone: string; amount: number; reference: string },
+  ) {
     return this.mpesaService.stkPush(body.phone, body.amount, body.reference);
   }
 

@@ -56,13 +56,17 @@ export class WhatsappController {
 
     // Only log when a real user message arrives (skip status callbacks)
     if (message?.from) {
-      console.log(`[WhatsApp] ▶ Incoming from ${message.from} type=${message.type || 'text'} wamid=${message.id}`);
+      console.log(
+        `[WhatsApp] ▶ Incoming from ${message.from} type=${message.type || 'text'} wamid=${message.id}`,
+      );
       const messageId = message.id;
       if (messageId) {
         const cacheKey = `wa_msg_${messageId}`;
         const isProcessing = await this.cacheManager.get(cacheKey);
         if (isProcessing) {
-          console.log(`[WhatsApp] Duplicate message (wamid: ${messageId}), skipping.`);
+          console.log(
+            `[WhatsApp] Duplicate message (wamid: ${messageId}), skipping.`,
+          );
           return { status: 'duplicate' };
         }
         // Mark as processing for 5 minutes (retries usually happen within seconds/minutes)

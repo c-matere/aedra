@@ -175,14 +175,21 @@ export class WhatsAppFormatterService {
         break;
 
       case 'rollback_change':
-        text = data.message || (language === 'sw' ? '✅ Marekebisho yamekamilika.' : '✅ Rollback successful.');
+        text =
+          data.message ||
+          (language === 'sw'
+            ? '✅ Marekebisho yamekamilika.'
+            : '✅ Rollback successful.');
         break;
 
       default:
         text =
           typeof data === 'string'
             ? data
-            : data?.message || data?.error || data?.data || JSON.stringify(data, null, 2);
+            : data?.message ||
+              data?.error ||
+              data?.data ||
+              JSON.stringify(data, null, 2);
         break;
     }
 
@@ -197,7 +204,10 @@ export class WhatsAppFormatterService {
   /**
    * Detects Markdown tables and converts them to bulleted lists for WhatsApp.
    */
-  public convertTablesToLists(text: string): { text: string; interactive?: any } {
+  public convertTablesToLists(text: string): {
+    text: string;
+    interactive?: any;
+  } {
     if (!text || !text.includes('|')) return { text };
 
     const lines = text.split('\n');
@@ -207,7 +217,7 @@ export class WhatsAppFormatterService {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      
+
       // Table header separator detection: |---|---|
       if (line.startsWith('|') && line.includes('---')) {
         inTable = true;
@@ -215,17 +225,20 @@ export class WhatsAppFormatterService {
       }
 
       if (line.startsWith('|')) {
-        const cells = line.split('|').map(c => c.trim()).filter(c => c.length > 0);
-        
+        const cells = line
+          .split('|')
+          .map((c) => c.trim())
+          .filter((c) => c.length > 0);
+
         if (!inTable) {
-           // First line starting with | that isn't a separator is probably headers
-           // but we wait for the separator in the next line to confirm.
-           const nextLine = lines[i+1]?.trim() || '';
-           if (nextLine.startsWith('|') && nextLine.includes('---')) {
-             tableHeaders = cells;
-             inTable = true;
-             continue;
-           }
+          // First line starting with | that isn't a separator is probably headers
+          // but we wait for the separator in the next line to confirm.
+          const nextLine = lines[i + 1]?.trim() || '';
+          if (nextLine.startsWith('|') && nextLine.includes('---')) {
+            tableHeaders = cells;
+            inTable = true;
+            continue;
+          }
         }
 
         if (inTable) {

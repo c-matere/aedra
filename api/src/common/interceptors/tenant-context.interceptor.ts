@@ -27,7 +27,8 @@ export class TenantContextInterceptor implements NestInterceptor {
     const queryCompanyId = request.query?.companyId;
     const paramsCompanyId = request.params?.companyId;
 
-    const providedCompanyId = bodyCompanyId || queryCompanyId || paramsCompanyId;
+    const providedCompanyId =
+      bodyCompanyId || queryCompanyId || paramsCompanyId;
 
     if (providedCompanyId && providedCompanyId !== store.companyId) {
       throw new ForbiddenException(

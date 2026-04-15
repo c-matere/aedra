@@ -37,7 +37,9 @@ export class AiSecurityService {
       // P0: Direct blocks for credentials regardless of context
       // EXCEPTION: Allow passwords during registration for unidentified users
       if (
-        (m.includes('password') || m.includes('pin') || m.includes('credential')) &&
+        (m.includes('password') ||
+          m.includes('pin') ||
+          m.includes('credential')) &&
         role !== UserRole.UNIDENTIFIED
       ) {
         return true;
@@ -51,10 +53,7 @@ export class AiSecurityService {
       )
         return true;
       if (m.includes('nipe') && m.includes('pin')) return true;
-      if (
-        m.includes('mpesa') &&
-        (m.includes('pin') || m.includes('code'))
-      )
+      if (m.includes('mpesa') && (m.includes('pin') || m.includes('code')))
         return true;
       if (
         m.includes('delete') &&

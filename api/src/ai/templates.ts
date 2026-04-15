@@ -13,7 +13,6 @@ export interface TemplateData {
  * =====================================================================
  */
 export const TEMPLATE_REGISTRY: Record<string, Record<'EN' | 'SW', string>> = {
-
   // ── Type A: Proactive Outreach ─────────────────────────────────────
 
   /** Routine monthly rent reminder */
@@ -34,9 +33,15 @@ export const TEMPLATE_REGISTRY: Record<string, Record<'EN' | 'SW', string>> = {
     SW: '✅ Malipo Yamepokelewa! KES {{amount}} ya Nyumba {{unitNumber}} imerekodiwa tarehe {{date}}. Salio lako sasa ni KES {{newBalance}}. Asante, {{tenantName}}!',
   },
 
+  /** Invoice notification after creation */
+  invoice_notice: {
+    EN: '📋 New Invoice: A {{description}} of KES {{amount}} for Unit {{unitNumber}} has been generated. Due date: {{dueDate}}. Please settle at your earliest convenience. – Aedra',
+    SW: '📋 Risiti Mpya: {{description}} ya KES {{amount}} kwa Nyumba {{unitNumber}} imetengenezwa. Tarehe ya mwisho: {{dueDate}}. Tafadhali lipa ukiweza. – Aedra',
+  },
+
   /** Confirmation that a payment promise was noted */
   payment_promise_ack: {
-    EN: '📝 Noted! I\'ve logged your payment promise of KES {{amount}} by {{dueDate}}. I\'ll send you a reminder a day before. If you need to update this, just message us.',
+    EN: "📝 Noted! I've logged your payment promise of KES {{amount}} by {{dueDate}}. I'll send you a reminder a day before. If you need to update this, just message us.",
     SW: '📝 Imetiwa kumbukumbu! Nimerekodi ahadi yako ya kulipa KES {{amount}} ifikapo {{dueDate}}. Nitakutumia ukumbusho siku moja kabla. Ukihitaji kubadilisha, tuma ujumbe.',
   },
 
@@ -66,7 +71,7 @@ export const TEMPLATE_REGISTRY: Record<string, Record<'EN' | 'SW', string>> = {
 
   /** Welcome message after tenant onboarding */
   welcome_tenant: {
-    EN: '👋 Welcome to your new home, {{tenantName}}! I\'m Aedra, your AI property assistant. You can reach me anytime for rent balance, maintenance requests, or payment help. Just message this number!',
+    EN: "👋 Welcome to your new home, {{tenantName}}! I'm Aedra, your AI property assistant. You can reach me anytime for rent balance, maintenance requests, or payment help. Just message this number!",
     SW: '👋 Karibu nyumbani kwako, {{tenantName}}! Mimi ni Aedra, msaidizi wako wa AI wa mali. Unaweza kunipigia wakati wowote kwa salio la kodi, maombi ya matengenezo, au msaada wa malipo. Tuma ujumbe nambari hii!',
   },
 
@@ -219,7 +224,7 @@ export const TEMPLATE_SEND_STRATEGY: Record<string, TemplateSendStrategy> = {
   },
   EMERGENCY: {
     deliveryMethod: 'text', // Immediate free-text + 🚨 reaction
-    postActionCsat: false,  // Do NOT interrupt emergencies with CSAT
+    postActionCsat: false, // Do NOT interrupt emergencies with CSAT
   },
   FINANCIAL_REPORTING: {
     deliveryMethod: 'document',
@@ -282,5 +287,10 @@ export function renderTemplate(
  * Get the send strategy for a given AI intent.
  */
 export function getSendStrategy(intent: string): TemplateSendStrategy {
-  return TEMPLATE_SEND_STRATEGY[intent] ?? { deliveryMethod: 'text', postActionCsat: false };
+  return (
+    TEMPLATE_SEND_STRATEGY[intent] ?? {
+      deliveryMethod: 'text',
+      postActionCsat: false,
+    }
+  );
 }

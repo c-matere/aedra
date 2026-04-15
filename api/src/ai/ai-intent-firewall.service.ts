@@ -47,7 +47,8 @@ export class AiIntentFirewallService {
         /\bwithout\b.*\bactive\b.*\bplan\b/i,
         /\bno\b.*\bactive\b.*\bplan\b/i,
       ],
-      message: 'I cannot register a tenant or unit without an active billing plan. Please subscribe to a plan in the Dashboard first.',
+      message:
+        'I cannot register a tenant or unit without an active billing plan. Please subscribe to a plan in the Dashboard first.',
       isBlocker: true,
     },
     {
@@ -66,7 +67,13 @@ export class AiIntentFirewallService {
   intercept(message: string, role?: string): FirewallResult {
     const text = (message || '').toLowerCase();
     const effectiveRole = (role || '').toUpperCase();
-    const isStaffOrLandlord = ['COMPANY_STAFF', 'STAFF', 'LANDLORD', 'SUPER_ADMIN', 'COMPANY_ADMIN'].includes(effectiveRole);
+    const isStaffOrLandlord = [
+      'COMPANY_STAFF',
+      'STAFF',
+      'LANDLORD',
+      'SUPER_ADMIN',
+      'COMPANY_ADMIN',
+    ].includes(effectiveRole);
 
     for (const rule of this.rules) {
       // Bypass LATE_PAYMENT for staff/landlord
@@ -75,7 +82,7 @@ export class AiIntentFirewallService {
       for (const pattern of rule.patterns) {
         if (pattern.test(text)) {
           this.logger.log(`[FIREWALL] Intercepted intent: ${rule.id}`);
-          
+
           if ((rule as any).isBlocker) {
             return {
               isIntercepted: true,
@@ -89,7 +96,7 @@ export class AiIntentFirewallService {
             intent: rule.intent,
             allowedTools: rule.allowedTools,
             systemConstraint: (rule as any).systemConstraint,
-            priority: (rule as any).priority as any || 'NORMAL',
+            priority: (rule as any).priority || 'NORMAL',
           };
         }
       }

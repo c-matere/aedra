@@ -16,7 +16,9 @@ export const routeWorkflowRequest = async (
 ): Promise<RouteResult | any> => {
   const { userId, intent, classification, context = {} } = opts;
   const message = opts.message || '';
-  const workflowsEnabled = Boolean((context as any)?.phone) || Boolean((context as any)?.allowWorkflows);
+  const workflowsEnabled =
+    Boolean((context as any)?.phone) ||
+    Boolean((context as any)?.allowWorkflows);
 
   routerLogger.log(`[RouterInput] intent="${intent}"`);
 
@@ -25,18 +27,32 @@ export const routeWorkflowRequest = async (
   if (active && active.status === 'WAITING' && workflowsEnabled) {
     const looksLikeContinuation = (text: string): boolean => {
       const t = (text || '').trim().toLowerCase();
-      return /^(ok|okay|sure|yes|y|no|done|sent|confirm|confirmed|approve|approved|continue|proceed|go ahead|sawa|ndio|hapana|nimetuma|nimelipa)$/i.test(t) || 
-             /[A-Z0-9]{8,12}/.test(text);
+      return (
+        /^(ok|okay|sure|yes|y|no|done|sent|confirm|confirmed|approve|approved|continue|proceed|go ahead|sawa|ndio|hapana|nimetuma|nimelipa)$/i.test(
+          t,
+        ) || /[A-Z0-9]{8,12}/.test(text)
+      );
     };
 
     const matchedNew = intent ? findWorkflowByIntent(intent) : undefined;
-    const shouldResume = looksLikeContinuation(message) || !intent || intent === 'read' || matchedNew?.id === active.workflowId;
+    const shouldResume =
+      looksLikeContinuation(message) ||
+      !intent ||
+      intent === 'read' ||
+      matchedNew?.id === active.workflowId;
 
     if (shouldResume) {
-      console.log(`[WorkflowRouter] Resuming active instance ${active.instanceId} (${active.workflowId})`);
-      return await engine.resume(active.instanceId, { type: 'USER_MESSAGE', content: message });
+      console.log(
+        `[WorkflowRouter] Resuming active instance ${active.instanceId} (${active.workflowId})`,
+      );
+      return await engine.resume(active.instanceId, {
+        type: 'USER_MESSAGE',
+        content: message,
+      });
     } else {
-      console.log(`[WorkflowRouter] Intent shift detected (${intent}). Clearing active instance.`);
+      console.log(
+        `[WorkflowRouter] Intent shift detected (${intent}). Clearing active instance.`,
+      );
       await engine.clearActiveInstance(userId);
     }
   }
@@ -44,7 +60,9 @@ export const routeWorkflowRequest = async (
   // 2. Exhaustive Intent Switch (The "Intent Router")
   if (!intent || !classification) return opts.agentFallback();
 
-  console.log(`[WorkflowRouter] Routing intent: "${intent}" (length: ${intent?.length}, type: ${typeof intent})`);
+  console.log(
+    `[WorkflowRouter] Routing intent: "${intent}" (length: ${intent?.length}, type: ${typeof intent})`,
+  );
 
   switch (intent) {
     case 'maintenance_request':
@@ -68,7 +86,7 @@ export const routeWorkflowRequest = async (
                  If it's a complaint, respond with empathy. 
                  If they're struggling to pay (collection_status), acknowledge the difficulty, express empathy as a property manager, and ask if they have a specific date in mind to pay (rent_extension_request). 
                  DO NOT start a workflow yet.`,
-        context: { ...context, intent }
+        context: { ...context, intent },
       };
 
     case 'lease_question':
@@ -83,13 +101,17 @@ export const routeWorkflowRequest = async (
       return {
         status: 'DIRECT_RESPONSE',
         prompt: `The user made an unauthorized or suspicious request: "${message}". Politely but firmly refuse based on security policies and data privacy.`,
-        context: { ...context, intent }
+        context: { ...context, intent },
       };
 
     default:
       if (opts.role === 'COMPANY_STAFF' || opts.role === 'SUPER_ADMIN') {
-        routerLogger.log(`[RouterRoleMatch] STAFF/ADMIN best-effort passage for intent="${intent}"`);
-        return opts.agentFallback(`[HINT: Perform a broad search for requested entities using any available identifiers before asking for clarification. Summarize results naturally in Nairobi style.]`);
+        routerLogger.log(
+          `[RouterRoleMatch] STAFF/ADMIN best-effort passage for intent="${intent}"`,
+        );
+        return opts.agentFallback(
+          `[HINT: Perform a broad search for requested entities using any available identifiers before asking for clarification. Summarize results naturally in Nairobi style.]`,
+        );
       }
       return opts.agentFallback();
   }
@@ -101,20 +123,22 @@ export const routeWorkflowRequest = async (
 async function handleWorkflowRouting(
   workflowId: string,
   engine: WorkflowEngine,
-  opts: RouteRequestOptions
+  opts: RouteRequestOptions,
 ): Promise<RouteResult | any> {
   const { userId, classification, context = {} } = opts;
-  
+
   // 1. Run the Guard (The Information Gate)
-  const guard = checkWorkflowGuard(workflowId, classification!);
+  const guard = checkWorkflowGuard(workflowId, classification);
   if (!guard.allowed) {
-    console.log(`[WorkflowRouter] Information Gate: ${workflowId} needs info. Missing: ${guard.missingFields?.join(', ')}`);
+    console.log(
+      `[WorkflowRouter] Information Gate: ${workflowId} needs info. Missing: ${guard.missingFields?.join(', ')}`,
+    );
     return {
       status: 'NEEDS_INFO',
       missingFields: guard.missingFields || [],
       pendingIntent: workflowId,
       collectedEntities: classification!.entities || {},
-      prompt: `Regarding your request for ${workflowId.replace(/_/g, ' ')}, I noticed I'm missing some details: ${guard.missingFields?.join(', ')}. Please ask the user for these details naturally and empathetic.`
+      prompt: `Regarding your request for ${workflowId.replace(/_/g, ' ')}, I noticed I'm missing some details: ${guard.missingFields?.join(', ')}. Please ask the user for these details naturally and empathetic.`,
     };
   }
 

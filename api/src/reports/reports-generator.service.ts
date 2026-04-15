@@ -94,7 +94,11 @@ export class ReportsGeneratorService {
     companyLogo?: string,
   ): Promise<string> {
     const resolvedLogo = this.resolveLogoUrl(companyLogo || null);
-    const html = this.renderPremiumHtml(insights, propertiesData, resolvedLogo || undefined);
+    const html = this.renderPremiumHtml(
+      insights,
+      propertiesData,
+      resolvedLogo || undefined,
+    );
     return this.generatePdfFromHtml(html, fileName);
   }
 
@@ -143,7 +147,10 @@ export class ReportsGeneratorService {
     try {
       this.logger.log(`Launching Puppeteer browser...`);
       browser = await puppeteer.launch({
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_PATH || puppeteer.executablePath(),
+        executablePath:
+          process.env.PUPPETEER_EXECUTABLE_PATH ||
+          process.env.CHROME_PATH ||
+          puppeteer.executablePath(),
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -167,10 +174,18 @@ export class ReportsGeneratorService {
           url.includes('aedra-api') || // Docker service name
           (process.env.API_URL && url.includes(process.env.API_URL));
 
-        const isFont = url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com');
+        const isFont =
+          url.includes('fonts.googleapis.com') ||
+          url.includes('fonts.gstatic.com');
         const isCdn = url.includes('cdnjs.cloudflare.com');
 
-        if (isLocal || isFont || isCdn || req.resourceType() === 'document' || req.resourceType() === 'font') {
+        if (
+          isLocal ||
+          isFont ||
+          isCdn ||
+          req.resourceType() === 'document' ||
+          req.resourceType() === 'font'
+        ) {
           req.continue();
         } else {
           this.logger.debug(`Aborting external request: ${url}`);
@@ -183,7 +198,10 @@ export class ReportsGeneratorService {
         this.logger.error(`PAGE ERROR: ${err.message}`),
       );
       page.on('requestfailed', (req) => {
-        if (req.url().includes('localhost') || req.url().includes('127.0.0.1')) {
+        if (
+          req.url().includes('localhost') ||
+          req.url().includes('127.0.0.1')
+        ) {
           this.logger.error(
             `REQUEST FAILED: ${req.url()} - ${req.failure()?.errorText}`,
           );
@@ -250,9 +268,12 @@ export class ReportsGeneratorService {
     const email = company?.email || 'support@aedra.co.ke';
     const phone = company?.phone || 'Property Management Office';
 
-    const formattedAmount = new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(invoice.amount);
+    const formattedAmount = new Intl.NumberFormat('en-KE', {
+      style: 'currency',
+      currency: 'KES',
+    }).format(invoice.amount);
     const dueDate = new Date(invoice.dueDate).toLocaleDateString();
-    
+
     return `
       <!DOCTYPE html>
       <html>
@@ -359,10 +380,13 @@ export class ReportsGeneratorService {
   }
 
   private renderReceiptHtml(payment: any, company: any): string {
-    const formattedAmount = new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(payment.amount);
+    const formattedAmount = new Intl.NumberFormat('en-KE', {
+      style: 'currency',
+      currency: 'KES',
+    }).format(payment.amount);
     const paidAt = new Date(payment.paidAt).toLocaleString();
     const paymentFor = `${payment.type} - ${new Date(payment.paidAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`;
-    
+
     return `
       <!DOCTYPE html>
       <html>
@@ -824,9 +848,16 @@ export class ReportsGeneratorService {
     const defaultLogo = '/aedra logo.png';
     const logoToResolve = logo || defaultLogo;
     if (logoToResolve.startsWith('http')) return logoToResolve;
-    const baseUrl = process.env.INTERNAL_API_URL || process.env.API_URL || 'http://localhost:4001';
-    const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const normalizedLogo = logoToResolve.startsWith('/') ? logoToResolve : '/' + logoToResolve;
+    const baseUrl =
+      process.env.INTERNAL_API_URL ||
+      process.env.API_URL ||
+      'http://localhost:4001';
+    const normalizedBase = baseUrl.endsWith('/')
+      ? baseUrl.slice(0, -1)
+      : baseUrl;
+    const normalizedLogo = logoToResolve.startsWith('/')
+      ? logoToResolve
+      : '/' + logoToResolve;
     return `${normalizedBase}${normalizedLogo}`;
   }
 
@@ -944,19 +975,39 @@ export class ReportsGeneratorService {
   }
 
   private renderTenantStatementHtml(data: any): string {
-    const { company, tenant, property, unit, lease, ledger, summaries, openingBalance, closingBalance, range } = data;
-    
+    const {
+      company,
+      tenant,
+      property,
+      unit,
+      lease,
+      ledger,
+      summaries,
+      openingBalance,
+      closingBalance,
+      range,
+    } = data;
+
     // Group ledger by month
     const groupedLedger: Record<string, any[]> = {};
     ledger.forEach((item: any) => {
       const d = new Date(item.date);
-      const month = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+      const month = d.toLocaleString('en-US', {
+        month: 'long',
+        year: 'numeric',
+      });
       if (!groupedLedger[month]) groupedLedger[month] = [];
       groupedLedger[month].push(item);
     });
 
-    const fmt = (n: number) => new Intl.NumberFormat('en-KE', { minimumFractionDigits: 2 }).format(n);
-    const dt = (dStr: string) => new Date(dStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const fmt = (n: number) =>
+      new Intl.NumberFormat('en-KE', { minimumFractionDigits: 2 }).format(n);
+    const dt = (dStr: string) =>
+      new Date(dStr).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
 
     const logoHtml = `<img src="${this.resolveLogoUrl(company.logo || null)}" style="max-height: 80px; max-width: 200px; filter: grayscale(100%);" />`;
 
@@ -1061,11 +1112,15 @@ export class ReportsGeneratorService {
             </tr>
           </thead>
           <tbody>
-            ${Object.entries(groupedLedger).map(([month, items]) => `
+            ${Object.entries(groupedLedger)
+              .map(
+                ([month, items]) => `
               <tr>
                 <td colspan="6" class="month-row">${month}</td>
               </tr>
-              ${items.map(item => `
+              ${items
+                .map(
+                  (item) => `
                 <tr>
                   <td style="color: #666;">${dt(item.date)}</td>
                   <td style="font-size: 10px; color: #999;">${item.code}</td>
@@ -1074,20 +1129,28 @@ export class ReportsGeneratorService {
                   <td class="amount">${item.credit > 0 ? fmt(item.credit) : '-'}</td>
                   <td class="amount balance" style="color: ${item.balance > 0 ? '#000' : '#d00'}">${fmt(item.balance)}</td>
                 </tr>
-              `).join('')}
-            `).join('')}
+              `,
+                )
+                .join('')}
+            `,
+              )
+              .join('')}
           </tbody>
         </table>
 
         <div class="summaries">
           <div>
             <div class="section-title">Invoice Summary</div>
-            ${summaries.invoices.map((s: any) => `
+            ${summaries.invoices
+              .map(
+                (s: any) => `
               <div class="summary-item">
                 <span style="color: #666;">${s.type.replace(/_/g, ' ')}</span>
                 <span class="bold">${fmt(s.amount)}</span>
               </div>
-            `).join('')}
+            `,
+              )
+              .join('')}
             <div class="total-box">
               <span>Total Debits</span>
               <span>${fmt(summaries.invoices.reduce((a: any, b: any) => a + b.amount, 0))}</span>
@@ -1096,12 +1159,16 @@ export class ReportsGeneratorService {
 
           <div>
             <div class="section-title">Payment Summary</div>
-            ${summaries.payments.map((s: any) => `
+            ${summaries.payments
+              .map(
+                (s: any) => `
               <div class="summary-item">
                 <span style="color: #666;">${s.type.replace(/_/g, ' ')}</span>
                 <span class="bold">${fmt(s.amount)}</span>
               </div>
-            `).join('')}
+            `,
+              )
+              .join('')}
             <div class="total-box">
               <span>Total Credits</span>
               <span>${fmt(summaries.payments.reduce((a: any, b: any) => a + b.amount, 0))}</span>

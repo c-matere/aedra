@@ -132,7 +132,7 @@ export class ResponsePipelineService {
     // We would need to inject WhatsAppFormatterService here to use its method,
     // but for now we can rely on its global use in AiService/Orchestrator.
     // Actually, I'll add a simple local version or just rely on the orchestrator.
-    
+
     // Safety: Convert malformed or unintended Markdown links [label](url) to plain URLs for WhatsApp
     formatted = formatted.replace(
       /\[(?:.*?)\]\((https?:\/\/[^\s\)]+)\)/g,

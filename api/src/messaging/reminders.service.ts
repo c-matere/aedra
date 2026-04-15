@@ -75,10 +75,15 @@ export class RemindersService {
         // STEP 5 — Async send (simulated async within loop for now,
         // in production this would be a queue)
         try {
-          await this.whatsappService.sendTextMessage({
+          const dueDateStr = 'the 5th'; // Simplified for now
+          await this.whatsappService.sendRentReminder({
             companyId: actor.companyId,
             to: tenant.phone,
-            text: message,
+            tenantName: tenant.firstName,
+            amountDue: balance,
+            unitNumber: unit.number,
+            dueDate: dueDateStr,
+            isFirm: tone !== 'GENTLE',
           });
           totalSent++;
           results.push({

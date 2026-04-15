@@ -127,7 +127,8 @@ export const coreReadTools = [
         },
         propertyName: {
           type: SchemaType.STRING,
-          description: 'The property name this unit belongs to. Required if relying on unitNumber.',
+          description:
+            'The property name this unit belongs to. Required if relying on unitNumber.',
         },
       },
     },
@@ -160,11 +161,13 @@ export const coreReadTools = [
         },
         propertyName: {
           type: SchemaType.STRING,
-          description: 'Filter by property name (e.g. "Palm Grove"). Use this when the user mentions a specific property but you do not have its UUID.',
+          description:
+            'Filter by property name (e.g. "Palm Grove"). Use this when the user mentions a specific property but you do not have its UUID.',
         },
         tenantName: {
           type: SchemaType.STRING,
-          description: 'Filter by tenant name (e.g. "Fatuma Ali"). Use this when the user mentions a specific tenant but you do not have their UUID.',
+          description:
+            'Filter by tenant name (e.g. "Fatuma Ali"). Use this when the user mentions a specific tenant but you do not have their UUID.',
         },
         query: {
           type: SchemaType.STRING,
@@ -383,7 +386,8 @@ export const coreReadTools = [
         },
         category: {
           type: SchemaType.STRING,
-          description: 'Filter by category (e.g. MAINTENANCE, COMMISSION_AGENT_FEE)',
+          description:
+            'Filter by category (e.g. MAINTENANCE, COMMISSION_AGENT_FEE)',
         },
         dateFrom: {
           type: SchemaType.STRING,
@@ -537,7 +541,10 @@ export const coreReadTools = [
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        propertyId: { type: SchemaType.STRING, description: 'Optional property UUID' },
+        propertyId: {
+          type: SchemaType.STRING,
+          description: 'Optional property UUID',
+        },
         dateFrom: {
           type: SchemaType.STRING,
           description: 'ISO date string (inclusive).',
@@ -551,11 +558,15 @@ export const coreReadTools = [
   },
   {
     name: 'get_maintenance_photos',
-    description: 'Retrieve before and after photos for a specific maintenance request or unit.',
+    description:
+      'Retrieve before and after photos for a specific maintenance request or unit.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        requestId: { type: SchemaType.STRING, description: 'Maintenance request UUID' },
+        requestId: {
+          type: SchemaType.STRING,
+          description: 'Maintenance request UUID',
+        },
         unitId: { type: SchemaType.STRING, description: 'Unit UUID' },
       },
     },
@@ -592,7 +603,8 @@ export const coreReadTools = [
         },
         companyName: {
           type: SchemaType.STRING,
-          description: 'The name of the company to select (e.g. "Epic Properties")',
+          description:
+            'The name of the company to select (e.g. "Epic Properties")',
         },
       },
     },
@@ -646,31 +658,46 @@ export const coreReadTools = [
   },
   {
     name: 'generate_rent_roll',
-    description: 'Generate a comprehensive rent roll report for a property, showing all units, current tenants, rent amounts, and payment status.',
+    description:
+      'Generate a comprehensive rent roll report for a property, showing all units, current tenants, rent amounts, and payment status.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
         propertyId: { type: SchemaType.STRING, description: 'Property UUID' },
-        propertyName: { type: SchemaType.STRING, description: 'Property name (to be resolved)' },
+        propertyName: {
+          type: SchemaType.STRING,
+          description: 'Property name (to be resolved)',
+        },
       },
     },
   },
   {
     name: 'generate_statement',
-    description: 'Generate a detailed financial statement for a tenant, showing all payments, arrears, and current balance.',
+    description:
+      'Generate a detailed financial statement for a tenant, showing all payments, arrears, and current balance.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
         tenantId: { type: SchemaType.STRING, description: 'Tenant UUID' },
-        tenantName: { type: SchemaType.STRING, description: 'Tenant name (to be resolved)' },
-        dateFrom: { type: SchemaType.STRING, description: 'Optional ISO start date' },
-        dateTo: { type: SchemaType.STRING, description: 'Optional ISO end date' },
+        tenantName: {
+          type: SchemaType.STRING,
+          description: 'Tenant name (to be resolved)',
+        },
+        dateFrom: {
+          type: SchemaType.STRING,
+          description: 'Optional ISO start date',
+        },
+        dateTo: {
+          type: SchemaType.STRING,
+          description: 'Optional ISO end date',
+        },
       },
     },
   },
   {
     name: 'maintenance_emergency',
-    description: 'Special intent for urgent maintenance (leak, fire, etc.). Does not require tool call, triggers emergency instructions.',
+    description:
+      'Special intent for urgent maintenance (leak, fire, etc.). Does not require tool call, triggers emergency instructions.',
   },
   {
     name: 'get_mckinsey_style_report',
@@ -998,21 +1025,41 @@ export const coreWriteTools = [
   },
   {
     name: 'record_expense',
-    description: 'Record an expense or payment made (e.g. for repairs, utilities, or agent commissions). Requires confirmation.',
+    description:
+      'Record an expense or payment made (e.g. for repairs, utilities, or agent commissions). Requires confirmation.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        description: { type: SchemaType.STRING, description: 'Short description' },
-        amount: { type: SchemaType.NUMBER, description: 'Expense amount' },
-        category: { 
-          type: SchemaType.STRING, 
-          description: 'Category (e.g. MAINTENANCE, REPAIR, UTILITY, INSURANCE, TAX, MANAGEMENT_FEE, COMMISSION_AGENT_FEE, SALARY, OTHER)' 
+        description: {
+          type: SchemaType.STRING,
+          description: 'Short description',
         },
-        propertyId: { type: SchemaType.STRING, description: 'Property UUID or Name' },
-        unitId: { type: SchemaType.STRING, description: 'Unit UUID or Number (optional)' },
-        vendor: { type: SchemaType.STRING, description: 'Vendor/recipient name (optional)' },
-        reference: { type: SchemaType.STRING, description: 'Reference number/MPESA code (optional)' },
-        date: { type: SchemaType.STRING, description: 'ISO date (optional, defaults to now)' },
+        amount: { type: SchemaType.NUMBER, description: 'Expense amount' },
+        category: {
+          type: SchemaType.STRING,
+          description:
+            'Category (e.g. MAINTENANCE, REPAIR, UTILITY, INSURANCE, TAX, MANAGEMENT_FEE, COMMISSION_AGENT_FEE, SALARY, OTHER)',
+        },
+        propertyId: {
+          type: SchemaType.STRING,
+          description: 'Property UUID or Name',
+        },
+        unitId: {
+          type: SchemaType.STRING,
+          description: 'Unit UUID or Number (optional)',
+        },
+        vendor: {
+          type: SchemaType.STRING,
+          description: 'Vendor/recipient name (optional)',
+        },
+        reference: {
+          type: SchemaType.STRING,
+          description: 'Reference number/MPESA code (optional)',
+        },
+        date: {
+          type: SchemaType.STRING,
+          description: 'ISO date (optional, defaults to now)',
+        },
         confirm: {
           type: SchemaType.BOOLEAN,
           description: 'Must be true to record',
@@ -1619,16 +1666,29 @@ export const coreWriteTools = [
   },
   {
     name: 'log_maintenance',
-    description: 'Record a past maintenance action or log a completed repair without starting a new request. Use this to keep records up to date.',
+    description:
+      'Record a past maintenance action or log a completed repair without starting a new request. Use this to keep records up to date.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        title: { type: SchemaType.STRING, description: 'Summary of the action' },
-        description: { type: SchemaType.STRING, description: 'Details of what was done' },
+        title: {
+          type: SchemaType.STRING,
+          description: 'Summary of the action',
+        },
+        description: {
+          type: SchemaType.STRING,
+          description: 'Details of what was done',
+        },
         unitId: { type: SchemaType.STRING, description: 'Unit UUID' },
         propertyId: { type: SchemaType.STRING, description: 'Property UUID' },
-        cost: { type: SchemaType.NUMBER, description: 'Cost of the repair (if any)' },
-        date: { type: SchemaType.STRING, description: 'ISO date of the action' },
+        cost: {
+          type: SchemaType.NUMBER,
+          description: 'Cost of the repair (if any)',
+        },
+        date: {
+          type: SchemaType.STRING,
+          description: 'ISO date of the action',
+        },
         confirm: { type: SchemaType.BOOLEAN, description: 'Must be true' },
       },
       required: ['title', 'confirm'],
@@ -1636,13 +1696,20 @@ export const coreWriteTools = [
   },
   {
     name: 'initiate_payment',
-    description: 'Trigger an M-Pesa STK Push to the tenant for a specific amount. If amount is omitted, it defaults to the current balance.',
+    description:
+      'Trigger an M-Pesa STK Push to the tenant for a specific amount. If amount is omitted, it defaults to the current balance.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
         tenantId: { type: SchemaType.STRING, description: 'Tenant UUID' },
-        amount: { type: SchemaType.NUMBER, description: 'Amount to pay in KES' },
-        confirm: { type: SchemaType.BOOLEAN, description: 'Must be true to trigger' },
+        amount: {
+          type: SchemaType.NUMBER,
+          description: 'Amount to pay in KES',
+        },
+        confirm: {
+          type: SchemaType.BOOLEAN,
+          description: 'Must be true to trigger',
+        },
       },
       required: ['confirm'],
     },
@@ -1905,33 +1972,44 @@ const conductorTools: any[] = [
 
 export const view_version_history = {
   name: 'view_version_history',
-  description: 'View the audit trail and change history for a specific entity (Tenant, Lease, or Payment).',
+  description:
+    'View the audit trail and change history for a specific entity (Tenant, Lease, or Payment).',
   parameters: {
     type: 'object',
     properties: {
-      entity: { type: 'string', enum: ['Tenant', 'Lease', 'Payment'], description: 'The type of entity to view history for.' },
-      targetId: { type: 'string', description: 'The unique ID of the entity.' }
+      entity: {
+        type: 'string',
+        enum: ['Tenant', 'Lease', 'Payment'],
+        description: 'The type of entity to view history for.',
+      },
+      targetId: { type: 'string', description: 'The unique ID of the entity.' },
     },
-    required: ['entity', 'targetId']
-  }
+    required: ['entity', 'targetId'],
+  },
 };
 
 export const generate_history_pdf = {
   name: 'generate_history_pdf',
-  description: 'Generate a professional PDF report showing the visual diffs and version history for an entity.',
+  description:
+    'Generate a professional PDF report showing the visual diffs and version history for an entity.',
   parameters: {
     type: 'object',
     properties: {
-      entity: { type: 'string', enum: ['Tenant', 'Lease', 'Payment'], description: 'The entity type.' },
-      targetId: { type: 'string', description: 'The entity ID.' }
+      entity: {
+        type: 'string',
+        enum: ['Tenant', 'Lease', 'Payment'],
+        description: 'The entity type.',
+      },
+      targetId: { type: 'string', description: 'The entity ID.' },
     },
-    required: ['entity', 'targetId']
-  }
+    required: ['entity', 'targetId'],
+  },
 };
 
 export const view_portfolio_history = {
   name: 'view_portfolio_history',
-  description: 'View the comprehensive audit trail for the entire portfolio/company. Can be filtered by entity type.',
+  description:
+    'View the comprehensive audit trail for the entire portfolio/company. Can be filtered by entity type.',
   parameters: {
     type: 'object',
     properties: {
@@ -1950,19 +2028,24 @@ export const view_portfolio_history = {
 
 export const rollback_change = {
   name: 'rollback_change',
-  description: 'Revert an entity record to a previous state using a specific audit log entry ID.',
+  description:
+    'Revert an entity record to a previous state using a specific audit log entry ID.',
   parameters: {
     type: 'object',
     properties: {
-      auditLogId: { type: 'string', description: 'The ID of the audit log entry (version) to rollback to.' }
+      auditLogId: {
+        type: 'string',
+        description: 'The ID of the audit log entry (version) to rollback to.',
+      },
     },
-    required: ['auditLogId']
-  }
+    required: ['auditLogId'],
+  },
 };
 
 export const agent_initiate = {
   name: 'agent_initiate',
-  description: 'Start an autonomous long-running agent to handle a complex, multi-step goal (e.g. processing a 74-page document).',
+  description:
+    'Start an autonomous long-running agent to handle a complex, multi-step goal (e.g. processing a 74-page document).',
   parameters: {
     type: 'object',
     properties: {

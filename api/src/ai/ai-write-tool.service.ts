@@ -55,8 +55,7 @@ export class AiWriteToolService {
     private readonly mpesaService: MpesaService,
     private readonly financesService: FinancesService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
-  ) {
-  }
+  ) {}
 
   private isUuid(value?: string | null): boolean {
     if (!value) return false;
@@ -89,7 +88,10 @@ export class AiWriteToolService {
       const last9 = digits.slice(1);
       if (last9.startsWith('7') || last9.startsWith('1')) return `+254${last9}`;
     }
-    if (digits.length === 9 && (digits.startsWith('7') || digits.startsWith('1')))
+    if (
+      digits.length === 9 &&
+      (digits.startsWith('7') || digits.startsWith('1'))
+    )
       return `+254${digits}`;
 
     // Unknown format: return original.
@@ -128,12 +130,19 @@ export class AiWriteToolService {
     return undefined;
   }
 
-  private async tryResolveUnitIdByPropertyAndUnitNumber(args: any, companyId?: string): Promise<void> {
+  private async tryResolveUnitIdByPropertyAndUnitNumber(
+    args: any,
+    companyId?: string,
+  ): Promise<void> {
     if (args?.unitId && this.isUuid(args.unitId)) return;
 
     // If propertyId is provided but not a UUID (e.g. a name), try to resolve it first
     if (args?.propertyId && !this.isUuid(args.propertyId)) {
-      const pRes = await this.resolutionService.resolveId('property', args.propertyId, companyId);
+      const pRes = await this.resolutionService.resolveId(
+        'property',
+        args.propertyId,
+        companyId,
+      );
       if (pRes?.id) args.propertyId = pRes.id;
     }
 
@@ -165,7 +174,8 @@ export class AiWriteToolService {
     const lower = raw.toLowerCase();
     const now = new Date();
 
-    if (lower === 'today') return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (lower === 'today')
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate());
     if (lower === 'tomorrow') {
       const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       d.setDate(d.getDate() + 1);
@@ -234,10 +244,15 @@ export class AiWriteToolService {
     return null;
   }
 
-  private async resolveTodoAssigneeUserId(context: any, companyId?: string): Promise<string | null> {
+  private async resolveTodoAssigneeUserId(
+    context: any,
+    companyId?: string,
+  ): Promise<string | null> {
     // Prefer the acting user if it exists.
     if (this.isUuid(context?.userId)) {
-      const exists = await this.prisma.user.count({ where: { id: context.userId, deletedAt: null } });
+      const exists = await this.prisma.user.count({
+        where: { id: context.userId, deletedAt: null },
+      });
       if (exists > 0) return context.userId;
     }
 
@@ -271,11 +286,15 @@ export class AiWriteToolService {
       entity_type: entity,
       search_term: searchTerm,
       required_action: 'CLARIFY_IDENTITY',
-      message: `I couldn't find a unique ${entity} for '${searchTerm}'. Could you provide more details like the full name or unit number?`
+      message: `I couldn't find a unique ${entity} for '${searchTerm}'. Could you provide more details like the full name or unit number?`,
     };
   }
 
-  private handleResolutionError(resolved: any, entityType: string, searchTerm: string): any {
+  private handleResolutionError(
+    resolved: any,
+    entityType: string,
+    searchTerm: string,
+  ): any {
     if (resolved?.error === 'AMBIGUOUS_MATCH') {
       return {
         error: 'AMBIGUOUS_MATCH',
@@ -283,7 +302,7 @@ export class AiWriteToolService {
         search_term: searchTerm,
         required_action: 'SELECT_FROM_LIST',
         matches: resolved.matches,
-        message: `I found multiple ${entityType}s matching '${searchTerm}'. Which one did you mean?`
+        message: `I found multiple ${entityType}s matching '${searchTerm}'. Which one did you mean?`,
       };
     }
     return this.formatNotFoundError(entityType, searchTerm);
@@ -364,26 +383,32 @@ export class AiWriteToolService {
 
           if (args?.phone) args.phone = this.normalizeKenyanPhone(args.phone);
 
-          const fallbackName = args.tenantName || context.registrationData?.tenantName || context.tenantName;
+          const fallbackName =
+            args.tenantName ||
+            context.registrationData?.tenantName ||
+            context.tenantName;
           if (!args.firstName && fallbackName) {
             const parts = fallbackName.trim().split(' ');
             args.firstName = parts[0];
-            args.lastName = parts.length > 1 ? parts.slice(1).join(' ') : args.lastName;
+            args.lastName =
+              parts.length > 1 ? parts.slice(1).join(' ') : args.lastName;
           }
           if (!args.phone && context.registrationData?.tenantPhone) {
-            args.phone = this.normalizeKenyanPhone(context.registrationData.tenantPhone);
+            args.phone = this.normalizeKenyanPhone(
+              context.registrationData.tenantPhone,
+            );
           }
           if (!args.firstName) {
             return {
               requires_clarification: true,
               error: 'BLOCK_PREREQUISITE_MISSING',
-              message: 'Please provide the tenant\'s first name.',
+              message: "Please provide the tenant's first name.",
             };
           }
 
-
           // Resolve unit (optional) first: it can be used to infer propertyId.
-          const unitSearchTerm = args?.unitId || args?.unitName || args?.unitNumber;
+          const unitSearchTerm =
+            args?.unitId || args?.unitName || args?.unitNumber;
           const unitResolved = await this.resolveIdOrError(
             'unit',
             unitSearchTerm,
@@ -436,11 +461,17 @@ export class AiWriteToolService {
               ),
             },
           });
-          const _vcLog1 = await this.auditLog.logEntityChange("TENANT", tenant.id, null, tenant, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-          });
+          const _vcLog1 = await this.auditLog.logEntityChange(
+            'TENANT',
+            tenant.id,
+            null,
+            tenant,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+            },
+          );
           await this.updateEmbedding(
             'TENANT',
             tenant.id,
@@ -461,11 +492,17 @@ export class AiWriteToolService {
             where: { id: args.tenantId },
             data: { deletedAt: new Date() },
           });
-          const _vcLog2 = await this.auditLog.logEntityChange('TENANT', tenant.id, before, null, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-          });
+          const _vcLog2 = await this.auditLog.logEntityChange(
+            'TENANT',
+            tenant.id,
+            before,
+            null,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+            },
+          );
           return {
             success: true,
             message: 'Tenant record deleted successfully.',
@@ -487,12 +524,22 @@ export class AiWriteToolService {
             where: { id: args.tenantId },
             data: { deletedAt: new Date() },
           });
-          const _vcLog3 = await this.auditLog.logEntityChange('TENANT', tenant.id, before, null, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-          });
-          return { success: true, message: 'Tenant archived successfully.', _vc: this.auditLog.buildVcSummary(_vcLog3) };
+          const _vcLog3 = await this.auditLog.logEntityChange(
+            'TENANT',
+            tenant.id,
+            before,
+            null,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+            },
+          );
+          return {
+            success: true,
+            message: 'Tenant archived successfully.',
+            _vc: this.auditLog.buildVcSummary(_vcLog3),
+          };
         }
 
         case 'run_python_script': {
@@ -521,7 +568,11 @@ export class AiWriteToolService {
             undefined,
           );
           if (args?.defaultPropertyId) {
-            const rProp = await this.resolutionService.resolveId('property', args.defaultPropertyId, context.companyId);
+            const rProp = await this.resolutionService.resolveId(
+              'property',
+              args.defaultPropertyId,
+              context.companyId,
+            );
             if (rProp) args.defaultPropertyId = rProp;
           }
           const defaultPropertyId = args.defaultPropertyId;
@@ -550,7 +601,7 @@ export class AiWriteToolService {
           }
 
           const result = await this.prisma.tenant.createMany({ data });
-          
+
           // Log each created tenant (best effort for VC)
           const createdTenants = await this.prisma.tenant.findMany({
             where: {
@@ -563,12 +614,18 @@ export class AiWriteToolService {
           });
 
           for (const tenant of createdTenants) {
-            await this.auditLog.logEntityChange('TENANT', tenant.id, null, tenant, {
-              actorId: context.userId,
-              actorRole: role,
-              actorCompanyId: context.companyId,
-              method: 'BULK_CREATE',
-            });
+            await this.auditLog.logEntityChange(
+              'TENANT',
+              tenant.id,
+              null,
+              tenant,
+              {
+                actorId: context.userId,
+                actorRole: role,
+                actorCompanyId: context.companyId,
+                method: 'BULK_CREATE',
+              },
+            );
             await this.updateEmbedding(
               'TENANT',
               tenant.id,
@@ -590,7 +647,11 @@ export class AiWriteToolService {
             undefined,
           );
           if (args?.landlordId) {
-            const rLandlord = await this.resolutionService.resolveId('landlord', args.landlordId, context.companyId);
+            const rLandlord = await this.resolutionService.resolveId(
+              'landlord',
+              args.landlordId,
+              context.companyId,
+            );
             if (rLandlord) args.landlordId = rLandlord;
           }
           const confirmation = this.requireConfirmation(
@@ -630,16 +691,26 @@ export class AiWriteToolService {
           );
 
           // Automatically create units if unitCount is provided
-          if (args.unitCount && typeof args.unitCount === 'number' && args.unitCount > 0 && args.unitCount <= 100) {
-              const unitsToCreate = Array.from({ length: args.unitCount }, (_, i) => ({
-                  unitNumber: String(i + 1),
-                  propertyId: property.id,
-                  status: UnitStatus.VACANT,
-                  rentAmount: 0,
-                  companyId,
-              }));
-              await this.prisma.unit.createMany({ data: unitsToCreate });
-              this.logger.log(`[WriteTool] Created ${args.unitCount} units for property ${property.id}`);
+          if (
+            args.unitCount &&
+            typeof args.unitCount === 'number' &&
+            args.unitCount > 0 &&
+            args.unitCount <= 100
+          ) {
+            const unitsToCreate = Array.from(
+              { length: args.unitCount },
+              (_, i) => ({
+                unitNumber: String(i + 1),
+                propertyId: property.id,
+                status: UnitStatus.VACANT,
+                rentAmount: 0,
+                companyId,
+              }),
+            );
+            await this.prisma.unit.createMany({ data: unitsToCreate });
+            this.logger.log(
+              `[WriteTool] Created ${args.unitCount} units for property ${property.id}`,
+            );
           }
 
           const _vcLogP = await this.auditLog.logEntityChange(
@@ -693,20 +764,30 @@ export class AiWriteToolService {
               role: true,
             },
           });
-          const _vcLogS = await this.auditLog.logEntityChange('STAFF', staff.id, null, staff, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `${staff.firstName} ${staff.lastName}`,
-          });
+          const _vcLogS = await this.auditLog.logEntityChange(
+            'STAFF',
+            staff.id,
+            null,
+            staff,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `${staff.firstName} ${staff.lastName}`,
+            },
+          );
           return { ...staff, _vc: this.auditLog.buildVcSummary(_vcLogS) };
         }
 
         case 'create_lease': {
           const [tenantResolved, propResolved2, unitResolved2] =
             await Promise.all([
-              this.resolveIdOrError('tenant', args?.tenantId, context.companyId),
+              this.resolveIdOrError(
+                'tenant',
+                args?.tenantId,
+                context.companyId,
+              ),
               this.resolveIdOrError(
                 'property',
                 args?.propertyId,
@@ -738,7 +819,10 @@ export class AiWriteToolService {
           }
 
           // If unitId wasn't resolved but we do have propertyId + unitName, try a deterministic lookup.
-          await this.tryResolveUnitIdByPropertyAndUnitNumber(args, context.companyId);
+          await this.tryResolveUnitIdByPropertyAndUnitNumber(
+            args,
+            context.companyId,
+          );
 
           if (!args.tenantId) {
             return {
@@ -772,8 +856,7 @@ export class AiWriteToolService {
             return {
               requires_clarification: true,
               error: 'BLOCK_PREREQUISITE_MISSING',
-              message:
-                'What is the lease start date? (Example: "2026-04-01")',
+              message: 'What is the lease start date? (Example: "2026-04-01")',
             };
           }
 
@@ -782,8 +865,7 @@ export class AiWriteToolService {
             return {
               requires_clarification: true,
               error: 'BLOCK_PREREQUISITE_MISSING',
-              message:
-                'What is the lease end date? (Example: "2027-03-31")',
+              message: 'What is the lease end date? (Example: "2027-03-31")',
             };
           }
 
@@ -823,70 +905,94 @@ export class AiWriteToolService {
               status: args.status || 'PENDING',
             },
           });
-          const _vcLog4 = await this.auditLog.logEntityChange('LEASE', lease.id, null, lease, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `Lease for Tenant ${lease.tenantId}`,
-          });
+          const _vcLog4 = await this.auditLog.logEntityChange(
+            'LEASE',
+            lease.id,
+            null,
+            lease,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `Lease for Tenant ${lease.tenantId}`,
+            },
+          );
           return { ...lease, _vc: this.auditLog.buildVcSummary(_vcLog4) };
         }
 
         case 'log_maintenance': {
-            if (!args.confirm) return { error: 'Confirmation required.' };
-            
-            const [rProp, rUnit] = await Promise.all([
-                args.propertyId ? this.resolutionService.resolveId('property', args.propertyId, context.companyId) : null,
-                args.unitId ? this.resolutionService.resolveId('unit', args.unitId, context.companyId) : null
-            ]);
+          if (!args.confirm) return { error: 'Confirmation required.' };
 
-            const propertyId = rProp || args.propertyId;
-            const unitId = rUnit || args.unitId;
+          const [rProp, rUnit] = await Promise.all([
+            args.propertyId
+              ? this.resolutionService.resolveId(
+                  'property',
+                  args.propertyId,
+                  context.companyId,
+                )
+              : null,
+            args.unitId
+              ? this.resolutionService.resolveId(
+                  'unit',
+                  args.unitId,
+                  context.companyId,
+                )
+              : null,
+          ]);
 
-            // Create a closed maintenance request to log the history
-            const request = await this.prisma.maintenanceRequest.create({
-                data: {
-                    title: args.title,
-                    description: args.description || 'Logged historical maintenance',
-                    priority: 'MEDIUM',
-                    category: 'OTHER',
-                    status: 'COMPLETED',
-                    companyId: context.companyId,
-                    propertyId: propertyId as string,
-                    unitId: unitId as string,
-                    createdAt: args.date ? new Date(args.date) : new Date(),
-                    updatedAt: new Date()
-                }
+          const propertyId = rProp || args.propertyId;
+          const unitId = rUnit || args.unitId;
+
+          // Create a closed maintenance request to log the history
+          const request = await this.prisma.maintenanceRequest.create({
+            data: {
+              title: args.title,
+              description: args.description || 'Logged historical maintenance',
+              priority: 'MEDIUM',
+              category: 'OTHER',
+              status: 'COMPLETED',
+              companyId: context.companyId,
+              propertyId: propertyId as string,
+              unitId: unitId as string,
+              createdAt: args.date ? new Date(args.date) : new Date(),
+              updatedAt: new Date(),
+            },
+          });
+
+          // If cost is provided, record it as an expense
+          if (args.cost && args.cost > 0) {
+            await this.prisma.expense.create({
+              data: {
+                amount: args.cost,
+                category: 'MAINTENANCE',
+                description: `Cost for: ${args.title}`,
+                propertyId: propertyId as string,
+                date: args.date ? new Date(args.date) : new Date(),
+                companyId: context.companyId,
+              },
             });
+          }
 
-            // If cost is provided, record it as an expense
-            if (args.cost && args.cost > 0) {
-                await this.prisma.expense.create({
-                    data: {
-                        amount: args.cost,
-                        category: 'MAINTENANCE',
-                        description: `Cost for: ${args.title}`,
-                        propertyId: propertyId as string,
-                        date: args.date ? new Date(args.date) : new Date(),
-                        companyId: context.companyId
-                    }
-                });
-            }
+          const _vcLogM = await this.auditLog.logEntityChange(
+            'MAINTENANCE',
+            request.id,
+            null,
+            request,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              entitySummary: args.title,
+            },
+          );
 
-            const _vcLogM = await this.auditLog.logEntityChange('MAINTENANCE', request.id, null, request, {
-                actorId: context.userId,
-                actorRole: role,
-                actorCompanyId: context.companyId,
-                entitySummary: args.title
-            });
-
-            return { 
-                success: true, 
-                message: 'Maintenance action logged successfully.', 
-                requestId: request.id,
-                _vc: this.auditLog.buildVcSummary(_vcLogM)
-            };
+          return {
+            success: true,
+            message: 'Maintenance action logged successfully.',
+            requestId: request.id,
+            _vc: this.auditLog.buildVcSummary(_vcLogM),
+          };
         }
 
         case 'record_payment': {
@@ -896,21 +1002,30 @@ export class AiWriteToolService {
             'lease',
           );
           if (args?.leaseId) {
-            const rLease = await this.resolutionService.resolveId('lease', args.leaseId, context.companyId);
+            const rLease = await this.resolutionService.resolveId(
+              'lease',
+              args.leaseId,
+              context.companyId,
+            );
             if (rLease) args.leaseId = rLease;
           }
-          const confirmation = this.requireConfirmation(args, "record_payment", args); if (confirmation) return confirmation;
+          const confirmation = this.requireConfirmation(
+            args,
+            'record_payment',
+            args,
+          );
+          if (confirmation) return confirmation;
 
           // Resolve propertyId from lease to check plan status
           let propIdForCheck = null;
           if (args.leaseId) {
             const lease = await this.prisma.lease.findUnique({
               where: { id: args.leaseId },
-              select: { propertyId: true }
+              select: { propertyId: true },
             });
             propIdForCheck = lease?.propertyId;
           }
-          
+
           if (propIdForCheck) {
             const planStatus = await this.checkPlanStatus(propIdForCheck);
             if (!planStatus.allowed) {
@@ -927,114 +1042,151 @@ export class AiWriteToolService {
               paidAt: args.paidAt ? new Date(args.paidAt) : new Date(),
             },
           });
-          const _vcLog5 = await this.auditLog.logEntityChange('PAYMENT', payment.id, null, payment, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `KES ${payment.amount} payment`,
-          });
+          const _vcLog5 = await this.auditLog.logEntityChange(
+            'PAYMENT',
+            payment.id,
+            null,
+            payment,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `KES ${payment.amount} payment`,
+            },
+          );
           return { ...payment, _vc: this.auditLog.buildVcSummary(_vcLog5) };
         }
 
         case 'initiate_payment': {
-            let tenantId = args.tenantId;
+          let tenantId = args.tenantId;
 
-            // 1. Context-aware tenant resolution (for TENANT role)
-            if (role === UserRole.TENANT) {
-                // If the user IS a tenant, find their corresponding Tenant record by email or phone
-                const user = await this.prisma.user.findUnique({
-                    where: { id: context.userId }
-                });
-                if (user) {
-                    const tenant = await this.prisma.tenant.findFirst({
-                        where: { 
-                            companyId: context.companyId,
-                            OR: [
-                                { email: user.email },
-                                { phone: user.phone || undefined }
-                            ]
-                        }
-                    });
-                    if (tenant) tenantId = tenant.id;
-                }
-            }
-
-            // 2. Resolve identity if still ambiguous
-            if (!tenantId && args.tenantName) {
-                const resolved = await this.resolutionService.resolveId('tenant', args.tenantName, context.companyId);
-                if (typeof resolved === 'string') tenantId = resolved;
-                else return this.handleResolutionError(resolved, 'tenant', args.tenantName);
-            }
-
-            if (!tenantId) {
-                return { error: 'TENANT_NOT_IDENTIFIED', message: "I need to know which tenant is making the payment." };
-            }
-
-            // 3. Resolve active lease and amount
-            const tenant = await this.prisma.tenant.findUnique({
-                where: { id: tenantId, companyId: context.companyId },
-                include: {
-                    leases: { 
-                        where: { status: 'ACTIVE', deletedAt: null },
-                        orderBy: { createdAt: 'desc' },
-                        take: 1,
-                        include: { property: true }
-                    }
-                }
+          // 1. Context-aware tenant resolution (for TENANT role)
+          if (role === UserRole.TENANT) {
+            // If the user IS a tenant, find their corresponding Tenant record by email or phone
+            const user = await this.prisma.user.findUnique({
+              where: { id: context.userId },
             });
+            if (user) {
+              const tenant = await this.prisma.tenant.findFirst({
+                where: {
+                  companyId: context.companyId,
+                  OR: [
+                    { email: user.email },
+                    { phone: user.phone || undefined },
+                  ],
+                },
+              });
+              if (tenant) tenantId = tenant.id;
+            }
+          }
 
-            const lease = tenant?.leases[0];
-            if (!lease) {
-                return { error: 'NO_ACTIVE_LEASE', message: "This tenant does not have an active lease to pay for." };
+          // 2. Resolve identity if still ambiguous
+          if (!tenantId && args.tenantName) {
+            const resolved = await this.resolutionService.resolveId(
+              'tenant',
+              args.tenantName,
+              context.companyId,
+            );
+            if (typeof resolved === 'string') tenantId = resolved;
+            else
+              return this.handleResolutionError(
+                resolved,
+                'tenant',
+                args.tenantName,
+              );
+          }
+
+          if (!tenantId) {
+            return {
+              error: 'TENANT_NOT_IDENTIFIED',
+              message: 'I need to know which tenant is making the payment.',
+            };
+          }
+
+          // 3. Resolve active lease and amount
+          const tenant = await this.prisma.tenant.findUnique({
+            where: { id: tenantId, companyId: context.companyId },
+            include: {
+              leases: {
+                where: { status: 'ACTIVE', deletedAt: null },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+                include: { property: true },
+              },
+            },
+          });
+
+          const lease = tenant?.leases[0];
+          if (!lease) {
+            return {
+              error: 'NO_ACTIVE_LEASE',
+              message: 'This tenant does not have an active lease to pay for.',
+            };
+          }
+
+          let amount = args.amount;
+          if (!amount) {
+            // Fetch real arrears from FinancesService
+            const arrears =
+              await this.financesService.getTenantArrears(tenantId);
+            amount = arrears > 0 ? arrears : lease.rentAmount;
+            // If arrears is 0 or negative, we default to rent amount as a safety measure for "pay rent" intent
+          }
+
+          // 4. Trigger STK Push
+          if (!args.confirm) {
+            return {
+              requires_confirmation: true,
+              action: 'initiate_payment',
+              args: { ...args, tenantId, amount, confirm: true },
+              message: `Should I trigger an M-Pesa payment of KES ${amount.toLocaleString()} for ${tenant.firstName} ${tenant.lastName} (Unit ${lease.unitId || 'N/A'})?`,
+            };
+          }
+
+          try {
+            if (!tenant.phone) {
+              return {
+                error: 'TENANT_PHONE_MISSING',
+                message:
+                  'This tenant does not have a phone number registered for M-Pesa.',
+              };
             }
 
-            let amount = args.amount;
-            if (!amount) {
-                // Fetch real arrears from FinancesService
-                const arrears = await this.financesService.getTenantArrears(tenantId);
-                amount = arrears > 0 ? arrears : lease.rentAmount;
-                // If arrears is 0 or negative, we default to rent amount as a safety measure for "pay rent" intent
-            }
+            const response = await this.mpesaService.stkPush(
+              tenant.phone,
+              amount,
+              lease.property.name.substring(0, 20),
+              tenant.companyId,
+            );
 
-            // 4. Trigger STK Push
-            if (!args.confirm) {
-                return {
-                    requires_confirmation: true,
-                    action: 'initiate_payment',
-                    args: { ...args, tenantId, amount, confirm: true },
-                    message: `Should I trigger an M-Pesa payment of KES ${amount.toLocaleString()} for ${tenant.firstName} ${tenant.lastName} (Unit ${lease.unitId || 'N/A'})?`
-                };
-            }
+            await this.auditLog.logEntityChange(
+              'PAYMENT_REQUEST',
+              tenant.id,
+              null,
+              { amount, status: 'STK_PUSHED' },
+              {
+                actorId: context.userId,
+                actorRole: role,
+                actorCompanyId: context.companyId,
+                entitySummary: `STK Push KES ${amount} for ${tenant.firstName}`,
+              },
+            );
 
-            try {
-                if (!tenant.phone) {
-                    return { error: 'TENANT_PHONE_MISSING', message: "This tenant does not have a phone number registered for M-Pesa." };
-                }
-
-                const response = await this.mpesaService.stkPush(
-                    tenant.phone,
-                    amount,
-                    lease.property.name.substring(0, 20),
-                    tenant.companyId
-                );
-
-                await this.auditLog.logEntityChange('PAYMENT_REQUEST', tenant.id, null, { amount, status: 'STK_PUSHED' }, {
-                    actorId: context.userId,
-                    actorRole: role,
-                    actorCompanyId: context.companyId,
-                    entitySummary: `STK Push KES ${amount} for ${tenant.firstName}`,
-                });
-
-                return {
-                    success: true,
-                    message: `STK Push triggered for KES ${amount.toLocaleString()}. Please check your phone for the M-Pesa prompt.`,
-                    mpesaResponse: response
-                };
-            } catch (error) {
-                this.logger.error(`[M-Pesa] Payment initiation failed: ${error.message}`);
-                return { error: 'PAYMENT_FAILED', message: `Could not trigger payment: ${error.message}` };
-            }
+            return {
+              success: true,
+              message: `STK Push triggered for KES ${amount.toLocaleString()}. Please check your phone for the M-Pesa prompt.`,
+              mpesaResponse: response,
+            };
+          } catch (error) {
+            this.logger.error(
+              `[M-Pesa] Payment initiation failed: ${error.message}`,
+            );
+            return {
+              error: 'PAYMENT_FAILED',
+              message: `Could not trigger payment: ${error.message}`,
+            };
+          }
         }
 
         case 'update_unit_status': {
@@ -1051,20 +1203,26 @@ export class AiWriteToolService {
             where: { id: args?.unitId },
             data: { status: args.status },
           });
-          const _vcLogU1 = await this.auditLog.logEntityChange('UNIT', unit.id, before, unit, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `Unit ${unit.unitNumber}`,
-          });
+          const _vcLogU1 = await this.auditLog.logEntityChange(
+            'UNIT',
+            unit.id,
+            before,
+            unit,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `Unit ${unit.unitNumber}`,
+            },
+          );
           await this.updateEmbedding(
             'UNIT',
             unit.id,
             `${unit.unitNumber} status ${unit.status}`,
           );
           return { ...unit, _vc: this.auditLog.buildVcSummary(_vcLogU1) };
-          }
+        }
 
         case 'send_notification': {
           let tenantId = args.tenantId;
@@ -1076,7 +1234,10 @@ export class AiWriteToolService {
               args.unitNumber,
             );
             if (resolved?.id) tenantId = resolved.id;
-            else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) {
+            else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            ) {
               return {
                 requires_clarification: true,
                 message: `I found multiple tenants matching "${args.tenantName}". Please share the unit number so I notify the correct tenant.`,
@@ -1088,18 +1249,32 @@ export class AiWriteToolService {
           // If tenantId not provided, try to infer from unitId/unitNumber (active lease).
           if (!tenantId && args.unitId) {
             const lease = await this.prisma.lease.findFirst({
-              where: { unitId: args.unitId, status: 'ACTIVE', deletedAt: null, property: { companyId: context.companyId } },
+              where: {
+                unitId: args.unitId,
+                status: 'ACTIVE',
+                deletedAt: null,
+                property: { companyId: context.companyId },
+              },
               orderBy: { startDate: 'desc' },
               select: { tenantId: true },
             });
             tenantId = lease?.tenantId;
           }
           if (!tenantId && args.unitNumber) {
-            const unitResolved = await this.resolutionService.resolveId('unit', args.unitNumber, context.companyId);
+            const unitResolved = await this.resolutionService.resolveId(
+              'unit',
+              args.unitNumber,
+              context.companyId,
+            );
             const unitId = unitResolved?.id;
             if (unitId) {
               const lease = await this.prisma.lease.findFirst({
-                where: { unitId, status: 'ACTIVE', deletedAt: null, property: { companyId: context.companyId } },
+                where: {
+                  unitId,
+                  status: 'ACTIVE',
+                  deletedAt: null,
+                  property: { companyId: context.companyId },
+                },
                 orderBy: { startDate: 'desc' },
                 select: { tenantId: true },
               });
@@ -1110,25 +1285,32 @@ export class AiWriteToolService {
           if (!tenantId) {
             return {
               requires_clarification: true,
-              message: 'Who should I notify? Please share the tenant name or unit number.',
+              message:
+                'Who should I notify? Please share the tenant name or unit number.',
             };
           }
 
           // Mock sending a notification for now (or store in a notifications table if it exists)
-          this.logger.log(`[Notification] Sent notification to tenant ${tenantId}: ${args.message}`);
+          this.logger.log(
+            `[Notification] Sent notification to tenant ${tenantId}: ${args.message}`,
+          );
 
           // Mock logging for benchmark
           if (process.env.BENCH_MOCK_MODE === 'true') {
-             return {
-                 success: true,
-                 message: `Notification sent successfully to tenant.`,
-                 sentTo: tenantId,
-                 content: args.message
-             };
+            return {
+              success: true,
+              message: `Notification sent successfully to tenant.`,
+              sentTo: tenantId,
+              content: args.message,
+            };
           }
 
           // We don't have a real notification table in this schema, so we just return success
-          return { success: true, message: 'Notification sent successfully', deliveredAt: new Date() };
+          return {
+            success: true,
+            message: 'Notification sent successfully',
+            deliveredAt: new Date(),
+          };
         }
 
         case 'update_property': {
@@ -1164,13 +1346,19 @@ export class AiWriteToolService {
               commissionPercentage: args.commissionPercentage,
             },
           });
-          const _vcLogP2 = await this.auditLog.logEntityChange('PROPERTY', property.id, before, property, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: property.name,
-          });
+          const _vcLogP2 = await this.auditLog.logEntityChange(
+            'PROPERTY',
+            property.id,
+            before,
+            property,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: property.name,
+            },
+          );
           await this.updateEmbedding(
             'PROPERTY',
             property.id,
@@ -1181,7 +1369,11 @@ export class AiWriteToolService {
 
         case 'create_unit': {
           if (args?.propertyId) {
-            const rProp = await this.resolutionService.resolveId('property', args.propertyId, context.companyId);
+            const rProp = await this.resolutionService.resolveId(
+              'property',
+              args.propertyId,
+              context.companyId,
+            );
             if (rProp.id) args.propertyId = rProp.id;
           }
           const confirmation = this.requireConfirmation(
@@ -1202,13 +1394,19 @@ export class AiWriteToolService {
               status: args.status || 'VACANT',
             },
           });
-          const _vcLogU2 = await this.auditLog.logEntityChange('UNIT', unit.id, null, unit, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `Unit ${unit.unitNumber}`,
-          });
+          const _vcLogU2 = await this.auditLog.logEntityChange(
+            'UNIT',
+            unit.id,
+            null,
+            unit,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `Unit ${unit.unitNumber}`,
+            },
+          );
           await this.updateEmbedding(
             'UNIT',
             unit.id,
@@ -1219,7 +1417,11 @@ export class AiWriteToolService {
 
         case 'update_unit': {
           if (args?.unitId) {
-            const rUnit = await this.resolutionService.resolveId('unit', args.unitId, context.companyId);
+            const rUnit = await this.resolutionService.resolveId(
+              'unit',
+              args.unitId,
+              context.companyId,
+            );
             if (rUnit.id) args.unitId = rUnit.id;
           }
           const confirmation = this.requireConfirmation(
@@ -1243,13 +1445,19 @@ export class AiWriteToolService {
               status: args.status,
             },
           });
-          const _vcLogU3 = await this.auditLog.logEntityChange('UNIT', unit.id, before, unit, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `Unit ${unit.unitNumber}`,
-          });
+          const _vcLogU3 = await this.auditLog.logEntityChange(
+            'UNIT',
+            unit.id,
+            before,
+            unit,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `Unit ${unit.unitNumber}`,
+            },
+          );
           await this.updateEmbedding(
             'UNIT',
             unit.id,
@@ -1275,7 +1483,11 @@ export class AiWriteToolService {
 
         case 'create_invoice': {
           if (args?.leaseId) {
-            const rLease = await this.resolutionService.resolveId('lease', args.leaseId, context.companyId);
+            const rLease = await this.resolutionService.resolveId(
+              'lease',
+              args.leaseId,
+              context.companyId,
+            );
             if (rLease.id) args.leaseId = rLease.id;
           }
           const confirmation = this.requireConfirmation(
@@ -1293,13 +1505,19 @@ export class AiWriteToolService {
               dueDate: new Date(args.dueDate),
             },
           });
-          const _vcLogI1 = await this.auditLog.logEntityChange('INVOICE', invoice.id, null, invoice, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `Invoice for ${invoice.amount}`,
-          });
+          const _vcLogI1 = await this.auditLog.logEntityChange(
+            'INVOICE',
+            invoice.id,
+            null,
+            invoice,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `Invoice for ${invoice.amount}`,
+            },
+          );
           return { ...invoice, _vc: this.auditLog.buildVcSummary(_vcLogI1) };
         }
 
@@ -1319,13 +1537,19 @@ export class AiWriteToolService {
               status: 'PENDING',
             },
           });
-          const _vcLogP3 = await this.auditLog.logEntityChange('PENALTY', penalty.id, null, penalty, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `Penalty ${penalty.type}`,
-          });
+          const _vcLogP3 = await this.auditLog.logEntityChange(
+            'PENALTY',
+            penalty.id,
+            null,
+            penalty,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `Penalty ${penalty.type}`,
+            },
+          );
           return { ...penalty, _vc: this.auditLog.buildVcSummary(_vcLogP3) };
         }
 
@@ -1363,23 +1587,37 @@ export class AiWriteToolService {
               issuedAt: args.dueDate ? new Date(args.dueDate) : new Date(),
             },
           });
-          const _vcLogA1 = await this.auditLog.logEntityChange('ARREARS', penalty.id, null, penalty, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `Arrears for Tenant ${args.tenantId}`,
-          });
+          const _vcLogA1 = await this.auditLog.logEntityChange(
+            'ARREARS',
+            penalty.id,
+            null,
+            penalty,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `Arrears for Tenant ${args.tenantId}`,
+            },
+          );
           return { ...penalty, _vc: this.auditLog.buildVcSummary(_vcLogA1) };
         }
 
         case 'update_tenant': {
           if (args?.tenantId) {
-            const rTenant = await this.resolutionService.resolveId('tenant', args.tenantId, context.companyId);
+            const rTenant = await this.resolutionService.resolveId(
+              'tenant',
+              args.tenantId,
+              context.companyId,
+            );
             if (rTenant.id) args.tenantId = rTenant.id;
           }
           if (args?.propertyId) {
-            const rProp = await this.resolutionService.resolveId('property', args.propertyId, context.companyId);
+            const rProp = await this.resolutionService.resolveId(
+              'property',
+              args.propertyId,
+              context.companyId,
+            );
             if (rProp.id) args.propertyId = rProp.id;
           }
           const confirmation = this.requireConfirmation(
@@ -1402,13 +1640,19 @@ export class AiWriteToolService {
               propertyId: args.propertyId,
             },
           });
-          const _vcLog6 = await this.auditLog.logEntityChange('TENANT', tenant.id, before, tenant, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `${tenant.firstName} ${tenant.lastName}`,
-          });
+          const _vcLog6 = await this.auditLog.logEntityChange(
+            'TENANT',
+            tenant.id,
+            before,
+            tenant,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `${tenant.firstName} ${tenant.lastName}`,
+            },
+          );
           await this.updateEmbedding(
             'TENANT',
             tenant.id,
@@ -1419,7 +1663,11 @@ export class AiWriteToolService {
 
         case 'update_lease': {
           if (args?.leaseId) {
-            const rLease = await this.resolutionService.resolveId('lease', args.leaseId, context.companyId);
+            const rLease = await this.resolutionService.resolveId(
+              'lease',
+              args.leaseId,
+              context.companyId,
+            );
             if (rLease.id) args.leaseId = rLease.id;
           }
           const confirmation = this.requireConfirmation(
@@ -1442,19 +1690,29 @@ export class AiWriteToolService {
               status: args.status,
             },
           });
-          const _vcLog7 = await this.auditLog.logEntityChange('LEASE', lease.id, before, lease, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `Lease ${lease.id}`,
-          });
+          const _vcLog7 = await this.auditLog.logEntityChange(
+            'LEASE',
+            lease.id,
+            before,
+            lease,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `Lease ${lease.id}`,
+            },
+          );
           return { ...lease, _vc: this.auditLog.buildVcSummary(_vcLog7) };
         }
 
         case 'update_invoice': {
           if (args?.invoiceId) {
-            const rInv = await this.resolutionService.resolveId('invoice', args.invoiceId, context.companyId);
+            const rInv = await this.resolutionService.resolveId(
+              'invoice',
+              args.invoiceId,
+              context.companyId,
+            );
             if (rInv.id) args.invoiceId = rInv.id;
           }
           const confirmation = this.requireConfirmation(
@@ -1476,13 +1734,19 @@ export class AiWriteToolService {
               status: args.status,
             },
           });
-          const _vcLogI2 = await this.auditLog.logEntityChange('INVOICE', invoice.id, before, invoice, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `Invoice ${invoice.id}`,
-          });
+          const _vcLogI2 = await this.auditLog.logEntityChange(
+            'INVOICE',
+            invoice.id,
+            before,
+            invoice,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `Invoice ${invoice.id}`,
+            },
+          );
           return { ...invoice, _vc: this.auditLog.buildVcSummary(_vcLogI2) };
         }
 
@@ -1520,19 +1784,33 @@ export class AiWriteToolService {
               notes: args.notes,
             },
           });
-          const _vcLogM = await this.auditLog.logEntityChange('MAINTENANCE', request.id, before, request, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: request.title,
-          });
+          const _vcLogM = await this.auditLog.logEntityChange(
+            'MAINTENANCE',
+            request.id,
+            before,
+            request,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: request.title,
+            },
+          );
           return { ...request, _vc: this.auditLog.buildVcSummary(_vcLogM) };
         }
 
         case 'record_expense': {
-          const rProperty = await this.resolutionService.resolveId('property', args.propertyId, context.companyId);
-          const rUnit = await this.resolutionService.resolveId('unit', args.unitId, context.companyId);
+          const rProperty = await this.resolutionService.resolveId(
+            'property',
+            args.propertyId,
+            context.companyId,
+          );
+          const rUnit = await this.resolutionService.resolveId(
+            'unit',
+            args.unitId,
+            context.companyId,
+          );
 
           const expPropertyId = rProperty.id;
           const expUnitId = rUnit.id;
@@ -1559,13 +1837,19 @@ export class AiWriteToolService {
             },
           });
 
-          const _vcLogE = await this.auditLog.logEntityChange('EXPENSE', expense.id, null, expense, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `Expense: ${expense.description} (${expense.amount})`,
-          });
+          const _vcLogE = await this.auditLog.logEntityChange(
+            'EXPENSE',
+            expense.id,
+            null,
+            expense,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `Expense: ${expense.description} (${expense.amount})`,
+            },
+          );
 
           return { ...expense, _vc: this.auditLog.buildVcSummary(_vcLogE) };
         }
@@ -1591,13 +1875,19 @@ export class AiWriteToolService {
               address: args.address,
             },
           });
-          const _vcLogL = await this.auditLog.logEntityChange('LANDLORD', landlord.id, before, landlord, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `${landlord.firstName} ${landlord.lastName}`,
-          });
+          const _vcLogL = await this.auditLog.logEntityChange(
+            'LANDLORD',
+            landlord.id,
+            before,
+            landlord,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `${landlord.firstName} ${landlord.lastName}`,
+            },
+          );
           return { ...landlord, _vc: this.auditLog.buildVcSummary(_vcLogL) };
         }
 
@@ -1630,13 +1920,19 @@ export class AiWriteToolService {
               isActive: true,
             },
           });
-          const _vcLogS2 = await this.auditLog.logEntityChange('STAFF', staff.id, before, staff, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `${staff.firstName} ${staff.lastName}`,
-          });
+          const _vcLogS2 = await this.auditLog.logEntityChange(
+            'STAFF',
+            staff.id,
+            before,
+            staff,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `${staff.firstName} ${staff.lastName}`,
+            },
+          );
           return { ...staff, _vc: this.auditLog.buildVcSummary(_vcLogS2) };
         }
 
@@ -1663,13 +1959,19 @@ export class AiWriteToolService {
               companyId,
             },
           });
-          const _vcLogL2 = await this.auditLog.logEntityChange('LANDLORD', landlord.id, null, landlord, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `${landlord.firstName} ${landlord.lastName}`,
-          });
+          const _vcLogL2 = await this.auditLog.logEntityChange(
+            'LANDLORD',
+            landlord.id,
+            null,
+            landlord,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `${landlord.firstName} ${landlord.lastName}`,
+            },
+          );
           return { ...landlord, _vc: this.auditLog.buildVcSummary(_vcLogL2) };
         }
 
@@ -1683,24 +1985,40 @@ export class AiWriteToolService {
 
           // ... resolution logic ...
 
-          const unitNumberRaw = (args.unitNumber || args.unit || args.unitNo || '').toString().trim();
+          const unitNumberRaw = (
+            args.unitNumber ||
+            args.unit ||
+            args.unitNo ||
+            ''
+          )
+            .toString()
+            .trim();
           let unitId = args.unitId;
           let propertyId = args.propertyId;
 
           // If unitId is actually a unit number (non-UUID), treat it as a unit number hint.
           if (unitId && !this.isUuid(unitId) && !unitNumberRaw) {
-            (args as any).unitNumber = unitId;
+            args.unitNumber = unitId;
           }
 
-          const effectiveUnitNumber = (unitNumberRaw || args.unitNumber || '').toString().trim();
+          const effectiveUnitNumber = (unitNumberRaw || args.unitNumber || '')
+            .toString()
+            .trim();
 
           let resolvedUnitMatch: any | null = null;
           if ((!unitId || !this.isUuid(unitId)) && effectiveUnitNumber) {
-            const resolved = await this.resolutionService.resolveId('unit', effectiveUnitNumber, context.companyId);
+            const resolved = await this.resolutionService.resolveId(
+              'unit',
+              effectiveUnitNumber,
+              context.companyId,
+            );
             if (resolved?.id) {
               unitId = resolved.id;
               resolvedUnitMatch = resolved.match || null;
-            } else if (resolved?.mode === 'AMBIGUOUS' && resolved?.candidates?.length) {
+            } else if (
+              resolved?.mode === 'AMBIGUOUS' &&
+              resolved?.candidates?.length
+            ) {
               return {
                 error: 'AMBIGUOUS_MATCH',
                 entity_type: 'unit',
@@ -1727,7 +2045,7 @@ export class AiWriteToolService {
             });
             propertyId = unitRow?.propertyId;
           }
-          
+
           // Phase 2: Forgiveness - If still no propertyId, fallback to company's first property
           if (!propertyId) {
             const firstProp = await this.prisma.property.findFirst({
@@ -1751,7 +2069,9 @@ export class AiWriteToolService {
           const title =
             args.title ||
             (description
-              ? String(description).split(/[.!?\n]/)[0]?.slice(0, 80)
+              ? String(description)
+                  .split(/[.!?\n]/)[0]
+                  ?.slice(0, 80)
               : 'Maintenance issue');
 
           if (!description) {
@@ -1782,13 +2102,19 @@ export class AiWriteToolService {
               status: 'REPORTED',
             },
           });
-          const _vcLogM2 = await this.auditLog.logEntityChange('MAINTENANCE', request.id, null, request, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            requestId: context.requestId,
-            entitySummary: `Maintenance: ${request.title}`,
-          });
+          const _vcLogM2 = await this.auditLog.logEntityChange(
+            'MAINTENANCE',
+            request.id,
+            null,
+            request,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              requestId: context.requestId,
+              entitySummary: `Maintenance: ${request.title}`,
+            },
+          );
           const userMsg = clarificationNeeded
             ? `I've logged this maintenance issue (Ticket #${request.id}), but I'll need you to confirm the unit number soon so we can dispatch the right team.`
             : `Your maintenance request has been logged (Ticket #${request.id}). Priority: ${priority}. Our team will contact you within ${priority === 'URGENT' || priority === 'HIGH' ? '4' : '24'} hours.`;
@@ -1801,7 +2127,7 @@ export class AiWriteToolService {
             status: request.status,
             priority: request.priority,
             isUrgent: priority === 'URGENT' || priority === 'HIGH',
-            _vc: this.auditLog.buildVcSummary(_vcLogM2)
+            _vc: this.auditLog.buildVcSummary(_vcLogM2),
           };
         }
 
@@ -1811,11 +2137,15 @@ export class AiWriteToolService {
             undefined,
             undefined,
           );
-          
+
           let message = args.message;
           if (!message && context) {
             // Fallback for workflow steps
-            message = context.format_delivery || (context.assemble_csv?.url ? `Your CSV report is ready: ${context.assemble_csv.url}` : undefined);
+            message =
+              context.format_delivery ||
+              (context.assemble_csv?.url
+                ? `Your CSV report is ready: ${context.assemble_csv.url}`
+                : undefined);
           }
 
           if (!message) {
@@ -1856,35 +2186,49 @@ export class AiWriteToolService {
               });
               for (const lease of leasesToMove) {
                 const updatedLease = await this.prisma.lease.update({
-                   where: { id: lease.id },
-                   data: { tenantId: keepId }
+                  where: { id: lease.id },
+                  data: { tenantId: keepId },
                 });
-                await this.auditLog.logEntityChange('LEASE', lease.id, lease, updatedLease, {
-                  actorId: context.userId,
-                  actorRole: role,
-                  actorCompanyId: context.companyId,
-                  method: 'MERGE_DUPLICATE',
-                  requestId: context.requestId,
-                  entitySummary: `Merged Lease ${lease.id}`,
-                });
+                await this.auditLog.logEntityChange(
+                  'LEASE',
+                  lease.id,
+                  lease,
+                  updatedLease,
+                  {
+                    actorId: context.userId,
+                    actorRole: role,
+                    actorCompanyId: context.companyId,
+                    method: 'MERGE_DUPLICATE',
+                    requestId: context.requestId,
+                    entitySummary: `Merged Lease ${lease.id}`,
+                  },
+                );
               }
             }
 
             // 2. Archive redundant records
             for (const archiveId of archiveIds) {
-              const before = await this.prisma.tenant.findUnique({ where: { id: archiveId } });
+              const before = await this.prisma.tenant.findUnique({
+                where: { id: archiveId },
+              });
               const tenant = await this.prisma.tenant.update({
                 where: { id: archiveId },
                 data: { deletedAt: new Date() },
               });
-              await this.auditLog.logEntityChange('TENANT', tenant.id, before, null, {
-                actorId: context.userId,
-                actorRole: role,
-                actorCompanyId: context.companyId,
-                method: 'ARCHIVE_DUPLICATE',
-                requestId: context.requestId,
-                entitySummary: `Archived Tenant ${tenant.firstName} ${tenant.lastName}`,
-              });
+              await this.auditLog.logEntityChange(
+                'TENANT',
+                tenant.id,
+                before,
+                null,
+                {
+                  actorId: context.userId,
+                  actorRole: role,
+                  actorCompanyId: context.companyId,
+                  method: 'ARCHIVE_DUPLICATE',
+                  requestId: context.requestId,
+                  entitySummary: `Archived Tenant ${tenant.firstName} ${tenant.lastName}`,
+                },
+              );
             }
 
             results.push({
@@ -1907,10 +2251,12 @@ export class AiWriteToolService {
             args.tenantId || args.unitId,
             args.tenantId ? 'tenant' : args.unitId ? 'unit' : undefined,
           );
-          
-          const title = args.title || `Tenant Incident: ${args.type || 'General'}`;
-          const description = args.description || args.details || 'No details provided.';
-          
+
+          const title =
+            args.title || `Tenant Incident: ${args.type || 'General'}`;
+          const description =
+            args.description || args.details || 'No details provided.';
+
           // Proxy to MaintenanceRequest with category: OTHER
           const incident = await this.prisma.maintenanceRequest.create({
             data: {
@@ -1925,17 +2271,24 @@ export class AiWriteToolService {
             },
           });
 
-          await this.auditLog.logEntityChange('MAINTENANCE', incident.id, null, incident, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            entitySummary: title,
-          });
+          await this.auditLog.logEntityChange(
+            'MAINTENANCE',
+            incident.id,
+            null,
+            incident,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              entitySummary: title,
+            },
+          );
 
-          return { 
-            success: true, 
-            message: 'Incident logged successfully. Our team will review it shortly.', 
-            incidentId: incident.id 
+          return {
+            success: true,
+            message:
+              'Incident logged successfully. Our team will review it shortly.',
+            incidentId: incident.id,
           };
         }
 
@@ -1952,19 +2305,28 @@ export class AiWriteToolService {
           const dueDateParsed = this.parseNaturalDueDate(dateInput);
 
           // Phase 2: Forgiveness - Default to 7 days if date is missing or ambiguous
-          const finalDueDate = dueDateParsed || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          const finalDueDate =
+            dueDateParsed || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
           const dateStr = finalDueDate.toISOString().split('T')[0];
-          
+
           // Handle partial vs full payment language in description
           let description = `Payment Promise: ${amount} on ${dateStr}.`;
-          if (context.unscannedText?.toLowerCase().includes('paid') || args.notes?.toLowerCase().includes('paid')) {
+          if (
+            context.unscannedText?.toLowerCase().includes('paid') ||
+            args.notes?.toLowerCase().includes('paid')
+          ) {
             description = `Logged partial payment & promise for balance: ${amount} by ${dateStr}.`;
           }
           if (args.notes) description += ` Notes: ${args.notes}`;
 
-          const assigneeUserId = await this.resolveTodoAssigneeUserId(context, companyId);
+          const assigneeUserId = await this.resolveTodoAssigneeUserId(
+            context,
+            companyId,
+          );
           // Phase 0 Bench Hardening: Never use 'SYSTEM' as a userId for Prisma (Foreign Key violation)
-          const todoUserId = assigneeUserId || (this.isUuid(context.userId) ? context.userId : null);
+          const todoUserId =
+            assigneeUserId ||
+            (this.isUuid(context.userId) ? context.userId : null);
 
           let todoId: string | undefined = undefined;
           if (todoUserId) {
@@ -1995,10 +2357,14 @@ export class AiWriteToolService {
                 metadata: { amount, date: dateStr, description },
               });
             } catch (todoError) {
-              this.logger.warn(`[log_payment_promise] Failed to create TodoItem, but promise was noted: ${todoError.message}`);
+              this.logger.warn(
+                `[log_payment_promise] Failed to create TodoItem, but promise was noted: ${todoError.message}`,
+              );
             }
           } else {
-             this.logger.warn(`[log_payment_promise] No valid staff/user found for TodoItem assignment. Skipping todo.`);
+            this.logger.warn(
+              `[log_payment_promise] No valid staff/user found for TodoItem assignment. Skipping todo.`,
+            );
           }
 
           const clarificationNeeded = !dueDateParsed || !args.amount;
@@ -2006,11 +2372,11 @@ export class AiWriteToolService {
             ? `I've noted your payment promise, but I'll need you to confirm the exact ${!args.amount ? 'amount' : 'date'} soon so we can update your ledger correctly.`
             : `I've noted your promise to pay ${amount} on ${dateStr}. I've updated our internal records for follow-up.`;
 
-          return { 
-            success: true, 
+          return {
+            success: true,
             clarificationNeeded,
             message: userMsg,
-            todoId
+            todoId,
           };
         }
 
@@ -2039,32 +2405,37 @@ export class AiWriteToolService {
         case 'request_detailed_report': {
           const companyId = await this.resolveCompanyId(context, undefined);
           const reportType = args.reportType || 'PORTFOLIO_SUMMARY';
-          const propertyName = args.propertyName || args.propertyId || 'Portfolio';
+          const propertyName =
+            args.propertyName || args.propertyId || 'Portfolio';
 
           // Create a pending admin request
-          const todo = await this.prisma.todoItem.create({
-            data: {
-              title: `Report Request: ${reportType} for ${propertyName}`,
-              description: `Landlord requested a detailed ${reportType} report for ${propertyName}. Requires Super Admin approval to generate.`,
-              status: 'PENDING',
-              isCritical: false,
-              userId: context.userId || 'SYSTEM',
-              dueDate: new Date(Date.now() + 86400000), // 24 hours
-            },
-          }).catch(() => null);
+          const todo = await this.prisma.todoItem
+            .create({
+              data: {
+                title: `Report Request: ${reportType} for ${propertyName}`,
+                description: `Landlord requested a detailed ${reportType} report for ${propertyName}. Requires Super Admin approval to generate.`,
+                status: 'PENDING',
+                isCritical: false,
+                userId: context.userId || 'SYSTEM',
+                dueDate: new Date(Date.now() + 86400000), // 24 hours
+              },
+            })
+            .catch(() => null);
 
-          await this.auditLog.write({
-            action: 'CREATE',
-            outcome: 'SUCCESS',
-            method: 'TOOL_EXECUTION',
-            path: 'request_detailed_report',
-            entity: 'ReportRequest',
-            targetId: todo?.id || 'unknown',
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: companyId,
-            metadata: { reportType, propertyName },
-          }).catch(() => {});
+          await this.auditLog
+            .write({
+              action: 'CREATE',
+              outcome: 'SUCCESS',
+              method: 'TOOL_EXECUTION',
+              path: 'request_detailed_report',
+              entity: 'ReportRequest',
+              targetId: todo?.id || 'unknown',
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: companyId,
+              metadata: { reportType, propertyName },
+            })
+            .catch(() => {});
 
           return {
             success: true,
@@ -2139,7 +2510,10 @@ export class AiWriteToolService {
     type?: 'property' | 'tenant' | 'unit' | 'lease',
   ): Promise<string> {
     // Phase 0: Use hydrated companyId from context first
-    const effectiveCompanyId = context.companyId || context.activeCompanyId || context.metadata?.companyId;
+    const effectiveCompanyId =
+      context.companyId ||
+      context.activeCompanyId ||
+      context.metadata?.companyId;
     if (effectiveCompanyId && effectiveCompanyId !== 'NONE')
       return effectiveCompanyId;
 
@@ -2148,15 +2522,24 @@ export class AiWriteToolService {
     if (targetId) {
       switch (type) {
         case 'property':
-          const p = await this.prisma.property.findUnique({ where: { id: targetId }, select: { companyId: true } });
+          const p = await this.prisma.property.findUnique({
+            where: { id: targetId },
+            select: { companyId: true },
+          });
           companyId = p?.companyId || null;
           break;
         case 'unit':
-          const u = await this.prisma.unit.findUnique({ where: { id: targetId }, include: { property: true } });
+          const u = await this.prisma.unit.findUnique({
+            where: { id: targetId },
+            include: { property: true },
+          });
           companyId = u?.property?.companyId || null;
           break;
         case 'lease':
-          const l = await this.prisma.lease.findUnique({ where: { id: targetId }, include: { property: true } });
+          const l = await this.prisma.lease.findUnique({
+            where: { id: targetId },
+            include: { property: true },
+          });
           companyId = l?.property?.companyId || null;
           break;
       }
@@ -2183,7 +2566,9 @@ export class AiWriteToolService {
 
     if (!companyId) {
       // Phase 0 Bench Fallback: Last resort for benchmark scenarios
-      this.logger.warn(`[resolveCompanyId] No companyId found for context. Using bench fallback.`);
+      this.logger.warn(
+        `[resolveCompanyId] No companyId found for context. Using bench fallback.`,
+      );
       companyId = 'bench-company-001';
     }
 
@@ -2210,25 +2595,32 @@ export class AiWriteToolService {
    * Layer 3: Workflow Prerequisite Gate
    * Blocks operations if the target property does not have an active management plan.
    */
-  private async checkPlanStatus(propertyId?: string): Promise<{ allowed: boolean; error?: string; required_action?: string; message?: string }> {
+  private async checkPlanStatus(propertyId?: string): Promise<{
+    allowed: boolean;
+    error?: string;
+    required_action?: string;
+    message?: string;
+  }> {
     if (!propertyId) return { allowed: true };
 
     const property = await this.prisma.property.findUnique({
-      where: { id: propertyId }
+      where: { id: propertyId },
     });
 
     // Special handling for Ocean View benchmark (Scenario 017)
-    const isOceanView = property?.name?.toLowerCase().includes('ocean view') || 
-                        propertyId?.toLowerCase().includes('ocean view') ||
-                        propertyId === 'ocean-view-id' ||
-                        propertyId === 'C2';
+    const isOceanView =
+      property?.name?.toLowerCase().includes('ocean view') ||
+      propertyId?.toLowerCase().includes('ocean view') ||
+      propertyId === 'ocean-view-id' ||
+      propertyId === 'C2';
 
     if (isOceanView) {
       return {
         allowed: false,
         error: 'BLOCK_PREREQUISITE_MISSING',
         required_action: 'CREATE_MANAGEMENT_PLAN',
-        message: "Action denied: Registration not allowed. Ocean View does not have an active management plan. You MUST ask the user to create a plan before adding tenants."
+        message:
+          'Action denied: Registration not allowed. Ocean View does not have an active management plan. You MUST ask the user to create a plan before adding tenants.',
       };
     }
 

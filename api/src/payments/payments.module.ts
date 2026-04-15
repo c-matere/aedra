@@ -10,7 +10,12 @@ import { ReportsModule } from '../reports/reports.module';
 
 @Global()
 @Module({
-  imports: [PrismaModule, forwardRef(() => MessagingModule), FinancesModule, ReportsModule],
+  imports: [
+    PrismaModule,
+    forwardRef(() => MessagingModule),
+    FinancesModule,
+    ReportsModule,
+  ],
   controllers: [MpesaController, PaymentsController],
   providers: [MpesaService, PaymentsService],
   exports: [MpesaService, PaymentsService],

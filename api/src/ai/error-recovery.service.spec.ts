@@ -40,31 +40,56 @@ describe('ErrorRecoveryService', () => {
 
     it('should handle 429 Rate Limit errors', () => {
       const error = new Error('429 Too Many Requests: Resource exhausted');
-      const result = service.buildErrorRecovery('any_action', error, { userId: 'u1' }, 'en');
+      const result = service.buildErrorRecovery(
+        'any_action',
+        error,
+        { userId: 'u1' },
+        'en',
+      );
       expect(result).toContain('AI service is currently very busy');
     });
 
     it('should handle not implemented errors', () => {
       const error = new Error('Read tool some_tool not implemented');
-      const result = service.buildErrorRecovery('some_tool', error, { userId: 'u1' }, 'en');
+      const result = service.buildErrorRecovery(
+        'some_tool',
+        error,
+        { userId: 'u1' },
+        'en',
+      );
       expect(result).toContain('feature is currently being updated');
     });
 
     it('should return specific messages for get_payment_details', () => {
       const error = new Error('Database connection failed');
-      const result = service.buildErrorRecovery('get_payment_details', error, { userId: 'u1' }, 'en');
+      const result = service.buildErrorRecovery(
+        'get_payment_details',
+        error,
+        { userId: 'u1' },
+        'en',
+      );
       expect(result).toContain('retrieve those payment details');
     });
 
     it('should return busy message for fetch failures (network)', () => {
       const error = new Error('TypeError: fetch failed');
-      const result = service.buildErrorRecovery('default', error, { userId: 'u1' }, 'en');
+      const result = service.buildErrorRecovery(
+        'default',
+        error,
+        { userId: 'u1' },
+        'en',
+      );
       expect(result).toContain('AI service is currently very busy');
     });
 
     it('should return busy message for timeout errors', () => {
       const error = new Error('The operation was aborted due to timeout');
-      const result = service.buildErrorRecovery('default', error, { userId: 'u1' }, 'en');
+      const result = service.buildErrorRecovery(
+        'default',
+        error,
+        { userId: 'u1' },
+        'en',
+      );
       expect(result).toContain('AI service is currently very busy');
     });
   });

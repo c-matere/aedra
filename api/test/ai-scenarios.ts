@@ -138,7 +138,7 @@ async function main() {
       ['invoice', 'confirm', '1500'],
     ],
   );
- 
+
   // Scenario 4: Super Admin Platform Oversight & Scoped Mutation
   await runScenario(
     'Super Admin Platform Oversight',

@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Req,
+} from '@nestjs/common';
 import * as RolesSvc from './roles.service';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../auth/roles.enum';
@@ -20,7 +29,10 @@ export class RolesController {
   }
 
   @Post()
-  async create(@Body() data: RolesSvc.CreateRoleDto, @Req() req: RequestWithUser) {
+  async create(
+    @Body() data: RolesSvc.CreateRoleDto,
+    @Req() req: RequestWithUser,
+  ) {
     return this.rolesService.create(data, req.user!);
   }
 

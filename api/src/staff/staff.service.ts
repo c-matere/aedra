@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { UserRole } from '../auth/roles.enum';
@@ -22,8 +27,13 @@ export class StaffService {
       throw new NotFoundException('User not found.');
     }
 
-    if (actor.role !== UserRole.SUPER_ADMIN && user.companyId !== actor.companyId) {
-      throw new ForbiddenException('You cannot access this user\'s assignments.');
+    if (
+      actor.role !== UserRole.SUPER_ADMIN &&
+      user.companyId !== actor.companyId
+    ) {
+      throw new ForbiddenException(
+        "You cannot access this user's assignments.",
+      );
     }
 
     return this.prisma.propertyAssignment.findMany({
@@ -41,8 +51,14 @@ export class StaffService {
 
     // Check if user and property belong to the same company (and match actor's company)
     const [user, property] = await Promise.all([
-      this.prisma.user.findUnique({ where: { id: userId }, select: { companyId: true } }),
-      this.prisma.property.findUnique({ where: { id: propertyId }, select: { companyId: true } }),
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { companyId: true },
+      }),
+      this.prisma.property.findUnique({
+        where: { id: propertyId },
+        select: { companyId: true },
+      }),
     ]);
 
     if (!user || !property) {
@@ -50,11 +66,18 @@ export class StaffService {
     }
 
     if (user.companyId !== property.companyId) {
-      throw new BadRequestException('User and Property must belong to the same company.');
+      throw new BadRequestException(
+        'User and Property must belong to the same company.',
+      );
     }
 
-    if (actor.role !== UserRole.SUPER_ADMIN && user.companyId !== actor.companyId) {
-      throw new ForbiddenException('You cannot manage assignments for this company.');
+    if (
+      actor.role !== UserRole.SUPER_ADMIN &&
+      user.companyId !== actor.companyId
+    ) {
+      throw new ForbiddenException(
+        'You cannot manage assignments for this company.',
+      );
     }
 
     return this.prisma.propertyAssignment.upsert({
@@ -70,7 +93,10 @@ export class StaffService {
     });
   }
 
-  async unassignProperty(data: PropertyAssignmentDto, actor: AuthenticatedUser) {
+  async unassignProperty(
+    data: PropertyAssignmentDto,
+    actor: AuthenticatedUser,
+  ) {
     const { userId, propertyId } = data;
 
     const assignment = await this.prisma.propertyAssignment.findUnique({
@@ -80,11 +106,19 @@ export class StaffService {
     });
 
     if (!assignment) {
-      return { success: true, message: 'Assignment already removed or never existed.' };
+      return {
+        success: true,
+        message: 'Assignment already removed or never existed.',
+      };
     }
 
-    if (actor.role !== UserRole.SUPER_ADMIN && assignment.companyId !== actor.companyId) {
-      throw new ForbiddenException('You cannot manage assignments for this company.');
+    if (
+      actor.role !== UserRole.SUPER_ADMIN &&
+      assignment.companyId !== actor.companyId
+    ) {
+      throw new ForbiddenException(
+        'You cannot manage assignments for this company.',
+      );
     }
 
     await this.prisma.propertyAssignment.delete({
@@ -96,7 +130,11 @@ export class StaffService {
     return { success: true };
   }
 
-  async setBulkAssignments(userId: string, propertyIds: string[], actor: AuthenticatedUser) {
+  async setBulkAssignments(
+    userId: string,
+    propertyIds: string[],
+    actor: AuthenticatedUser,
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { companyId: true },
@@ -106,8 +144,13 @@ export class StaffService {
       throw new NotFoundException('User not found.');
     }
 
-    if (actor.role !== UserRole.SUPER_ADMIN && user.companyId !== actor.companyId) {
-      throw new ForbiddenException('You cannot manage assignments for this company.');
+    if (
+      actor.role !== UserRole.SUPER_ADMIN &&
+      user.companyId !== actor.companyId
+    ) {
+      throw new ForbiddenException(
+        'You cannot manage assignments for this company.',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {

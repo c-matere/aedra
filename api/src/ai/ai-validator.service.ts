@@ -18,7 +18,11 @@ export class AiValidatorService {
    * Centralized validation logic for tool execution.
    * Returns BLOCK signals that the AI must not override.
    */
-  async validate(tool: string, args: any, context: any): Promise<ValidationResult> {
+  async validate(
+    tool: string,
+    args: any,
+    context: any,
+  ): Promise<ValidationResult> {
     this.logger.log(`Validating tool: ${tool}`);
 
     switch (tool) {
@@ -36,7 +40,10 @@ export class AiValidatorService {
     }
   }
 
-  private async validateRegisterTenant(args: any, context: any): Promise<ValidationResult> {
+  private async validateRegisterTenant(
+    args: any,
+    context: any,
+  ): Promise<ValidationResult> {
     // Only validate if propertyId is already resolved
     if (!args.propertyId) {
       // Allow — let the write tool resolve propertyId from unitId context
@@ -68,7 +75,9 @@ export class AiValidatorService {
         };
       }
     } catch (e) {
-      this.logger.warn(`[Validator] Property check failed for ${args.propertyId}: ${e.message}`);
+      this.logger.warn(
+        `[Validator] Property check failed for ${args.propertyId}: ${e.message}`,
+      );
       // Fail open on errors
     }
 

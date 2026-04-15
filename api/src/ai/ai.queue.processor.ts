@@ -16,7 +16,10 @@ import { Queue } from 'bullmq';
 import { AI_BACKGROUND_QUEUE } from './ai.constants';
 
 @Processor(AI_BACKGROUND_QUEUE, { lockDuration: 300000 })
-export class AiQueueProcessor extends WorkerHost implements OnApplicationBootstrap {
+export class AiQueueProcessor
+  extends WorkerHost
+  implements OnApplicationBootstrap
+{
   private readonly logger = new Logger(AiQueueProcessor.name);
 
   constructor(
@@ -34,11 +37,15 @@ export class AiQueueProcessor extends WorkerHost implements OnApplicationBootstr
 
   async onApplicationBootstrap() {
     this.logger.log('[Queue] Seeding agent heartbeat...');
-    await this.aiQueue.add('agent_heartbeat', {}, { 
-      jobId: 'agent_heartbeat_singleton',
-      removeOnComplete: true,
-      delay: 5000 
-    });
+    await this.aiQueue.add(
+      'agent_heartbeat',
+      {},
+      {
+        jobId: 'agent_heartbeat_singleton',
+        removeOnComplete: true,
+        delay: 5000,
+      },
+    );
   }
 
   async process(job: Job<any, any, string>): Promise<any> {

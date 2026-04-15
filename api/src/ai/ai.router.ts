@@ -291,7 +291,9 @@ export const selectModelKey = async (
         const response = await result.response;
         return response.text();
       } catch (e) {
-        console.warn(`[Router] Gemini failed, falling back to Groq (GPT OSS)... ${e.message}`);
+        console.warn(
+          `[Router] Gemini failed, falling back to Groq (GPT OSS)... ${e.message}`,
+        );
       }
 
       // Attempt Groq (Secondary - GPT OSS)
@@ -324,9 +326,7 @@ export const selectModelKey = async (
           );
           return chatCompletion.choices[0]?.message?.content || '{}';
         } catch (e) {
-          console.error(
-            `[Router] All model fallbacks exhausted! ${e.message}`,
-          );
+          console.error(`[Router] All model fallbacks exhausted! ${e.message}`);
           throw e;
         }
       }

@@ -64,15 +64,15 @@ export interface UnifiedPlan {
   language: 'en' | 'sw' | 'mixed';
   immediateResponse?: string; // shown before tools execute for EMERGENCY/URGENT
   entities: {
-    tenantName?: string;    // raw string from LLM
-    unitNumber?: string;    // raw string from LLM
-    propertyName?: string;  // raw string from LLM
+    tenantName?: string; // raw string from LLM
+    unitNumber?: string; // raw string from LLM
+    propertyName?: string; // raw string from LLM
     amount?: number;
     date?: string;
     issueDescription?: string;
-    tenantId?: string;      // pre-hydrated or resolved
-    unitId?: string;        // pre-hydrated or resolved
-    propertyId?: string;    // pre-hydrated or resolved
+    tenantId?: string; // pre-hydrated or resolved
+    unitId?: string; // pre-hydrated or resolved
+    propertyId?: string; // pre-hydrated or resolved
     email?: string;
     password?: string;
     firstName?: string;
@@ -82,19 +82,19 @@ export interface UnifiedPlan {
   steps: Array<{
     tool: string;
     args: Record<string, any>;
-    dependsOn?: string;     // tool name this step waits for
-    required: boolean;      // if false, failure doesn't block rendering
-    isHighStakes?: boolean;  // financial/maintenance steps
+    dependsOn?: string; // tool name this step waits for
+    required: boolean; // if false, failure doesn't block rendering
+    isHighStakes?: boolean; // financial/maintenance steps
     claimedByPlan?: boolean; // did the LLM say it would complete this?
   }>;
-  planReasoning?: string;    // for internal tracing/debugging
+  planReasoning?: string; // for internal tracing/debugging
 }
 
 export interface VerifiedAction {
   tool: string;
   success: boolean;
   status: 'COMPLETE' | 'PARTIAL' | 'FAILED' | 'NOT_RUN';
-  result?: any;           // raw tool output (only if success)
+  result?: any; // raw tool output (only if success)
   errorMessage?: string;
   claimedByPlan?: boolean; // did the UnifiedPlan say this would happen?
 }
@@ -105,7 +105,12 @@ export interface ActionContract {
   requiredTools: string[];
   requiresContext: string[]; // e.g. ["tenantId", "unitId"]
   forbiddenActions: string[];
-  actionPriority: 'DATA_FIRST' | 'ACK_FIRST' | 'SILENT' | 'IMMEDIATE' | 'RESOLVE_FIRST';
+  actionPriority:
+    | 'DATA_FIRST'
+    | 'ACK_FIRST'
+    | 'SILENT'
+    | 'IMMEDIATE'
+    | 'RESOLVE_FIRST';
   elevationRequired?: boolean;
   outputSchema?: any;
   completionCriteria?: {
@@ -121,9 +126,15 @@ export interface TruthObject {
   operationalAction?: ActionContract;
   data: any;
   context: any;
-  status: 'COMPLETE' | 'PARTIAL' | 'INSUFFICIENT_DATA' | 'CONFLICT' | 'ERROR' | 'AMBIGUOUS';
-  actions?: VerifiedAction[];           // every step that ran
-  missingRequirements?: string[];      // e.g. ["tenantId", "unitId"]
+  status:
+    | 'COMPLETE'
+    | 'PARTIAL'
+    | 'INSUFFICIENT_DATA'
+    | 'CONFLICT'
+    | 'ERROR'
+    | 'AMBIGUOUS';
+  actions?: VerifiedAction[]; // every step that ran
+  missingRequirements?: string[]; // e.g. ["tenantId", "unitId"]
   immediateSafetyInstructions?: string; // for emergencies
 }
 
@@ -136,16 +147,16 @@ export interface ExecutionStep {
   timestamp: string;
 }
 
-export type TraceStatus = 
-  | 'PENDING' 
-  | 'INTERPRETING' 
-  | 'DECIDING' 
-  | 'POLICY_GATE' 
-  | 'WORKFLOW_SYNC' 
-  | 'EXECUTING' 
-  | 'INTEGRITY_CHECK' 
-  | 'RESOLVED' 
-  | 'BLOCKED' 
+export type TraceStatus =
+  | 'PENDING'
+  | 'INTERPRETING'
+  | 'DECIDING'
+  | 'POLICY_GATE'
+  | 'WORKFLOW_SYNC'
+  | 'EXECUTING'
+  | 'INTEGRITY_CHECK'
+  | 'RESOLVED'
+  | 'BLOCKED'
   | 'FAILED';
 
 export interface ExecutionTrace {
@@ -163,7 +174,7 @@ export interface ExecutionTrace {
   truth?: TruthObject;
   errors: string[];
   metadata: Record<string, any>;
-  intentLock?: boolean; 
+  intentLock?: boolean;
 }
 
 export interface GeneratedFile {

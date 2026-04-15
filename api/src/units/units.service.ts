@@ -344,16 +344,25 @@ export class UnitsService {
         // Arrears Logic:
         // Expected = Current Month Rent + All Pending/Historical Unpaid Invoices + All Pending Penalties
         // Collected = Payments made this month (or total payments against those items?)
-        
-        // Let's stick to the service's "Collection Rate" definition: 
+
+        // Let's stick to the service's "Collection Rate" definition:
         // How much of the TOTAL DEBT (Rent + Penalties + Invoices) has been covered by TOTAL PAYMENTS.
-        
+
         const rentAmount = activeLease.rentAmount;
-        const penaltiesAmount = activeLease.penalties.reduce((sum: number, p: any) => sum + p.amount, 0);
-        const invoicesAmount = activeLease.invoices.reduce((sum: number, i: any) => sum + i.amount, 0);
-        
+        const penaltiesAmount = activeLease.penalties.reduce(
+          (sum: number, p: any) => sum + p.amount,
+          0,
+        );
+        const invoicesAmount = activeLease.invoices.reduce(
+          (sum: number, i: any) => sum + i.amount,
+          0,
+        );
+
         const expected = rentAmount + penaltiesAmount + invoicesAmount;
-        const collected = activeLease.payments.reduce((sum: number, p: any) => sum + p.amount, 0);
+        const collected = activeLease.payments.reduce(
+          (sum: number, p: any) => sum + p.amount,
+          0,
+        );
 
         totalExpected += expected;
         totalCollected += collected;
@@ -364,7 +373,7 @@ export class UnitsService {
           tenant: `${activeLease.tenant.firstName} ${activeLease.tenant.lastName}`,
           expected,
           collected,
-          balance: expected - collected
+          balance: expected - collected,
         };
 
         all_units.push(unitInfo);

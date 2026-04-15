@@ -10,7 +10,13 @@ export class AiController {
   constructor(private readonly aiService: AiService) {}
 
   @Post('chat')
-  @Roles(UserRole.COMPANY_ADMIN, UserRole.COMPANY_STAFF, UserRole.SUPER_ADMIN, UserRole.TENANT, UserRole.LANDLORD)
+  @Roles(
+    UserRole.COMPANY_ADMIN,
+    UserRole.COMPANY_STAFF,
+    UserRole.SUPER_ADMIN,
+    UserRole.TENANT,
+    UserRole.LANDLORD,
+  )
   async chat(
     @Body()
     body: {

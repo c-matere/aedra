@@ -256,7 +256,7 @@ export class ReportsService {
         });
 
         const paidThisMonth = lease.payments
-          .filter(p => p.paidAt >= start && p.paidAt <= end)
+          .filter((p) => p.paidAt >= start && p.paidAt <= end)
           .reduce((sum, p) => sum + p.amount, 0);
 
         const okCount = monthlyStatus.filter((s) => s.status === 'ok').length;
@@ -301,7 +301,7 @@ export class ReportsService {
         expenses: expensesAgg._sum.amount || 0,
         units: totalUnits,
         occupied: occupiedUnits,
-        expensesByCategory: expensesGrouped.map(eg => ({
+        expensesByCategory: expensesGrouped.map((eg) => ({
           category: eg.category,
           amount: eg._sum.amount || 0,
         })),
@@ -377,7 +377,11 @@ export class ReportsService {
     // Fetch Transactions in Range
     const [invoices, payments] = await Promise.all([
       this.prisma.invoice.findMany({
-        where: { leaseId, createdAt: { gte: start, lte: end }, deletedAt: null },
+        where: {
+          leaseId,
+          createdAt: { gte: start, lte: end },
+          deletedAt: null,
+        },
         orderBy: { createdAt: 'asc' },
       }),
       this.prisma.payment.findMany({
@@ -416,15 +420,21 @@ export class ReportsService {
     });
 
     // Summaries
-    const invoiceSummary = invoices.reduce((acc, inv) => {
-      acc[inv.type] = (acc[inv.type] || 0) + inv.amount;
-      return acc;
-    }, {} as Record<string, number>);
+    const invoiceSummary = invoices.reduce(
+      (acc, inv) => {
+        acc[inv.type] = (acc[inv.type] || 0) + inv.amount;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
-    const paymentSummary = payments.reduce((acc, p) => {
-      acc[p.type] = (acc[p.type] || 0) + p.amount;
-      return acc;
-    }, {} as Record<string, number>);
+    const paymentSummary = payments.reduce(
+      (acc, p) => {
+        acc[p.type] = (acc[p.type] || 0) + p.amount;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     return {
       company: lease.property.company,

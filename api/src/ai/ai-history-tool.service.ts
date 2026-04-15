@@ -26,7 +26,10 @@ export class AiHistoryToolService {
       switch (name) {
         case 'view_version_history': {
           const { entity, targetId } = args;
-          const history = await this.historyService.getEntityHistory(entity, targetId);
+          const history = await this.historyService.getEntityHistory(
+            entity,
+            targetId,
+          );
           return {
             entity,
             targetId,
@@ -52,7 +55,10 @@ export class AiHistoryToolService {
 
         case 'generate_history_pdf': {
           const { entity, targetId, targetPhone } = args;
-          const history = await this.historyService.getEntityHistory(entity, targetId);
+          const history = await this.historyService.getEntityHistory(
+            entity,
+            targetId,
+          );
           if (history.length === 0) {
             return { error: 'No history found for this entity.' };
           }
@@ -80,28 +86,30 @@ export class AiHistoryToolService {
 
           if (!log) throw new BadRequestException('Audit log entry not found.');
           if (!log.entity || !log.targetId) {
-             throw new BadRequestException('Invalid audit log for rollback.');
+            throw new BadRequestException('Invalid audit log for rollback.');
           }
 
           // Map entity to prisma model
           const entityMap: Record<string, string> = {
-            'TENANT': 'tenant',
-            'LEASE': 'lease',
-            'PAYMENT': 'payment',
-            'UNIT': 'unit',
-            'PROPERTY': 'property',
-            'MAINTENANCE': 'maintenanceRequest',
-            'LANDLORD': 'landlord',
-            'STAFF': 'user',
-            'INVOICE': 'invoice',
-            'PENALTY': 'penalty',
-            'ARREARS': 'penalty',
+            TENANT: 'tenant',
+            LEASE: 'lease',
+            PAYMENT: 'payment',
+            UNIT: 'unit',
+            PROPERTY: 'property',
+            MAINTENANCE: 'maintenanceRequest',
+            LANDLORD: 'landlord',
+            STAFF: 'user',
+            INVOICE: 'invoice',
+            PENALTY: 'penalty',
+            ARREARS: 'penalty',
           };
           const modelName = entityMap[log.entity] || log.entity.toLowerCase();
           const prismaModel = (this.prisma as any)[modelName];
 
           if (!prismaModel) {
-            throw new BadRequestException(`Untrackable entity for rollback: ${log.entity}`);
+            throw new BadRequestException(
+              `Untrackable entity for rollback: ${log.entity}`,
+            );
           }
 
           const before = (log.metadata as any)?.before;
@@ -110,35 +118,43 @@ export class AiHistoryToolService {
           if (log.action === 'CREATE') {
             // Rolling back a CREATE = DELETE (Soft delete if possible, else hard)
             // Check if model has deletedAt
-            const delegate = prismaModel as any;
+            const delegate = prismaModel;
             try {
-               await delegate.update({
+              await delegate.update({
                 where: { id: log.targetId },
-                data: { deletedAt: new Date() }
+                data: { deletedAt: new Date() },
               });
             } catch (e) {
               // Try hard delete if update fails (no deletedAt)
               await delegate.delete({
-                where: { id: log.targetId }
+                where: { id: log.targetId },
               });
             }
 
-            await this.auditLog.logEntityChange(log.entity, log.targetId, after, null, {
-              actorId: context.userId,
-              actorRole: role,
-              actorCompanyId: context.companyId,
-              method: 'ROLLBACK_DELETE',
-            });
+            await this.auditLog.logEntityChange(
+              log.entity,
+              log.targetId,
+              after,
+              null,
+              {
+                actorId: context.userId,
+                actorRole: role,
+                actorCompanyId: context.companyId,
+                method: 'ROLLBACK_DELETE',
+              },
+            );
 
             return {
-               message: `Successfully rolled back CREATION of ${log.entity} by deleting it.`,
-               entity: log.entity,
-               targetId: log.targetId
+              message: `Successfully rolled back CREATION of ${log.entity} by deleting it.`,
+              entity: log.entity,
+              targetId: log.targetId,
             };
           }
 
           if (!before) {
-            throw new BadRequestException('No previous state found in this audit log to rollback to.');
+            throw new BadRequestException(
+              'No previous state found in this audit log to rollback to.',
+            );
           }
 
           // Dynamic prisma update for UPDATE/DELETE rollbacks
@@ -147,12 +163,18 @@ export class AiHistoryToolService {
             data: before,
           });
 
-          await this.auditLog.logEntityChange(log.entity, log.targetId, after, updated, {
-            actorId: context.userId,
-            actorRole: role,
-            actorCompanyId: context.companyId,
-            method: 'ROLLBACK',
-          });
+          await this.auditLog.logEntityChange(
+            log.entity,
+            log.targetId,
+            after,
+            updated,
+            {
+              actorId: context.userId,
+              actorRole: role,
+              actorCompanyId: context.companyId,
+              method: 'ROLLBACK',
+            },
+          );
 
           return {
             message: `Successfully rolled back ${log.entity} to state from ${log.timestamp.toLocaleString()}`,
@@ -165,7 +187,9 @@ export class AiHistoryToolService {
           return { error: `History tool ${name} not implemented` };
       }
     } catch (error) {
-      this.logger.error(`Error executing history tool ${name}: ${error.message}`);
+      this.logger.error(
+        `Error executing history tool ${name}: ${error.message}`,
+      );
       return { error: `Failed to execute history operation: ${error.message}` };
     }
   }

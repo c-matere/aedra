@@ -41,55 +41,37 @@ export class CompaniesController {
 
   @Patch(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
-  async update(
-    @Param('id') id: string,
-    @Body() data: UpdateCompanyDto,
-  ) {
+  async update(@Param('id') id: string, @Body() data: UpdateCompanyDto) {
     return this.companiesService.update(id, data);
   }
 
   @Post(':id/test-mpesa')
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
-  async testMpesa(
-    @Param('id') id: string,
-    @Body() data: UpdateCompanyDto,
-  ) {
+  async testMpesa(@Param('id') id: string, @Body() data: UpdateCompanyDto) {
     return this.companiesService.testMpesa(id, data);
   }
 
   @Post(':id/test-sms')
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
-  async testSms(
-    @Param('id') id: string,
-    @Body() data: UpdateCompanyDto,
-  ) {
+  async testSms(@Param('id') id: string, @Body() data: UpdateCompanyDto) {
     return this.companiesService.testSms(id, data);
   }
 
   @Post(':id/test-maps')
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
-  async testMaps(
-    @Param('id') id: string,
-    @Body() data: UpdateCompanyDto,
-  ) {
+  async testMaps(@Param('id') id: string, @Body() data: UpdateCompanyDto) {
     return this.companiesService.testMaps(id, data);
   }
 
   @Post(':id/test-jenga')
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
-  async testJenga(
-    @Param('id') id: string,
-    @Body() data: UpdateCompanyDto,
-  ) {
+  async testJenga(@Param('id') id: string, @Body() data: UpdateCompanyDto) {
     return this.companiesService.testJenga(id, data);
   }
 
   @Post(':id/test-whatsapp')
   @Roles(UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN)
-  async testWhatsApp(
-    @Param('id') id: string,
-    @Body() data: UpdateCompanyDto,
-  ) {
+  async testWhatsApp(@Param('id') id: string, @Body() data: UpdateCompanyDto) {
     return this.companiesService.testWhatsApp(id, data);
   }
 
@@ -100,7 +82,8 @@ export class CompaniesController {
       storage: diskStorage({
         destination: './uploads',
         filename: (req: any, file: any, cb: any) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
           const ext = extname(file.originalname);
           cb(null, `company-logo-${uniqueSuffix}${ext}`);
         },

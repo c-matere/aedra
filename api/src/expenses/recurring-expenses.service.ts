@@ -76,9 +76,13 @@ export class RecurringExpensesService {
     return this.prisma.recurringExpense.update({
       where: { id },
       data: {
-        ...(data.description !== undefined ? { description: data.description } : {}),
+        ...(data.description !== undefined
+          ? { description: data.description }
+          : {}),
         ...(data.amount !== undefined ? { amount: data.amount } : {}),
-        ...(data.dayOfMonth !== undefined ? { dayOfMonth: data.dayOfMonth } : {}),
+        ...(data.dayOfMonth !== undefined
+          ? { dayOfMonth: data.dayOfMonth }
+          : {}),
         ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
         ...(data.category !== undefined
           ? { category: this.parseCategory(data.category) }
@@ -95,7 +99,9 @@ export class RecurringExpensesService {
   private async resolveCompanyId(actor: AuthenticatedUser): Promise<string> {
     if (actor.companyId) return actor.companyId;
     if (actor.role === 'SUPER_ADMIN') {
-      const first = await this.prisma.company.findFirst({ select: { id: true } });
+      const first = await this.prisma.company.findFirst({
+        select: { id: true },
+      });
       if (first) return first.id;
     }
     throw new ForbiddenException('Company context is required.');

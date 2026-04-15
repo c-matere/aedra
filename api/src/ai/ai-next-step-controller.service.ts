@@ -2,16 +2,21 @@ import { Injectable, Logger } from '@nestjs/common';
 
 export interface IntentConstraints {
   intent: string;
-  allowedTools: string[];   // Primary actions for the intent
+  allowedTools: string[]; // Primary actions for the intent
   secondaryTools?: string[]; // Context-enriching actions
-  fallbackTools?: string[];  // Safe informational actions
+  fallbackTools?: string[]; // Safe informational actions
   requiredPreconditions: Record<string, string[]>; // tool -> [prerequisite_tools]
   forbiddenActions: string[];
   mandatoryFirstAction?: string;
   recoverySequence?: Record<string, string[]>;
   fallbackChains?: Record<string, string[]>; // Phase 7: Alternative tool paths
   desiredOutcome: string; // Phase 7: The business goal
-  actionPriority: 'DATA_FIRST' | 'ACK_FIRST' | 'SILENT' | 'IMMEDIATE' | 'RESOLVE_FIRST';
+  actionPriority:
+    | 'DATA_FIRST'
+    | 'ACK_FIRST'
+    | 'SILENT'
+    | 'IMMEDIATE'
+    | 'RESOLVE_FIRST';
 }
 
 @Injectable()
@@ -22,7 +27,11 @@ export class AiNextStepController {
   private readonly INTENT_REGISTRY: Record<string, IntentConstraints> = {
     NOISE_COMPLAINT: {
       intent: 'TENANT_DISPUTE',
-      allowedTools: ['log_tenant_incident', 'send_whatsapp_message', 'get_tenant_details'],
+      allowedTools: [
+        'log_tenant_incident',
+        'send_whatsapp_message',
+        'get_tenant_details',
+      ],
       secondaryTools: ['list_tenant_incidents'],
       fallbackTools: ['search_tenants', 'list_units'],
       requiredPreconditions: {},
@@ -31,11 +40,16 @@ export class AiNextStepController {
         'Do not promising a physical site visit for noise.',
       ],
       actionPriority: 'ACK_FIRST',
-      desiredOutcome: 'Log incident and notify occupant discreetly. NO technicians.'
+      desiredOutcome:
+        'Log incident and notify occupant discreetly. NO technicians.',
     },
     LATE_PAYMENT: {
       intent: 'LATE_PAYMENT',
-      allowedTools: ['log_tenant_incident', 'get_tenant_arrears', 'send_whatsapp_message'],
+      allowedTools: [
+        'log_tenant_incident',
+        'get_tenant_arrears',
+        'send_whatsapp_message',
+      ],
       secondaryTools: ['get_tenant_details', 'search_tenants'],
       fallbackTools: ['ai_read_tool', 'list_units'],
       requiredPreconditions: {
@@ -43,10 +57,11 @@ export class AiNextStepController {
         create_todo: ['get_tenant_arrears'],
       },
       forbiddenActions: [
-        'Do not disclose other tenants\' names or balances.',
+        "Do not disclose other tenants' names or balances.",
         'Do not threaten legal action unless arrears exceed 30 days.',
       ],
-      desiredOutcome: 'PRIORITY: Acknowledge the date/amount first. Identity resolution is secondary.',
+      desiredOutcome:
+        'PRIORITY: Acknowledge the date/amount first. Identity resolution is secondary.',
       actionPriority: 'ACK_FIRST',
     },
     WORKFLOW_DEPENDENCY: {
@@ -65,7 +80,11 @@ export class AiNextStepController {
     },
     PORTFOLIO_PERFORMANCE: {
       intent: 'PORTFOLIO_PERFORMANCE',
-      allowedTools: ['get_portfolio_arrears', 'get_collection_rate', 'summarize_portfolio'],
+      allowedTools: [
+        'get_portfolio_arrears',
+        'get_collection_rate',
+        'summarize_portfolio',
+      ],
       secondaryTools: ['list_properties', 'get_property_details'],
       fallbackTools: ['list_units'],
       requiredPreconditions: {},
@@ -74,14 +93,18 @@ export class AiNextStepController {
       ],
       mandatoryFirstAction: 'get_portfolio_arrears',
       fallbackChains: {
-        'get_portfolio_arrears': ['list_properties', 'get_collection_rate']
+        get_portfolio_arrears: ['list_properties', 'get_collection_rate'],
       },
       desiredOutcome: 'Show overall portfolio health and arrears status',
       actionPriority: 'DATA_FIRST',
     },
     EMERGENCY: {
       intent: 'EMERGENCY',
-      allowedTools: ['log_maintenance_issue', 'get_unit_details', 'get_tenant_details'],
+      allowedTools: [
+        'log_maintenance_issue',
+        'get_unit_details',
+        'get_tenant_details',
+      ],
       secondaryTools: ['send_whatsapp_message', 'create_todo'],
       requiredPreconditions: {},
       forbiddenActions: [
@@ -90,7 +113,8 @@ export class AiNextStepController {
         'SEVERITY CALIBRATION: "Burst pipe" or "Flooding" = Level 5 (Evacuate/Emergency). "Leaking" or "Drip" = Level 3 (Urgent).',
       ],
       mandatoryFirstAction: 'log_maintenance_issue',
-      desiredOutcome: 'Log issue and reassure tenant of technician dispatch. Calibrate severity.',
+      desiredOutcome:
+        'Log issue and reassure tenant of technician dispatch. Calibrate severity.',
       actionPriority: 'ACK_FIRST',
     },
     MAINTENANCE: {
@@ -109,7 +133,11 @@ export class AiNextStepController {
     },
     FINANCIAL_REPORTING: {
       intent: 'FINANCIAL_REPORTING',
-      allowedTools: ['get_revenue_summary', 'get_collection_rate', 'list_payments'],
+      allowedTools: [
+        'get_revenue_summary',
+        'get_collection_rate',
+        'list_payments',
+      ],
       secondaryTools: ['list_properties', 'get_portfolio_arrears'],
       fallbackTools: ['list_payments', 'list_invoices'],
       requiredPreconditions: {},
@@ -118,12 +146,13 @@ export class AiNextStepController {
       ],
       mandatoryFirstAction: 'get_revenue_summary',
       fallbackChains: {
-        'get_revenue_summary': ['list_payments', 'manual_aggregation'],
-        'get_collection_rate': ['list_payments']
+        get_revenue_summary: ['list_payments', 'manual_aggregation'],
+        get_collection_rate: ['list_payments'],
       },
-      desiredOutcome: 'FORCE_VALUE: Provide manual aggregation if primary tools fail. Never say "unavailable".',
+      desiredOutcome:
+        'FORCE_VALUE: Provide manual aggregation if primary tools fail. Never say "unavailable".',
       actionPriority: 'DATA_FIRST',
-    }
+    },
   };
 
   getConstraints(intent: string): IntentConstraints | null {
@@ -134,13 +163,16 @@ export class AiNextStepController {
     return constraints;
   }
 
-  generatePromptConstraints(intent: string, executionHistory: string[]): string {
+  generatePromptConstraints(
+    intent: string,
+    executionHistory: string[],
+  ): string {
     const constraints = this.getConstraints(intent);
     if (!constraints) return '';
 
     let prompt = `\n[🚨 DETERMINISTIC OS CONSTRAINTS: ${intent} 🚨]\n`;
     prompt += `[TARGET OUTCOME]: ${constraints.desiredOutcome}\n`;
-    
+
     // Tool Ranking
     prompt += `PRIMARY TOOLS: ${constraints.allowedTools.join(', ')}\n`;
     if (constraints.secondaryTools?.length) {
@@ -149,15 +181,19 @@ export class AiNextStepController {
     if (constraints.fallbackTools?.length) {
       prompt += `FALLBACK TOOLS: ${constraints.fallbackTools.join(', ')}\n`;
     }
-    
+
     // Check prerequisites
     const fulfilled = new Set(executionHistory);
     const pendingPrereqs: string[] = [];
-    
-    for (const [tool, prereqs] of Object.entries(constraints.requiredPreconditions)) {
-      const missing = prereqs.filter(p => !fulfilled.has(p));
+
+    for (const [tool, prereqs] of Object.entries(
+      constraints.requiredPreconditions,
+    )) {
+      const missing = prereqs.filter((p) => !fulfilled.has(p));
       if (missing.length > 0) {
-        pendingPrereqs.push(`To use '${tool}', you MUST first run: ${missing.join(', ')}`);
+        pendingPrereqs.push(
+          `To use '${tool}', you MUST first run: ${missing.join(', ')}`,
+        );
       }
     }
 
@@ -166,7 +202,7 @@ export class AiNextStepController {
     }
 
     prompt += `Safety/Policy Bounds:\n- ${constraints.forbiddenActions.join('\n- ')}\n`;
-    
+
     if (constraints.mandatoryFirstAction) {
       prompt += `[MANDATORY FIRST ACTION]: You MUST execute '${constraints.mandatoryFirstAction}' in your very first step.\n`;
     }
@@ -179,13 +215,19 @@ export class AiNextStepController {
   }
 
   private getPriorityDescription(p: string): string {
-    switch(p) {
-        case 'IMMEDIATE': return 'ACT immediately WITHOUT excessive greeting.';
-        case 'ACK_FIRST': return 'ACKNOWLEDGE user warmly THEN take action.';
-        case 'DATA_FIRST': return 'PRIORITIZE providing the hard data/result immediately.';
-        case 'SILENT': return 'Process quietly without redundant commentary.';
-        case 'RESOLVE_FIRST': return 'SEARCH/VALIDATE first THEN finalize action.';
-        default: return 'Standard procedure.';
+    switch (p) {
+      case 'IMMEDIATE':
+        return 'ACT immediately WITHOUT excessive greeting.';
+      case 'ACK_FIRST':
+        return 'ACKNOWLEDGE user warmly THEN take action.';
+      case 'DATA_FIRST':
+        return 'PRIORITIZE providing the hard data/result immediately.';
+      case 'SILENT':
+        return 'Process quietly without redundant commentary.';
+      case 'RESOLVE_FIRST':
+        return 'SEARCH/VALIDATE first THEN finalize action.';
+      default:
+        return 'Standard procedure.';
     }
   }
 }

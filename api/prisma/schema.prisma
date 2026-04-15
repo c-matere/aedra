@@ -72,6 +72,7 @@ model Company {
   waAlertsEnabled            Boolean                @default(true)
   waOtpEnabled               Boolean                @default(true)
   waPaymentConfirmationsEnabled Boolean             @default(true)
+  waInvoiceNotificationsEnabled Boolean             @default(true)
   africaTalkingApiKey        String?
   africaTalkingUsername      String?
   autoInvoicingEnabled       Boolean                @default(false)

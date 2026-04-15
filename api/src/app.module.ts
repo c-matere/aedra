@@ -105,9 +105,7 @@ import { TenantContextInterceptor } from './common/interceptors/tenant-context.i
     JengaModule,
   ],
 
-  controllers: [
-    AppController,
-  ],
+  controllers: [AppController],
   providers: [
     AppService,
     {

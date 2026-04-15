@@ -22,7 +22,10 @@ export class HistoryReportService {
     private readonly auditLog: AuditLogService,
   ) {}
 
-  async getEntityHistory(entity: string, targetId: string): Promise<EntityChange[]> {
+  async getEntityHistory(
+    entity: string,
+    targetId: string,
+  ): Promise<EntityChange[]> {
     const logs = await this.prisma.auditLog.findMany({
       where: {
         entity,

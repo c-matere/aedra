@@ -139,7 +139,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
                 // We transform model name (e.g. 'AuditLog') to camelCase ('auditLog') to match Prisma properties.
                 const modelProp =
                   model.charAt(0).toLowerCase() + model.slice(1);
-                
+
                 return tenantContext.run(
                   { ...context, isRlsSecondary: true },
                   () => (tx as any)[modelProp][operation](args),

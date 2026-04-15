@@ -56,7 +56,6 @@ export class AiWhatsappOrchestratorService {
     this.groq = apiKey ? new Groq({ apiKey }) : (null as any);
   }
 
-
   async handleIncomingWhatsapp(
     phone: string,
     text?: string,
@@ -78,18 +77,24 @@ export class AiWhatsappOrchestratorService {
     );
 
     if (isDuplicate) {
-      this.logger.warn(`Duplicate: Message ${messageId} already processed/processing.`);
+      this.logger.warn(
+        `Duplicate: Message ${messageId} already processed/processing.`,
+      );
       return;
     }
 
     if (isProcessing) {
-      this.logger.warn(`Locked: Already processing a request for ${initialUid}`);
+      this.logger.warn(
+        `Locked: Already processing a request for ${initialUid}`,
+      );
       return;
     }
 
     await Promise.all([
       this.cacheManager.set(lockKey, true, 60 * 1000),
-      msgLockKey ? this.cacheManager.set(msgLockKey, true, 300 * 1000) : Promise.resolve(),
+      msgLockKey
+        ? this.cacheManager.set(msgLockKey, true, 300 * 1000)
+        : Promise.resolve(),
     ]);
 
     let sender: any = { id: 'unidentified', role: UserRole.UNIDENTIFIED };
@@ -148,7 +153,7 @@ export class AiWhatsappOrchestratorService {
           text === '2' ||
           text === 'lang_en' ||
           text === 'lang_sw')
-  ) {
+      ) {
         const selectedLang = text === '1' || text === 'lang_en' ? 'en' : 'sw';
         await this.whatsappService.updateWhatsAppProfile(phone, {
           language: selectedLang,
@@ -175,7 +180,11 @@ export class AiWhatsappOrchestratorService {
             messageId: messageId,
             emoji: '✅',
           });
-        chatId = await this.aiService.getOrCreateChat(sender.id, sender.companyId, phone);
+        chatId = await this.aiService.getOrCreateChat(
+          sender.id,
+          sender.companyId,
+          phone,
+        );
         await this.prisma.chatMessage.create({
           data: {
             chatHistoryId: chatId,
@@ -193,8 +202,12 @@ export class AiWhatsappOrchestratorService {
             language === 'sw'
               ? 'Tafadhali andika jina la kampuni yako ili kuanza usajili.'
               : 'Please type your company name to begin registration.';
-          
-          chatId = await this.aiService.getOrCreateChat('unidentified', undefined, phone);
+
+          chatId = await this.aiService.getOrCreateChat(
+            'unidentified',
+            undefined,
+            phone,
+          );
           await this.prisma.chatMessage.create({
             data: { chatHistoryId: chatId, role: 'assistant', content: resp },
           });
@@ -208,7 +221,11 @@ export class AiWhatsappOrchestratorService {
               ? 'Mhudumu wetu atawasiliana nawe hivi punde.'
               : 'One of our agents will contact you shortly.';
 
-          chatId = await this.aiService.getOrCreateChat('unidentified', undefined, phone);
+          chatId = await this.aiService.getOrCreateChat(
+            'unidentified',
+            undefined,
+            phone,
+          );
           await this.prisma.chatMessage.create({
             data: { chatHistoryId: chatId, role: 'assistant', content: resp },
           });
@@ -219,12 +236,17 @@ export class AiWhatsappOrchestratorService {
         // Show unidentified menu if they just say "hi"
         if (isGreeting) {
           const menu = this.mainMenu.getUnidentifiedMenu(language);
-          chatId = await this.aiService.getOrCreateChat('unidentified', undefined, phone);
+          chatId = await this.aiService.getOrCreateChat(
+            'unidentified',
+            undefined,
+            phone,
+          );
           await this.prisma.chatMessage.create({
             data: {
               chatHistoryId: chatId,
               role: 'assistant',
-              content: 'Welcome to Aedra! Would you like to register a new company or talk to support?',
+              content:
+                'Welcome to Aedra! Would you like to register a new company or talk to support?',
             },
           });
           await this.whatsappService.sendInteractiveMessage({
@@ -362,7 +384,6 @@ export class AiWhatsappOrchestratorService {
             if (detectedLang !== 'mixed') {
               language = detectedLang as any;
             }
-
           }
 
           // Resolve chatId early for logging
@@ -444,10 +465,15 @@ export class AiWhatsappOrchestratorService {
           // We must map it back to semantic text so the LLM classifier understands the context,
           // rather than hallucinating that a raw UUID means a highly complex Portfolio Report request.
           if (isUuidSelection && activeList?.items) {
-            const matchedItem = activeList.items.find((i: any) => i.id === safeText);
+            const matchedItem = activeList.items.find(
+              (i: any) => i.id === safeText,
+            );
             if (matchedItem) {
               isListSelection = true;
-              const matchedType = (matchedItem.type || '').toString().toLowerCase().trim();
+              const matchedType = (matchedItem.type || '')
+                .toString()
+                .toLowerCase()
+                .trim();
               listSelectionType =
                 matchedType === 'tenant' || matchedItem.role === 'TENANT'
                   ? 'tenant'
@@ -457,7 +483,10 @@ export class AiWhatsappOrchestratorService {
                       ? 'unit'
                       : 'item';
               const itemName =
-                matchedItem.name || matchedItem.firstName || matchedItem.title || safeText;
+                matchedItem.name ||
+                matchedItem.firstName ||
+                matchedItem.title ||
+                safeText;
 
               // Persist selection into ContextMemory so follow-ups like "this property" resolve.
               try {
@@ -492,7 +521,9 @@ export class AiWhatsappOrchestratorService {
               // Rewrite the original text payload so the rest of the orchestrator sees semantic text
               text = `Select this item: ${itemName} (ID: ${safeText})`;
               safeText = text.trim();
-              this.logger.log(`[WhatsApp Orchestrator] Intercepted list selection UUID ${safeText}, mapped to semantic text.`);
+              this.logger.log(
+                `[WhatsApp Orchestrator] Intercepted list selection UUID ${safeText}, mapped to semantic text.`,
+              );
             }
           }
 
@@ -734,7 +765,7 @@ export class AiWhatsappOrchestratorService {
               await this.whatsappService.sendReaction({
                 to: phone,
                 messageId: messageId as string,
-                emoji: "⏳",
+                emoji: '⏳',
               });
               const updatedRequest = await this.quorumBridge.addApproval(
                 actionId,
@@ -780,8 +811,8 @@ export class AiWhatsappOrchestratorService {
                 if (messageId) {
                   await this.whatsappService.sendReaction({
                     to: phone,
-                    messageId: messageId as string,
-                    emoji: "✅",
+                    messageId: messageId,
+                    emoji: '✅',
                   });
                 }
                 return { response: formatted.text, chatId: ctx.chatId || null };
@@ -924,7 +955,7 @@ export class AiWhatsappOrchestratorService {
             if (messageId) {
               await this.whatsappService.sendReaction({
                 to: phone,
-                messageId: messageId as string,
+                messageId: messageId,
                 emoji: '⏳',
               });
             }
@@ -942,28 +973,55 @@ export class AiWhatsappOrchestratorService {
             );
 
             await sendAndLog(result.response, undefined, result.interactive);
-            
+
             // Safety check: if tool returned confirmation required but AI didn't provide buttons
             if (!result.interactive && result.metadata?.requires_confirmation) {
-	               await this.staging.stage(uid, 'pending_action', {
-	                 text: (staged as any).text,
-	                 classification: overrideClassification || (staged as any).classification,
-	                 history: staged.history || [],
-	                 chatId: staged.chatId,
-	                 attachments: staged.attachments,
-	               }, 24 * 3600 * 1000);
+              await this.staging.stage(
+                uid,
+                'pending_action',
+                {
+                  text: staged.text,
+                  classification:
+                    overrideClassification || staged.classification,
+                  history: staged.history || [],
+                  chatId: staged.chatId,
+                  attachments: staged.attachments,
+                },
+                24 * 3600 * 1000,
+              );
 
-               const proceedButtons = {
-                  type: 'button',
-                  body: { text: lang === 'sw' ? 'Je, ungependa kuendelea?' : 'Would you like to proceed?' },
-                  action: {
-                    buttons: [
-                      { type: 'reply', reply: { id: 'plan_approve', title: lang === 'sw' ? 'Ndio, Endelea' : 'Yes, Proceed' } },
-                      { type: 'reply', reply: { id: 'plan_cancel', title: lang === 'sw' ? 'Hapana, Ghairi' : 'No, Cancel' } }
-                    ]
-                  }
-               };
-               await this.whatsappService.sendInteractiveMessage({ to: phone, interactive: proceedButtons, companyId });
+              const proceedButtons = {
+                type: 'button',
+                body: {
+                  text:
+                    lang === 'sw'
+                      ? 'Je, ungependa kuendelea?'
+                      : 'Would you like to proceed?',
+                },
+                action: {
+                  buttons: [
+                    {
+                      type: 'reply',
+                      reply: {
+                        id: 'plan_approve',
+                        title: lang === 'sw' ? 'Ndio, Endelea' : 'Yes, Proceed',
+                      },
+                    },
+                    {
+                      type: 'reply',
+                      reply: {
+                        id: 'plan_cancel',
+                        title: lang === 'sw' ? 'Hapana, Ghairi' : 'No, Cancel',
+                      },
+                    },
+                  ],
+                },
+              };
+              await this.whatsappService.sendInteractiveMessage({
+                to: phone,
+                interactive: proceedButtons,
+                companyId,
+              });
             }
 
             await this.staging.delete(uid, 'pending_intent_choice');
@@ -1013,14 +1071,19 @@ export class AiWhatsappOrchestratorService {
               return { response: formatted.text, chatId: ctx.chatId || null };
             }
           }
-          
+
           if (activeRecovery && isNumericSelection) {
             const choice = safeText.replace(/\D/g, '');
             if (choice === '1') {
-              this.logger.log(`[Recovery] Retrying action: ${activeRecovery.action}`);
+              this.logger.log(
+                `[Recovery] Retrying action: ${activeRecovery.action}`,
+              );
               await this.cacheManager.del(recoveryKey);
-              
-              if (activeRecovery.action === 'execute_tool' && activeRecovery.toolName) {
+
+              if (
+                activeRecovery.action === 'execute_tool' &&
+                activeRecovery.toolName
+              ) {
                 const result = await this.aiService.executeTool(
                   activeRecovery.toolName,
                   activeRecovery.args,
@@ -1032,18 +1095,22 @@ export class AiWhatsappOrchestratorService {
                     chatId,
                   },
                   sender.role,
-                  lang
+                  lang,
                 );
                 const formatted = await this.aiService.formatToolResponse(
                   result,
                   sender,
                   companyId || '',
-                  lang
+                  lang,
                 );
-                await sendAndLog(formatted.text, undefined, formatted.interactive);
+                await sendAndLog(
+                  formatted.text,
+                  undefined,
+                  formatted.interactive,
+                );
                 return { response: formatted.text, chatId };
               }
-              
+
               if (activeRecovery.action === 'retry_plan_approve') {
                 return await this.handleIncomingWhatsapp(
                   phone,
@@ -1071,14 +1138,14 @@ export class AiWhatsappOrchestratorService {
               await sendAndLog(retryMsg);
               return { response: retryMsg, chatId };
             } else if (choice === '2') {
-               await this.cacheManager.del(recoveryKey);
-               const menu = this.mainMenu.getMainMenu(lang, sender.role as any);
-               await this.whatsappService.sendInteractiveMessage({
-                 to: phone,
-                 interactive: menu,
-                 companyId
-               });
-               return { response: 'Main Menu', chatId };
+              await this.cacheManager.del(recoveryKey);
+              const menu = this.mainMenu.getMainMenu(lang, sender.role);
+              await this.whatsappService.sendInteractiveMessage({
+                to: phone,
+                interactive: menu,
+                companyId,
+              });
+              return { response: 'Main Menu', chatId };
             }
           }
 
@@ -1398,10 +1465,11 @@ export class AiWhatsappOrchestratorService {
           }
 
           const effectiveText = text || (mediaId ? '[Attachment]' : '');
-          
+
           // Mombasa Market Hard-Interception (Entry Point)
-          let classification: ClassificationResult | null = this.interceptSwahiliEmergency(effectiveText);
-          
+          let classification: ClassificationResult | null =
+            this.interceptSwahiliEmergency(effectiveText);
+
           if (!classification) {
             try {
               classification = await Promise.race([
@@ -1428,7 +1496,10 @@ export class AiWhatsappOrchestratorService {
 
           if (!classification) {
             this.logger.error(`Failed to classify message: ${effectiveText}`);
-            return { response: 'Classification failure', chatId: lastChat?.id || null };
+            return {
+              response: 'Classification failure',
+              chatId: lastChat?.id || null,
+            };
           }
 
           if (
@@ -1472,26 +1543,27 @@ export class AiWhatsappOrchestratorService {
               effectiveText.toLowerCase(),
             );
 
-	          const isLongPrompt = effectiveText.length > 60 || effectiveText.split(' ').length > 8;
-	          // Avoid competing "shadow classifier" logic when a deterministic route exists.
-	          const deterministic = await this.menuRouter.routeMessage(
-	            uid,
-	            effectiveText,
-	            lang,
-	          );
-	          const requiresDisambiguation =
-	            !deterministic.handled &&
-	            !isLongPrompt &&
-	            looksLikePropertyRef &&
-	            (!explicitWrite || confidence < 0.75);
+          const isLongPrompt =
+            effectiveText.length > 60 || effectiveText.split(' ').length > 8;
+          // Avoid competing "shadow classifier" logic when a deterministic route exists.
+          const deterministic = await this.menuRouter.routeMessage(
+            uid,
+            effectiveText,
+            lang,
+          );
+          const requiresDisambiguation =
+            !deterministic.handled &&
+            !isLongPrompt &&
+            looksLikePropertyRef &&
+            (!explicitWrite || confidence < 0.75);
 
           // Dynamic disambiguation: avoid robotic confirmations, ALWAYS trigger for explicit List Selections
           if (
             isListSelection ||
             (requiresDisambiguation &&
-             (isWriteAction ||
-              classification.intent === 'general_query' ||
-              classification.intent === 'unknown'))
+              (isWriteAction ||
+                classification.intent === 'general_query' ||
+                classification.intent === 'unknown'))
           ) {
             let history: any[] = [];
             if (lastChat?.id) {
@@ -1504,114 +1576,318 @@ export class AiWhatsappOrchestratorService {
                 history.shift();
             }
 
-	            await this.staging.stage(uid, 'pending_intent_choice', {
-	              text: effectiveText,
-	              classification,
-	              history,
-	              chatId: lastChat?.id,
-	              attachments,
-	            }, 24 * 3600 * 1000);
+            await this.staging.stage(
+              uid,
+              'pending_intent_choice',
+              {
+                text: effectiveText,
+                classification,
+                history,
+                chatId: lastChat?.id,
+                attachments,
+              },
+              24 * 3600 * 1000,
+            );
 
             // --- Dynamic intent-aware disambiguation ---
             // Map the LLM's classified intent to the options most relevant in that context.
             // Fallback to a generic set when the intent is unknown/general.
-            type DisambigOption = { key: string; label: string; labelSw: string; action: string };
+            type DisambigOption = {
+              key: string;
+              label: string;
+              labelSw: string;
+              action: string;
+            };
             const intentOptionsMap: Record<string, DisambigOption[]> = {
               // Property creation family
               onboard_property: [
-                { key: 'create',  label: 'Create property',       labelSw: 'Unda jengo',            action: 'intent_choose:onboard_property' },
-                { key: 'details', label: 'View properties',        labelSw: 'Ona majengo',            action: 'intent_choose:get_property_details' },
+                {
+                  key: 'create',
+                  label: 'Create property',
+                  labelSw: 'Unda jengo',
+                  action: 'intent_choose:onboard_property',
+                },
+                {
+                  key: 'details',
+                  label: 'View properties',
+                  labelSw: 'Ona majengo',
+                  action: 'intent_choose:get_property_details',
+                },
               ],
               update_property: [
-                { key: 'update',  label: 'Update property',        labelSw: 'Sasisha jengo',          action: 'intent_choose:update_property' },
-                { key: 'details', label: 'View property details',  labelSw: 'Maelezo ya jengo',       action: 'intent_choose:get_property_details' },
+                {
+                  key: 'update',
+                  label: 'Update property',
+                  labelSw: 'Sasisha jengo',
+                  action: 'intent_choose:update_property',
+                },
+                {
+                  key: 'details',
+                  label: 'View property details',
+                  labelSw: 'Maelezo ya jengo',
+                  action: 'intent_choose:get_property_details',
+                },
               ],
               // Unit family
               create_unit: [
-                { key: 'create',  label: 'Create unit',            labelSw: 'Unda kitengo',           action: 'intent_choose:create_unit' },
-                { key: 'vacancy', label: 'Check availability',     labelSw: 'Angalia upatikanaji',    action: 'intent_choose:check_vacancy' },
+                {
+                  key: 'create',
+                  label: 'Create unit',
+                  labelSw: 'Unda kitengo',
+                  action: 'intent_choose:create_unit',
+                },
+                {
+                  key: 'vacancy',
+                  label: 'Check availability',
+                  labelSw: 'Angalia upatikanaji',
+                  action: 'intent_choose:check_vacancy',
+                },
               ],
               // Tenant registration family
               add_tenant: [
-                { key: 'tenant',  label: 'Register tenant',        labelSw: 'Sajili mpangaji',        action: 'intent_choose:add_tenant' },
-                { key: 'details', label: 'View tenants',           labelSw: 'Ona wapangaji',          action: 'intent_choose:list_tenants' },
+                {
+                  key: 'tenant',
+                  label: 'Register tenant',
+                  labelSw: 'Sajili mpangaji',
+                  action: 'intent_choose:add_tenant',
+                },
+                {
+                  key: 'details',
+                  label: 'View tenants',
+                  labelSw: 'Ona wapangaji',
+                  action: 'intent_choose:list_tenants',
+                },
               ],
               bulk_create_tenants: [
-                { key: 'bulk',    label: 'Import tenants',         labelSw: 'Ingiza wapangaji',       action: 'intent_choose:bulk_create_tenants' },
-                { key: 'tenant',  label: 'Register one tenant',    labelSw: 'Sajili mpangaji mmoja',  action: 'intent_choose:add_tenant' },
+                {
+                  key: 'bulk',
+                  label: 'Import tenants',
+                  labelSw: 'Ingiza wapangaji',
+                  action: 'intent_choose:bulk_create_tenants',
+                },
+                {
+                  key: 'tenant',
+                  label: 'Register one tenant',
+                  labelSw: 'Sajili mpangaji mmoja',
+                  action: 'intent_choose:add_tenant',
+                },
               ],
               // Lease family
               create_lease: [
-                { key: 'lease',   label: 'Create lease',           labelSw: 'Unda mkataba',           action: 'intent_choose:create_lease' },
-                { key: 'tenant',  label: 'View tenant details',    labelSw: 'Maelezo ya mpangaji',    action: 'intent_choose:get_tenant_details' },
+                {
+                  key: 'lease',
+                  label: 'Create lease',
+                  labelSw: 'Unda mkataba',
+                  action: 'intent_choose:create_lease',
+                },
+                {
+                  key: 'tenant',
+                  label: 'View tenant details',
+                  labelSw: 'Maelezo ya mpangaji',
+                  action: 'intent_choose:get_tenant_details',
+                },
               ],
               // Property inquiry / availability family
               get_property_details: [
-                { key: 'details', label: 'View details',           labelSw: 'Maelezo',                action: 'intent_choose:get_property_details' },
-                { key: 'vacancy', label: 'Check availability',     labelSw: 'Upatikanaji',            action: 'intent_choose:check_vacancy' },
-                { key: 'tenant',  label: 'Register tenant',        labelSw: 'Sajili mpangaji',        action: 'intent_choose:add_tenant' },
+                {
+                  key: 'details',
+                  label: 'View details',
+                  labelSw: 'Maelezo',
+                  action: 'intent_choose:get_property_details',
+                },
+                {
+                  key: 'vacancy',
+                  label: 'Check availability',
+                  labelSw: 'Upatikanaji',
+                  action: 'intent_choose:check_vacancy',
+                },
+                {
+                  key: 'tenant',
+                  label: 'Register tenant',
+                  labelSw: 'Sajili mpangaji',
+                  action: 'intent_choose:add_tenant',
+                },
               ],
               check_vacancy: [
-                { key: 'vacancy', label: 'Check availability',     labelSw: 'Angalia upatikanaji',    action: 'intent_choose:check_vacancy' },
-                { key: 'details', label: 'View property details',  labelSw: 'Maelezo ya jengo',       action: 'intent_choose:get_property_details' },
+                {
+                  key: 'vacancy',
+                  label: 'Check availability',
+                  labelSw: 'Angalia upatikanaji',
+                  action: 'intent_choose:check_vacancy',
+                },
+                {
+                  key: 'details',
+                  label: 'View property details',
+                  labelSw: 'Maelezo ya jengo',
+                  action: 'intent_choose:get_property_details',
+                },
               ],
             };
 
             // Derive contextual prompt text based on the intent family
-            const intentAskMap: Partial<Record<string, { en: string; sw: string }>> = {
-              onboard_property:     { en: 'Would you like to create a new property?',    sw: 'Unataka kuunda jengo jipya?' },
-              update_property:      { en: 'Do you want to update this property?',        sw: 'Unataka kusasisha jengo hili?' },
-              create_unit:          { en: 'Do you want to create a new unit here?',      sw: 'Unataka kuunda kitengo kipya?' },
-              add_tenant:           { en: 'Do you want to register a tenant here?',      sw: 'Unataka kusajili mpangaji?' },
-              bulk_create_tenants:  { en: 'Do you want to import tenants here?',         sw: 'Unataka kuingiza wapangaji?' },
-              create_lease:         { en: 'Do you want to create a lease agreement?',    sw: 'Unataka kuunda mkataba?' },
-              get_property_details: { en: 'What would you like to do with this property?', sw: 'Unataka kufanya nini na jengo hili?' },
-              check_vacancy:        { en: 'What would you like to do with this property?', sw: 'Unataka kufanya nini na jengo hili?' },
+            const intentAskMap: Partial<
+              Record<string, { en: string; sw: string }>
+            > = {
+              onboard_property: {
+                en: 'Would you like to create a new property?',
+                sw: 'Unataka kuunda jengo jipya?',
+              },
+              update_property: {
+                en: 'Do you want to update this property?',
+                sw: 'Unataka kusasisha jengo hili?',
+              },
+              create_unit: {
+                en: 'Do you want to create a new unit here?',
+                sw: 'Unataka kuunda kitengo kipya?',
+              },
+              add_tenant: {
+                en: 'Do you want to register a tenant here?',
+                sw: 'Unataka kusajili mpangaji?',
+              },
+              bulk_create_tenants: {
+                en: 'Do you want to import tenants here?',
+                sw: 'Unataka kuingiza wapangaji?',
+              },
+              create_lease: {
+                en: 'Do you want to create a lease agreement?',
+                sw: 'Unataka kuunda mkataba?',
+              },
+              get_property_details: {
+                en: 'What would you like to do with this property?',
+                sw: 'Unataka kufanya nini na jengo hili?',
+              },
+              check_vacancy: {
+                en: 'What would you like to do with this property?',
+                sw: 'Unataka kufanya nini na jengo hili?',
+              },
             };
 
-            const resolvedIntent = classification.intent as string;
-            const resolvedOptions = (intentOptionsMap[resolvedIntent] ?? (() => {
-              // Generic fallback for unknown/general intents, intelligent based on list selection type
-              if (listSelectionType === 'tenant') {
-                return [
-                  { key: 'details', label: 'View tenant',        labelSw: 'Ona mpangaji',    action: 'intent_choose:get_tenant_details' },
-                  { key: 'lease',   label: 'Create lease',       labelSw: 'Unda mkataba',    action: 'intent_choose:create_lease' },
-                  { key: 'pay',     label: 'Record payment',     labelSw: 'Rekodi malipo',   action: 'intent_choose:record_payment' },
-                ];
-              } else if (listSelectionType === 'unit') {
-                return [
-                  { key: 'details', label: 'View unit',          labelSw: 'Ona kitengo',     action: 'intent_choose:get_unit_details' },
-                  { key: 'vacancy', label: 'Check vacancy',      labelSw: 'Angalia upatikanaji', action: 'intent_choose:check_vacancy' },
-                  { key: 'lease',   label: 'Create lease',       labelSw: 'Unda mkataba',    action: 'intent_choose:create_lease' },
-                ];
-              } else if (listSelectionType === 'property' || looksLikePropertyRef) {
-                return looksLikeInterest
-                  ? [
-                      { key: 'details', label: 'View details',       labelSw: 'Maelezo',             action: 'intent_choose:get_property_details' },
-                      { key: 'vacancy', label: 'Check availability', labelSw: 'Upatikanaji',         action: 'intent_choose:check_vacancy' },
-                      { key: 'tenant',  label: 'Register tenant',    labelSw: 'Sajili mpangaji',     action: 'intent_choose:add_tenant' },
-                    ]
-                  : [
-                      { key: 'details', label: 'View details',       labelSw: 'Maelezo',             action: 'intent_choose:get_property_details' },
-                      { key: 'create',  label: 'Create property',    labelSw: 'Unda jengo',          action: 'intent_choose:onboard_property' },
-                      { key: 'tenant',  label: 'Register tenant',    labelSw: 'Sajili mpangaji',     action: 'intent_choose:add_tenant' },
-                    ];
-              } else {
-                return [
-                  { key: 'details', label: 'Explore options',    labelSw: 'Chaguzi',         action: 'intent_choose:general_query' },
-                ];
-              }
-            })());
+            const resolvedIntent = classification.intent;
+            const resolvedOptions =
+              intentOptionsMap[resolvedIntent] ??
+              (() => {
+                // Generic fallback for unknown/general intents, intelligent based on list selection type
+                if (listSelectionType === 'tenant') {
+                  return [
+                    {
+                      key: 'details',
+                      label: 'View tenant',
+                      labelSw: 'Ona mpangaji',
+                      action: 'intent_choose:get_tenant_details',
+                    },
+                    {
+                      key: 'lease',
+                      label: 'Create lease',
+                      labelSw: 'Unda mkataba',
+                      action: 'intent_choose:create_lease',
+                    },
+                    {
+                      key: 'pay',
+                      label: 'Record payment',
+                      labelSw: 'Rekodi malipo',
+                      action: 'intent_choose:record_payment',
+                    },
+                  ];
+                } else if (listSelectionType === 'unit') {
+                  return [
+                    {
+                      key: 'details',
+                      label: 'View unit',
+                      labelSw: 'Ona kitengo',
+                      action: 'intent_choose:get_unit_details',
+                    },
+                    {
+                      key: 'vacancy',
+                      label: 'Check vacancy',
+                      labelSw: 'Angalia upatikanaji',
+                      action: 'intent_choose:check_vacancy',
+                    },
+                    {
+                      key: 'lease',
+                      label: 'Create lease',
+                      labelSw: 'Unda mkataba',
+                      action: 'intent_choose:create_lease',
+                    },
+                  ];
+                } else if (
+                  listSelectionType === 'property' ||
+                  looksLikePropertyRef
+                ) {
+                  return looksLikeInterest
+                    ? [
+                        {
+                          key: 'details',
+                          label: 'View details',
+                          labelSw: 'Maelezo',
+                          action: 'intent_choose:get_property_details',
+                        },
+                        {
+                          key: 'vacancy',
+                          label: 'Check availability',
+                          labelSw: 'Upatikanaji',
+                          action: 'intent_choose:check_vacancy',
+                        },
+                        {
+                          key: 'tenant',
+                          label: 'Register tenant',
+                          labelSw: 'Sajili mpangaji',
+                          action: 'intent_choose:add_tenant',
+                        },
+                      ]
+                    : [
+                        {
+                          key: 'details',
+                          label: 'View details',
+                          labelSw: 'Maelezo',
+                          action: 'intent_choose:get_property_details',
+                        },
+                        {
+                          key: 'create',
+                          label: 'Create property',
+                          labelSw: 'Unda jengo',
+                          action: 'intent_choose:onboard_property',
+                        },
+                        {
+                          key: 'tenant',
+                          label: 'Register tenant',
+                          labelSw: 'Sajili mpangaji',
+                          action: 'intent_choose:add_tenant',
+                        },
+                      ];
+                } else {
+                  return [
+                    {
+                      key: 'details',
+                      label: 'Explore options',
+                      labelSw: 'Chaguzi',
+                      action: 'intent_choose:general_query',
+                    },
+                  ];
+                }
+              })();
 
             const intentAsk = intentAskMap[resolvedIntent];
-            const fallbackAskSw = listSelectionType === 'tenant' ? 'Unataka kufanya nini na mpangaji huyu?'
-                                : listSelectionType === 'unit' ? 'Unataka kufanya nini na kitengo hiki?'
-                                : looksLikeInterest ? 'Unataka kufanya nini na nyumba/kitengo hiki?' : 'Unamaanisha nini kuhusu hili?';
-            const fallbackAskEn = listSelectionType === 'tenant' ? 'What would you like to do with this tenant?'
-                                : listSelectionType === 'unit' ? 'What would you like to do with this unit?'
-                                : looksLikeInterest ? 'What would you like to do with this property?' : 'What do you mean about this?';
+            const fallbackAskSw =
+              listSelectionType === 'tenant'
+                ? 'Unataka kufanya nini na mpangaji huyu?'
+                : listSelectionType === 'unit'
+                  ? 'Unataka kufanya nini na kitengo hiki?'
+                  : looksLikeInterest
+                    ? 'Unataka kufanya nini na nyumba/kitengo hiki?'
+                    : 'Unamaanisha nini kuhusu hili?';
+            const fallbackAskEn =
+              listSelectionType === 'tenant'
+                ? 'What would you like to do with this tenant?'
+                : listSelectionType === 'unit'
+                  ? 'What would you like to do with this unit?'
+                  : looksLikeInterest
+                    ? 'What would you like to do with this property?'
+                    : 'What do you mean about this?';
 
-            const ask = lang === 'sw' ? (intentAsk?.sw ?? fallbackAskSw) : (intentAsk?.en ?? fallbackAskEn);
+            const ask =
+              lang === 'sw'
+                ? (intentAsk?.sw ?? fallbackAskSw)
+                : (intentAsk?.en ?? fallbackAskEn);
 
             const options = resolvedOptions.map((o) => ({
               key: o.key,
@@ -1628,7 +1904,6 @@ export class AiWhatsappOrchestratorService {
             await sendAndLog(ask, undefined, interactive);
             return { response: ask, chatId: lastChat?.id || null };
           }
-
 
           if (
             isWriteAction &&
@@ -1678,7 +1953,9 @@ export class AiWhatsappOrchestratorService {
               classification.subIntents.length > 1;
             if (hasCompoundSteps) {
               intentDesc =
-                lang === 'sw' ? 'Ombi lenye hatua kadhaa' : 'Multi-step request';
+                lang === 'sw'
+                  ? 'Ombi lenye hatua kadhaa'
+                  : 'Multi-step request';
             }
             const label =
               !explicitWrite && confidence < 0.75
@@ -1723,13 +2000,18 @@ export class AiWhatsappOrchestratorService {
                 history.shift();
             }
 
-	            await this.staging.stage(uid, 'pending_action', {
-	              text: effectiveText,
-	              classification,
-	              history,
-	              chatId: lastChat?.id,
-	              attachments,
-	            }, 24 * 3600 * 1000);
+            await this.staging.stage(
+              uid,
+              'pending_action',
+              {
+                text: effectiveText,
+                classification,
+                history,
+                chatId: lastChat?.id,
+                attachments,
+              },
+              24 * 3600 * 1000,
+            );
             if (classification.executionMode === 'ORCHESTRATED') {
               const planButtons = this.crudButtons.buildPlanButtons(
                 intentDesc,
@@ -1790,7 +2072,7 @@ export class AiWhatsappOrchestratorService {
               );
 
             const tools = Array.isArray(result.metadata?.tools)
-              ? result.metadata!.tools
+              ? result.metadata.tools
               : [];
             const listishTools = new Set([
               'list_tenants',
@@ -1811,12 +2093,16 @@ export class AiWhatsappOrchestratorService {
               );
 
             const needsClarification =
-              !!result.metadata?.clarificationNeeded || responseLooksLikeSelection;
+              !!result.metadata?.clarificationNeeded ||
+              responseLooksLikeSelection;
             if (!result.interactive && needsClarification) {
               const justCachedList: any = await this.cacheManager.get(
                 `list:${uid}`,
               );
-              if (!justCachedList && (cameFromListTool || responseLooksLikeSelection)) {
+              if (
+                !justCachedList &&
+                (cameFromListTool || responseLooksLikeSelection)
+              ) {
                 this.logger.warn(
                   `[WhatsApp] Clarification needed but no list found in cache for ${uid}`,
                 );
@@ -1828,7 +2114,8 @@ export class AiWhatsappOrchestratorService {
                   type: 'list',
                   header: {
                     type: 'text',
-                    text: language === 'sw' ? 'Chagua hapa' : 'Selection Required',
+                    text:
+                      language === 'sw' ? 'Chagua hapa' : 'Selection Required',
                   },
                   body: { text: finalResponse.slice(0, 1024) },
                   action: {
@@ -1857,7 +2144,6 @@ export class AiWhatsappOrchestratorService {
               );
             }
 
-
             if (result.requires_authorization) {
               const session = (await this.cacheManager.get<any>(
                 `ai_session:${uid}`,
@@ -1882,24 +2168,48 @@ export class AiWhatsappOrchestratorService {
             }
 
             if (!result.interactive && result.metadata?.requires_confirmation) {
-	               await this.staging.stage(uid, 'pending_action', {
-	                 text,
-	                 classification,
-	                 history,
-	                 chatId: lastChat?.id || chatId,
-	                 attachments,
-	               }, 24 * 3600 * 1000);
+              await this.staging.stage(
+                uid,
+                'pending_action',
+                {
+                  text,
+                  classification,
+                  history,
+                  chatId: lastChat?.id || chatId,
+                  attachments,
+                },
+                24 * 3600 * 1000,
+              );
 
-               result.interactive = {
-                  type: 'button',
-                  body: { text: language === 'sw' ? 'Je, ungependa kuendelea?' : 'Would you like to proceed?' },
-                  action: {
-                    buttons: [
-                      { type: 'reply', reply: { id: 'plan_approve', title: language === 'sw' ? 'Ndio, Endelea' : 'Yes, Proceed' } },
-                      { type: 'reply', reply: { id: 'plan_cancel', title: language === 'sw' ? 'Hapana, Ghairi' : 'No, Cancel' } }
-                    ]
-                  }
-               };
+              result.interactive = {
+                type: 'button',
+                body: {
+                  text:
+                    language === 'sw'
+                      ? 'Je, ungependa kuendelea?'
+                      : 'Would you like to proceed?',
+                },
+                action: {
+                  buttons: [
+                    {
+                      type: 'reply',
+                      reply: {
+                        id: 'plan_approve',
+                        title:
+                          language === 'sw' ? 'Ndio, Endelea' : 'Yes, Proceed',
+                      },
+                    },
+                    {
+                      type: 'reply',
+                      reply: {
+                        id: 'plan_cancel',
+                        title:
+                          language === 'sw' ? 'Hapana, Ghairi' : 'No, Cancel',
+                      },
+                    },
+                  ],
+                },
+              };
             }
 
             await sendAndLog(
@@ -1977,13 +2287,20 @@ export class AiWhatsappOrchestratorService {
         { userId },
         (language as any) || 'en',
       );
-      
+
       // Clear stale lists and set recovery context
       await this.cacheManager.del(`list:${contextUid}`);
-      await this.cacheManager.set(`recovery:${contextUid}`, {
-        action: (text?.trim() || '') === 'plan_approve' ? 'retry_plan_approve' : 'retry_original',
-        originalText: text?.trim() || '',
-      }, 300 * 1000);
+      await this.cacheManager.set(
+        `recovery:${contextUid}`,
+        {
+          action:
+            (text?.trim() || '') === 'plan_approve'
+              ? 'retry_plan_approve'
+              : 'retry_original',
+          originalText: text?.trim() || '',
+        },
+        300 * 1000,
+      );
 
       await this.cacheManager.set(
         `fail_reason:${recovery.errorId}`,
@@ -2146,7 +2463,9 @@ export class AiWhatsappOrchestratorService {
     return context;
   }
 
-  private interceptSwahiliEmergency(input: string): ClassificationResult | null {
+  private interceptSwahiliEmergency(
+    input: string,
+  ): ClassificationResult | null {
     const msg = input.toLowerCase();
     const combinations = [
       { keywords: ['maji', 'imepotea'], intent: 'emergency' },

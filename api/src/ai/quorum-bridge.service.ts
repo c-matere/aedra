@@ -92,7 +92,9 @@ export class QuorumBridgeService {
         where: { id: actionId },
         data: {
           approverIds: updatedIds,
-          status: quorumMet ? AuthorizationStatus.QUORUM_MET : AuthorizationStatus.PENDING,
+          status: quorumMet
+            ? AuthorizationStatus.QUORUM_MET
+            : AuthorizationStatus.PENDING,
           updatedAt: new Date(),
         },
       });

@@ -1,4 +1,3 @@
-
 import * as fs from 'fs';
 import * as path from 'path';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -37,8 +36,13 @@ describe('AiReadToolService (Mock Mode)', () => {
     await service.onModuleInit();
     if (!service['mockFixtures']) {
       // Manual fallback for test environment
-      const fixturePath = path.join(process.cwd(), 'src/ai/bench-fixtures.json');
-      service['mockFixtures'] = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+      const fixturePath = path.join(
+        process.cwd(),
+        'src/ai/bench-fixtures.json',
+      );
+      service['mockFixtures'] = JSON.parse(
+        fs.readFileSync(fixturePath, 'utf8'),
+      );
     }
   });
 
@@ -48,7 +52,7 @@ describe('AiReadToolService (Mock Mode)', () => {
       { propertyId: 'prop-palm-grove-uuid' },
       { companyId: 'bench-co', role: UserRole.SUPER_ADMIN },
       UserRole.SUPER_ADMIN,
-      'en'
+      'en',
     );
     expect(result).toBeDefined();
     expect(result.id).toBe('prop-palm-grove-uuid');
@@ -61,7 +65,7 @@ describe('AiReadToolService (Mock Mode)', () => {
       { unitId: 'unit-a1-uuid' },
       { companyId: 'bench-co', role: UserRole.SUPER_ADMIN },
       UserRole.SUPER_ADMIN,
-      'en'
+      'en',
     );
     expect(result).toBeDefined();
     expect(result.id).toBe('unit-a1-uuid');
@@ -73,7 +77,7 @@ describe('AiReadToolService (Mock Mode)', () => {
       { unitNumber: 'A1' },
       { companyId: 'bench-co', role: UserRole.SUPER_ADMIN },
       UserRole.SUPER_ADMIN,
-      'en'
+      'en',
     );
     expect(result).toBeDefined();
     expect(result.unitNumber).toBe('A1');

@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export class AiHistoryService {
   private readonly logger = new Logger(AiHistoryService.name);
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Normalizes history entries into the format expected by Gemini.
@@ -105,21 +105,38 @@ export class AiHistoryService {
   /**
    * Completely wipes messages and history records for a given context.
    */
-  async clearMessageHistory(chatId: string, userId: string): Promise<{ messages: number; history: number }> {
+  async clearMessageHistory(
+    chatId: string,
+    userId: string,
+  ): Promise<{ messages: number; history: number }> {
     // 1. Delete messages for this specific chat
-    await this.prisma.chatMessage.deleteMany({
-      where: { chatHistoryId: chatId },
-    }).catch((e) => this.logger.warn(`Failed to wipe messages for ${chatId}: ${e.message}`));
+    await this.prisma.chatMessage
+      .deleteMany({
+        where: { chatHistoryId: chatId },
+      })
+      .catch((e) =>
+        this.logger.warn(`Failed to wipe messages for ${chatId}: ${e.message}`),
+      );
 
     // 2. Delete the chat history record itself
-    await this.prisma.chatHistory.deleteMany({
+    await this.prisma.chatHistory
+      .deleteMany({
+        where: { id: chatId },
+      })
+      .catch((e) =>
+        this.logger.warn(`Failed to wipe history ${chatId}: ${e.message}`),
+      );
+
+    const msgCount = await this.prisma.chatMessage.count({
+      where: { chatHistoryId: chatId },
+    });
+    const histCount = await this.prisma.chatHistory.count({
       where: { id: chatId },
-    }).catch((e) => this.logger.warn(`Failed to wipe history ${chatId}: ${e.message}`));
+    });
 
-    const msgCount = await this.prisma.chatMessage.count({ where: { chatHistoryId: chatId } });
-    const histCount = await this.prisma.chatHistory.count({ where: { id: chatId } });
-
-    this.logger.log(`[HISTORY-SERVICE] FINAL state for ${chatId}: messages=${msgCount}, history=${histCount}`);
+    this.logger.log(
+      `[HISTORY-SERVICE] FINAL state for ${chatId}: messages=${msgCount}, history=${histCount}`,
+    );
     return { messages: msgCount, history: histCount };
   }
 
@@ -134,21 +151,29 @@ export class AiHistoryService {
     try {
       if (chatId) {
         // Ensure the chat history record exists first (handles external/benchmark chatIds)
-        await this.prisma.chatHistory.upsert({
-          where: { id: chatId },
-          update: {},
-          create: { id: chatId, title: 'Benchmark/External Conversation' },
-        }).catch(() => { }); // Secondary safeguard
+        await this.prisma.chatHistory
+          .upsert({
+            where: { id: chatId },
+            update: {},
+            create: { id: chatId, title: 'Benchmark/External Conversation' },
+          })
+          .catch(() => {}); // Secondary safeguard
 
         await this.prisma.chatMessage.create({
           data: { chatHistoryId: chatId, role: 'user', content: userText },
         });
         await this.prisma.chatMessage.create({
-          data: { chatHistoryId: chatId, role: 'assistant', content: assistantText },
+          data: {
+            chatHistoryId: chatId,
+            role: 'assistant',
+            content: assistantText,
+          },
         });
       }
     } catch (e) {
-      this.logger.error(`[HISTORY-SERVICE] Failed to persist messages: ${e.message}`);
+      this.logger.error(
+        `[HISTORY-SERVICE] Failed to persist messages: ${e.message}`,
+      );
     }
     return { response: assistantText, chatId: chatId || 'unknown' };
   }

@@ -9,7 +9,11 @@ import { ExpenseAutomationService } from './expense-automation.service';
 @Module({
   imports: [PrismaModule],
   controllers: [ExpensesController, RecurringExpensesController],
-  providers: [ExpensesService, RecurringExpensesService, ExpenseAutomationService],
+  providers: [
+    ExpensesService,
+    RecurringExpensesService,
+    ExpenseAutomationService,
+  ],
   exports: [ExpensesService, RecurringExpensesService],
 })
 export class ExpensesModule {}

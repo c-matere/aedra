@@ -40,17 +40,23 @@ export class AiFormatterService {
     }
 
     const actualResult = result?.data || result;
-    const isClarification = actualResult?.requires_clarification || result?.requires_clarification;
+    const isClarification =
+      actualResult?.requires_clarification || result?.requires_clarification;
 
     if (isClarification) {
       return {
-        text: actualResult.message || result.message || 'I need more information to complete that.',
+        text:
+          actualResult.message ||
+          result.message ||
+          'I need more information to complete that.',
         menuOptions: actualResult.options || result.options,
       };
     }
 
-    const isRawSuccess = Array.isArray(result) || (result && typeof result === 'object' && !result.error);
-    
+    const isRawSuccess =
+      Array.isArray(result) ||
+      (result && typeof result === 'object' && !result.error);
+
     if (!result?.success && !isRawSuccess) {
       // result.error can be a code string (e.g. 'MISSING_SESSION') or undefined
       const errorDetail =
@@ -93,23 +99,23 @@ export class AiFormatterService {
         ? await this.prisma.company
             .findUnique({
               where: { id: companyId },
-              include: { 
+              include: {
                 _count: { select: { properties: true } },
                 properties: {
-                   include: {
-                     units: {
-                       include: {
-                         leases: {
-                           where: { status: 'ACTIVE', deletedAt: null },
-                           include: {
-                             invoices: { where: { deletedAt: null } },
-                             payments: { where: { deletedAt: null } }
-                           }
-                         }
-                       }
-                     }
-                   }
-                }
+                  include: {
+                    units: {
+                      include: {
+                        leases: {
+                          where: { status: 'ACTIVE', deletedAt: null },
+                          include: {
+                            invoices: { where: { deletedAt: null } },
+                            payments: { where: { deletedAt: null } },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
               },
             })
             .catch(() => null)
@@ -123,8 +129,14 @@ export class AiFormatterService {
       for (const prop of company.properties) {
         for (const unit of prop.units) {
           for (const lease of unit.leases) {
-            totalInvoiced += lease.invoices.reduce((sum, inv) => sum + inv.amount, 0);
-            totalCollected += lease.payments.reduce((sum, pay) => sum + pay.amount, 0);
+            totalInvoiced += lease.invoices.reduce(
+              (sum, inv) => sum + inv.amount,
+              0,
+            );
+            totalCollected += lease.payments.reduce(
+              (sum, pay) => sum + pay.amount,
+              0,
+            );
           }
         }
       }

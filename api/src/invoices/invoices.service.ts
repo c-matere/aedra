@@ -2,16 +2,23 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { CreateInvoiceDto, UpdateInvoiceDto } from './dto/invoice.dto';
 import { Prisma } from '@prisma/client';
+import { WhatsappService } from '../messaging/whatsapp.service';
 
 @Injectable()
 export class InvoicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(InvoicesService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly whatsappService: WhatsappService,
+  ) {}
 
   async findAll(
     actor: AuthenticatedUser,
@@ -128,17 +135,49 @@ export class InvoicesService {
       leaseId: data.leaseId,
     };
 
-    return this.prisma.invoice.create({
+    const invoice = await this.prisma.invoice.create({
       data: createData,
       include: {
         lease: {
-          select: {
-            id: true,
-            tenant: { select: { firstName: true, lastName: true } },
+          include: {
+            tenant: true,
+            unit: true,
           },
         },
       },
     });
+
+    // Notify tenant if enabled
+    if (actor.companyId) {
+      const company = await this.prisma.company.findUnique({
+        where: { id: actor.companyId },
+        select: { waInvoiceNotificationsEnabled: true },
+      });
+
+      if (
+        company?.waInvoiceNotificationsEnabled &&
+        invoice.lease.tenant.phone
+      ) {
+        try {
+          await this.whatsappService.sendInvoiceNotice({
+            companyId: actor.companyId,
+            to: invoice.lease.tenant.phone,
+            tenantName: invoice.lease.tenant.firstName,
+            amount: invoice.amount,
+            description: invoice.description,
+            unitNumber: invoice.lease.unit?.unitNumber || 'N/A',
+            dueDate: invoice.dueDate.toLocaleDateString(),
+          });
+        } catch (err) {
+          // Log but don't fail invoice creation
+          this.logger.error(
+            `Failed to send invoice notification: ${err.message}`,
+          );
+        }
+      }
+    }
+
+    return invoice;
   }
 
   async update(id: string, data: UpdateInvoiceDto, actor: AuthenticatedUser) {
@@ -280,7 +319,7 @@ export class InvoicesService {
       });
 
       if (!existing) {
-        await this.prisma.invoice.create({
+        const invoice = await this.prisma.invoice.create({
           data: {
             amount: lease.rentAmount || 0,
             description: `Rent for ${now.toLocaleString('default', { month: 'long' })} ${year}`,
@@ -290,6 +329,30 @@ export class InvoicesService {
             leaseId: lease.id,
           },
         });
+
+        // Notify tenant if enabled
+        const company = await this.prisma.company.findUnique({
+          where: { id: companyId },
+          select: { waInvoiceNotificationsEnabled: true },
+        });
+
+        if (company?.waInvoiceNotificationsEnabled && lease.tenant.phone) {
+          try {
+            await this.whatsappService.sendInvoiceNotice({
+              companyId,
+              to: lease.tenant.phone,
+              tenantName: lease.tenant.firstName,
+              amount: invoice.amount,
+              description: invoice.description,
+              unitNumber: lease.unit?.unitNumber || 'N/A',
+              dueDate: invoice.dueDate.toLocaleDateString(),
+            });
+          } catch (err) {
+            this.logger.error(
+              `Failed to send bulk invoice notification: ${err.message}`,
+            );
+          }
+        }
         createdCount++;
       }
     }
@@ -326,7 +389,11 @@ export class InvoicesService {
       // Find an income record that matches the amount and tenant name (if possible)
       const matchingIncome = incomes.find((inc) => {
         const amountMatch = Math.abs(inc.amount - invoice.amount) < 0.01;
-        const nameMatch = invoice.lease.tenant.lastName && inc.description?.toLowerCase().includes(invoice.lease.tenant.lastName.toLowerCase());
+        const nameMatch =
+          invoice.lease.tenant.lastName &&
+          inc.description
+            ?.toLowerCase()
+            .includes(invoice.lease.tenant.lastName.toLowerCase());
         return amountMatch && nameMatch;
       });
 

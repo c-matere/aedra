@@ -1,4 +1,10 @@
-import { Controller, Post, Body, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { ZuriLeaseService } from './zuri-lease.service';
 import { AedraImportService } from './aedra-import.service';
 import { ConnectorConfig } from '../types';
@@ -14,7 +20,9 @@ export class ZuriLeaseController {
   ) {}
 
   @Post('trigger-sync')
-  async triggerSync(@Body() body: { companyId: string; propertyIds?: string[] }) {
+  async triggerSync(
+    @Body() body: { companyId: string; propertyIds?: string[] },
+  ) {
     try {
       if (!body.companyId) {
         throw new HttpException('Missing companyId', HttpStatus.BAD_REQUEST);
@@ -22,7 +30,10 @@ export class ZuriLeaseController {
 
       const company = await this.companiesService.findOne(body.companyId);
       if (!company.zuriUsername || !company.zuriPassword) {
-        throw new HttpException('Zuri Lease credentials not configured for this company', HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          'Zuri Lease credentials not configured for this company',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       const config: ConnectorConfig = {
@@ -36,18 +47,23 @@ export class ZuriLeaseController {
       // Default to dynamic discovery if no property IDs provided
       let propertyIds = body.propertyIds;
       if (!propertyIds || propertyIds.length === 0) {
-        propertyIds = await this.zuriLeaseService.listAvailableProperties(config);
+        propertyIds =
+          await this.zuriLeaseService.listAvailableProperties(config);
       }
 
       if (propertyIds.length === 0) {
         return {
-           message: 'Sync completed: No properties discovered for this account.',
-           results: [],
+          message: 'Sync completed: No properties discovered for this account.',
+          results: [],
         };
       }
 
-      const results = await this.aedraImportService.importFromZuriLease(config, propertyIds, body.companyId);
-      
+      const results = await this.aedraImportService.importFromZuriLease(
+        config,
+        propertyIds,
+        body.companyId,
+      );
+
       return {
         message: 'Sync completed',
         results,

@@ -28,12 +28,17 @@ export class WaCrudButtonsService {
       }[vc.action?.toUpperCase()] || vc.action;
 
     const entity = vc.entityType
-      ? vc.entityType.charAt(0).toUpperCase() + vc.entityType.slice(1).toLowerCase()
+      ? vc.entityType.charAt(0).toUpperCase() +
+        vc.entityType.slice(1).toLowerCase()
       : 'Record';
 
     const bodyParts = [
       `📋 *${entity} ${actionLabel}*`,
-      fields ? (lang === 'sw' ? `Mabadiliko: ${fields}` : `Changed: ${fields}`) : '',
+      fields
+        ? lang === 'sw'
+          ? `Mabadiliko: ${fields}`
+          : `Changed: ${fields}`
+        : '',
       lang === 'sw'
         ? 'Ungependa kuona mabadiliko kamili au kurejesha hali ya awali?'
         : 'Would you like to view the full diff or rollback this change?',

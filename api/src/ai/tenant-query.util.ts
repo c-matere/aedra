@@ -56,4 +56,3 @@ export function inferTenantQueryFromMessage(message: string): string | null {
   const candidate = tokens.slice(0, 4).join(' ').trim();
   return candidate.length >= 2 ? candidate : null;
 }
-

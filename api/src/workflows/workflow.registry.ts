@@ -29,7 +29,11 @@ const tenantImport: WorkflowDefinition = {
       id: 'resolve_ambiguity',
       type: 'AI',
       description: 'Ask about missing/unclear data',
-      allowedTools: ['send_whatsapp_message', 'search_tenants', 'search_properties'],
+      allowedTools: [
+        'send_whatsapp_message',
+        'search_tenants',
+        'search_properties',
+      ],
     },
     {
       id: 'create_properties',
@@ -160,7 +164,11 @@ const maintenanceResolution: WorkflowDefinition = {
       id: 'receive_report',
       type: 'TOOL',
       description: 'Log ticket with media',
-      allowedTools: ['create_maintenance_request', 'get_property_details', 'get_tenant_details'],
+      allowedTools: [
+        'create_maintenance_request',
+        'get_property_details',
+        'get_tenant_details',
+      ],
     },
     {
       id: 'classify_urgency',
@@ -189,9 +197,18 @@ const maintenanceResolution: WorkflowDefinition = {
       id: 'track_resolution',
       type: 'WAIT',
       description: 'Monitor for completion',
-      allowedTools: ['get_maintenance_request', 'send_whatsapp_message', 'list_maintenance_requests'],
+      allowedTools: [
+        'get_maintenance_request',
+        'send_whatsapp_message',
+        'list_maintenance_requests',
+      ],
     },
-    { id: 'close_ticket', type: 'TOOL', description: 'Mark resolved', allowedTools: ['update_maintenance_request'] },
+    {
+      id: 'close_ticket',
+      type: 'TOOL',
+      description: 'Mark resolved',
+      allowedTools: ['update_maintenance_request'],
+    },
     {
       id: 'rate_resolution',
       type: 'TOOL',
@@ -222,7 +239,12 @@ const reportGeneration: WorkflowDefinition = {
     'report_generation',
   ],
   steps: [
-    { id: 'acknowledge', type: 'TOOL', description: 'Send ETA to agent', allowedTools: ['send_whatsapp_message'] },
+    {
+      id: 'acknowledge',
+      type: 'TOOL',
+      description: 'Send ETA to agent',
+      allowedTools: ['send_whatsapp_message'],
+    },
     {
       id: 'fetch_financials',
       type: 'TOOL',
@@ -259,7 +281,12 @@ const reportGeneration: WorkflowDefinition = {
       description: 'Render and upload report',
       allowedTools: ['generate_report_file', 'download_report'],
     },
-    { id: 'deliver_agent', type: 'TOOL', description: 'Send link to agent', allowedTools: ['send_whatsapp_message'] },
+    {
+      id: 'deliver_agent',
+      type: 'TOOL',
+      description: 'Send link to agent',
+      allowedTools: ['send_whatsapp_message'],
+    },
     {
       id: 'suggest_landlord',
       type: 'TOOL',
@@ -415,14 +442,24 @@ const vacancyToLet: WorkflowDefinition = {
       description: 'Push booking to agent WhatsApp',
       allowedTools: ['send_whatsapp_message'],
     },
-    { id: 'post_viewing', type: 'WAIT', description: 'Wait for agent outcome', allowedTools: ['send_whatsapp_message'] },
+    {
+      id: 'post_viewing',
+      type: 'WAIT',
+      description: 'Wait for agent outcome',
+      allowedTools: ['send_whatsapp_message'],
+    },
     {
       id: 'convert_to_tenant',
       type: 'TOOL',
       description: 'Trigger tenant onboarding',
       allowedTools: ['create_tenant', 'create_lease'],
     },
-    { id: 'close_listing', type: 'TOOL', description: 'Mark unit as occupied', allowedTools: ['update_unit_status'] },
+    {
+      id: 'close_listing',
+      type: 'TOOL',
+      description: 'Mark unit as occupied',
+      allowedTools: ['update_unit_status'],
+    },
   ],
   states: [
     'LISTED', // 0

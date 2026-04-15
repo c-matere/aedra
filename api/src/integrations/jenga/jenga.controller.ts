@@ -1,4 +1,12 @@
-import { Controller, Post, Body, Param, Logger, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  Logger,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { JengaService } from './jenga.service';
 
 @Controller('integrations/jenga')
@@ -15,27 +23,38 @@ export class JengaController {
   @HttpCode(HttpStatus.OK)
   async handleCallback(
     @Param('companyId') companyId: string,
-    @Body() payload: any
+    @Body() payload: any,
   ) {
-    this.logger.log(`Received Jenga callback for company ${companyId}: ${JSON.stringify(payload)}`);
+    this.logger.log(
+      `Received Jenga callback for company ${companyId}: ${JSON.stringify(payload)}`,
+    );
 
     try {
-        const result = await this.jengaService.reconcilePayment(companyId, payload);
-        
-        if (result.reconciled) {
-            this.logger.log(`Successfully reconciled payment to invoice ${result.invoiceId}`);
-        } else {
-            this.logger.warn(`Payment reconciliation failed: ${result.reason}`);
-        }
+      const result = await this.jengaService.reconcilePayment(
+        companyId,
+        payload,
+      );
 
-        return { 
-            status: result.reconciled ? 'SUCCESS' : 'PENDING',
-            message: result.reconciled ? 'Payment matched and reconciled' : result.reason
-        };
+      if (result.reconciled) {
+        this.logger.log(
+          `Successfully reconciled payment to invoice ${result.invoiceId}`,
+        );
+      } else {
+        this.logger.warn(`Payment reconciliation failed: ${result.reason}`);
+      }
+
+      return {
+        status: result.reconciled ? 'SUCCESS' : 'PENDING',
+        message: result.reconciled
+          ? 'Payment matched and reconciled'
+          : result.reason,
+      };
     } catch (error) {
-        this.logger.error(`Error processing Jenga callback for company ${companyId}: ${error.message}`);
-        // Still return 200 to Jenga to avoid infinite retries if the error is internal
-        return { status: 'ERROR', message: 'Internal processing error' };
+      this.logger.error(
+        `Error processing Jenga callback for company ${companyId}: ${error.message}`,
+      );
+      // Still return 200 to Jenga to avoid infinite retries if the error is internal
+      return { status: 'ERROR', message: 'Internal processing error' };
     }
   }
 

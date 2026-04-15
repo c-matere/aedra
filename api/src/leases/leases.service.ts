@@ -125,8 +125,12 @@ export class LeasesService {
       where: { leaseId: { in: leaseIds } },
     });
 
-    const invoiceMap = new Map(invoiceSums.map(s => [s.leaseId, s._sum.amount || 0]));
-    const paymentMap = new Map(paymentSums.map(s => [s.leaseId, s._sum.amount || 0]));
+    const invoiceMap = new Map(
+      invoiceSums.map((s) => [s.leaseId, s._sum.amount || 0]),
+    );
+    const paymentMap = new Map(
+      paymentSums.map((s) => [s.leaseId, s._sum.amount || 0]),
+    );
 
     const dataWithBalances = leases.map((lease) => {
       const billed = invoiceMap.get(lease.id) || 0;
@@ -210,7 +214,9 @@ export class LeasesService {
     }
 
     if (!tenantId) {
-      throw new BadRequestException('Tenant ID or new tenant data is required.');
+      throw new BadRequestException(
+        'Tenant ID or new tenant data is required.',
+      );
     }
 
     const relation = await this.validateTenantPropertyUnit(
@@ -265,7 +271,7 @@ export class LeasesService {
         })),
       });
     }
-    
+
     if (data.agreementFee && data.agreementFee > 0) {
       await this.prisma.invoice.create({
         data: {

@@ -78,7 +78,6 @@ export class CompaniesService {
   ) {}
 
   async findAll() {
-
     const companies = await this.prisma.company.findMany({
       orderBy: { name: 'asc' },
     });
@@ -87,7 +86,6 @@ export class CompaniesService {
   }
 
   async findOne(id: string) {
-
     try {
       const company = await this.prisma.company.findUnique({
         where: { id },
@@ -99,14 +97,16 @@ export class CompaniesService {
 
       return this.decryptCompany(company);
     } catch (error: any) {
-      console.error('[CompaniesService] findOne error:', error.message, error.stack);
+      console.error(
+        '[CompaniesService] findOne error:',
+        error.message,
+        error.stack,
+      );
       throw error;
     }
   }
 
   async update(id: string, data: UpdateCompanyDto) {
-
-
     const company = await this.prisma.company.findUnique({
       where: { id },
     });
@@ -117,8 +117,8 @@ export class CompaniesService {
 
     // Encrypt sensitive fields using Vault
     const encryptedData = this.vaultService.encryptObject(
-        data,
-        SENSITIVE_FIELDS
+      data,
+      SENSITIVE_FIELDS,
     );
 
     // Strip out fields that should not be passed to Prisma update
@@ -143,43 +143,53 @@ export class CompaniesService {
   async testMpesa(id: string, incoming: UpdateCompanyDto) {
     const stored = await this.findOne(id);
     const company = this.mergeDecryptedData(stored, incoming);
-    
+
     if (!company.mpesaConsumerKey || !company.mpesaConsumerSecret) {
       return { success: false, message: 'Missing M-Pesa credentials' };
     }
 
-    const baseUrl = company.mpesaEnvironment === 'production' 
-      ? 'https://api.safaricom.co.ke' 
-      : 'https://sandbox.safaricom.co.ke';
-    
-    const auth = Buffer.from(`${company.mpesaConsumerKey}:${company.mpesaConsumerSecret}`).toString('base64');
+    const baseUrl =
+      company.mpesaEnvironment === 'production'
+        ? 'https://api.safaricom.co.ke'
+        : 'https://sandbox.safaricom.co.ke';
+
+    const auth = Buffer.from(
+      `${company.mpesaConsumerKey}:${company.mpesaConsumerSecret}`,
+    ).toString('base64');
 
     try {
       const url = `${baseUrl}/oauth/v1/generate?grant_type=client_credentials`;
       console.log(`[M-Pesa Test] Requesting token from: ${url}`);
-      
+
       const res = await fetch(url, {
         headers: {
-          'Authorization': `Basic ${auth}`,
+          Authorization: `Basic ${auth}`,
         },
       });
 
       console.log(`[M-Pesa Test] Response status: ${res.status}`);
 
       if (res.ok) {
-        return { success: true, message: 'M-Pesa credentials verified (OAuth token generated)' };
+        return {
+          success: true,
+          message: 'M-Pesa credentials verified (OAuth token generated)',
+        };
       } else {
         const errorData = await res.json().catch(() => ({}));
         console.log(`[M-Pesa Test] Error response:`, JSON.stringify(errorData));
-        
+
         let message = `M-Pesa verification failed: ${errorData.errorMessage || res.statusText}`;
         if (res.status === 400) {
-          message += ". This often indicates invalid Consumer Key/Secret format or an issue with the Safaricom Sandbox environment. Please ensure there are no trailing spaces and that the keys match the selected environment.";
+          message +=
+            '. This often indicates invalid Consumer Key/Secret format or an issue with the Safaricom Sandbox environment. Please ensure there are no trailing spaces and that the keys match the selected environment.';
         }
         return { success: false, message };
       }
     } catch (e) {
-      return { success: false, message: `Network error connecting to M-Pesa: ${(e as Error).message}` };
+      return {
+        success: false,
+        message: `Network error connecting to M-Pesa: ${(e as Error).message}`,
+      };
     }
   }
 
@@ -188,25 +198,40 @@ export class CompaniesService {
     const company = this.mergeDecryptedData(stored, incoming);
 
     if (!company.africaTalkingUsername || !company.africaTalkingApiKey) {
-      return { success: false, message: 'Missing Africa\'s Talking credentials' };
+      return {
+        success: false,
+        message: "Missing Africa's Talking credentials",
+      };
     }
 
     try {
-      const res = await fetch(`https://api.africastalking.com/version1/user?username=${company.africaTalkingUsername}`, {
-        headers: {
-          'apiKey': company.africaTalkingApiKey,
-          'Accept': 'application/json',
+      const res = await fetch(
+        `https://api.africastalking.com/version1/user?username=${company.africaTalkingUsername}`,
+        {
+          headers: {
+            apiKey: company.africaTalkingApiKey,
+            Accept: 'application/json',
+          },
         },
-      });
+      );
 
       if (res.ok) {
-        return { success: true, message: 'Africa\'s Talking credentials verified' };
+        return {
+          success: true,
+          message: "Africa's Talking credentials verified",
+        };
       } else {
         const errorData = await res.json().catch(() => ({}));
-        return { success: false, message: `SMS verification failed: ${errorData.errorMessage || res.statusText}` };
+        return {
+          success: false,
+          message: `SMS verification failed: ${errorData.errorMessage || res.statusText}`,
+        };
       }
     } catch (e) {
-      return { success: false, message: `Network error connecting to Africa's Talking: ${(e as Error).message}` };
+      return {
+        success: false,
+        message: `Network error connecting to Africa's Talking: ${(e as Error).message}`,
+      };
     }
   }
 
@@ -219,16 +244,24 @@ export class CompaniesService {
     }
 
     try {
-      const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/Nairobi.json?access_token=${company.mapboxAccessToken}&limit=1`);
+      const res = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/Nairobi.json?access_token=${company.mapboxAccessToken}&limit=1`,
+      );
 
       if (res.ok) {
         return { success: true, message: 'Mapbox access token verified' };
       } else {
         const errorData = await res.json().catch(() => ({}));
-        return { success: false, message: `Mapbox verification failed: ${errorData.message || res.statusText}` };
+        return {
+          success: false,
+          message: `Mapbox verification failed: ${errorData.message || res.statusText}`,
+        };
       }
     } catch (e) {
-      return { success: false, message: `Network error connecting to Mapbox: ${(e as Error).message}` };
+      return {
+        success: false,
+        message: `Network error connecting to Mapbox: ${(e as Error).message}`,
+      };
     }
   }
 
@@ -256,13 +289,22 @@ export class CompaniesService {
       });
 
       if (res.ok) {
-        return { success: true, message: 'Jenga credentials verified (OAuth token generated)' };
+        return {
+          success: true,
+          message: 'Jenga credentials verified (OAuth token generated)',
+        };
       } else {
         const errorData = await res.json().catch(() => ({}));
-        return { success: false, message: `Jenga verification failed: ${errorData.message || res.statusText}` };
+        return {
+          success: false,
+          message: `Jenga verification failed: ${errorData.message || res.statusText}`,
+        };
       }
     } catch (e) {
-      return { success: false, message: `Network error connecting to Jenga: ${(e as Error).message}` };
+      return {
+        success: false,
+        message: `Network error connecting to Jenga: ${(e as Error).message}`,
+      };
     }
   }
 
@@ -278,7 +320,7 @@ export class CompaniesService {
       const url = `https://graph.facebook.com/v21.0/${company.waPhoneNumberId}`;
       const res = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${company.waAccessToken}`,
+          Authorization: `Bearer ${company.waAccessToken}`,
         },
       });
 
@@ -286,13 +328,16 @@ export class CompaniesService {
         return { success: true, message: 'WhatsApp API credentials verified' };
       } else {
         const errorData = await res.json().catch(() => ({}));
-        return { 
-          success: false, 
-          message: `WhatsApp verification failed: ${errorData.error?.message || res.statusText}` 
+        return {
+          success: false,
+          message: `WhatsApp verification failed: ${errorData.error?.message || res.statusText}`,
         };
       }
     } catch (e) {
-      return { success: false, message: `Network error connecting to Meta: ${(e as Error).message}` };
+      return {
+        success: false,
+        message: `Network error connecting to Meta: ${(e as Error).message}`,
+      };
     }
   }
 }

@@ -20,9 +20,12 @@ export class AiPythonExecutorService {
     }
   }
 
-  async runScript(
-    script: string,
-  ): Promise<{ stdout: string; stderr: string; success: boolean; generatedFile?: { path: string, name: string } }> {
+  async runScript(script: string): Promise<{
+    stdout: string;
+    stderr: string;
+    success: boolean;
+    generatedFile?: { path: string; name: string };
+  }> {
     const id = randomUUID();
     const sessionDir = join(this.tempDir, id);
     if (!fs.existsSync(sessionDir)) {
@@ -42,9 +45,9 @@ export class AiPythonExecutorService {
 
       // Scan for any new files in the session directory (excluding the script)
       const files = await fs.promises.readdir(sessionDir);
-      const outputFiles = files.filter(f => f !== 'script.py');
+      const outputFiles = files.filter((f) => f !== 'script.py');
       let generatedFile = undefined;
-      
+
       if (outputFiles.length > 0) {
         // Pick the first one (usually there's only one relevant output)
         const fileName = outputFiles[0];

@@ -120,13 +120,14 @@ Produce a high-fidelity, McKinsey-grade portfolio intelligence report. Output yo
 - Do NOT provide prose outside the JSON object.
 `;
 
-    const isGroq = selectedModel.includes('/') || selectedModel.startsWith('llama');
+    const isGroq =
+      selectedModel.includes('/') || selectedModel.startsWith('llama');
 
     try {
       this.logger.log(
         `Running premium analysis with model ${selectedModel}...`,
       );
-      
+
       let text = '';
       if (isGroq) {
         const completion = await this.groq.chat.completions.create({
@@ -147,7 +148,7 @@ Produce a high-fidelity, McKinsey-grade portfolio intelligence report. Output yo
         const result = await model.generateContent(prompt);
         text = result.response.text();
       }
-      
+
       const parsed = JSON.parse(text);
 
       // Generator-Critic Loop: Validate report consistency

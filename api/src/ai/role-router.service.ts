@@ -17,14 +17,22 @@ export class RoleRouter {
   getStrategy(role: string): AiStrategy {
     const r = role.toUpperCase();
     this.logger.log(`[RoleRouter] Selecting strategy for role: ${r}`);
-    
+
     if (r === 'TENANT') return this.tenantStrategy;
-    if (r === 'COMPANY_STAFF' || r === 'STAFF' || r === 'SUPER_ADMIN' || r === 'ADMIN' || r === 'MANAGER') {
+    if (
+      r === 'COMPANY_STAFF' ||
+      r === 'STAFF' ||
+      r === 'SUPER_ADMIN' ||
+      r === 'ADMIN' ||
+      r === 'MANAGER'
+    ) {
       return this.staffStrategy;
     }
     if (r === 'LANDLORD' || r === 'OWNER') return this.landlordStrategy;
-    
-    this.logger.warn(`[RoleRouter] Unknown role: ${role}. defaulting to TenantStrategy for safety.`);
+
+    this.logger.warn(
+      `[RoleRouter] Unknown role: ${role}. defaulting to TenantStrategy for safety.`,
+    );
     return this.tenantStrategy;
   }
 }

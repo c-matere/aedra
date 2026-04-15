@@ -29,7 +29,13 @@ describe('AiReportToolService - Scoping', () => {
       backgroundQueue,
     );
 
-    return { service, prisma, resolutionService, backgroundQueue, ...(overrides || {}) };
+    return {
+      service,
+      prisma,
+      resolutionService,
+      backgroundQueue,
+      ...(overrides || {}),
+    };
   };
 
   it('defaults to company scope and requires companyId', async () => {

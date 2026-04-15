@@ -73,7 +73,8 @@ export async function withRetry<T>(
               : null;
 
           const backoff =
-            typeof scheduledDelay === 'number' && Number.isFinite(scheduledDelay)
+            typeof scheduledDelay === 'number' &&
+            Number.isFinite(scheduledDelay)
               ? Math.max(0, scheduledDelay)
               : Math.min(initialDelay * Math.pow(factor, i), maxDelay);
           const jitter = Math.random() * 1000;

@@ -145,13 +145,31 @@ export class WorkflowBridgeService implements WorkflowHandlers, OnModuleInit {
     if (context.workflowId === 'autonomous_agent') {
       const agentService = this.toolRegistry['autonomousAgentService']; // We'll need to inject it or access it
       if (stepId === 'analyze_goal') {
-        return await this.toolRegistry.executeTool('analyze_agent_goal', context, context, context.role, 'en');
+        return await this.toolRegistry.executeTool(
+          'analyze_agent_goal',
+          context,
+          context,
+          context.role,
+          'en',
+        );
       }
       if (stepId === 'evaluate_progress') {
-        return await this.toolRegistry.executeTool('evaluate_agent_progress', context, context, context.role, 'en');
+        return await this.toolRegistry.executeTool(
+          'evaluate_agent_progress',
+          context,
+          context,
+          context.role,
+          'en',
+        );
       }
       if (stepId === 'process_feedback') {
-        return await this.toolRegistry.executeTool('process_agent_feedback', context, context, context.role, 'en');
+        return await this.toolRegistry.executeTool(
+          'process_agent_feedback',
+          context,
+          context,
+          context.role,
+          'en',
+        );
       }
     }
 
@@ -165,12 +183,15 @@ export class WorkflowBridgeService implements WorkflowHandlers, OnModuleInit {
     this.logger.log(
       `Workflow ${instance.workflowId} waiting at step ${step.id}`,
     );
-    if (instance.workflowId === 'autonomous_agent' && step.id === 'wait_for_heartbeat') {
-       // Set status to BACKGROUND_PAUSED to trigger heartbeat scan
-       await this.prisma.workflowInstance.update({
-         where: { id: instance.instanceId },
-        data: { status: 'BACKGROUND_PAUSED' as any }
-       });
+    if (
+      instance.workflowId === 'autonomous_agent' &&
+      step.id === 'wait_for_heartbeat'
+    ) {
+      // Set status to BACKGROUND_PAUSED to trigger heartbeat scan
+      await this.prisma.workflowInstance.update({
+        where: { id: instance.instanceId },
+        data: { status: 'BACKGROUND_PAUSED' as any },
+      });
     }
   }
 }
