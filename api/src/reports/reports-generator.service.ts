@@ -1009,101 +1009,216 @@ export class ReportsGeneratorService {
         year: 'numeric',
       });
 
-    const logoHtml = `<img src="${this.resolveLogoUrl(company.logo || null)}" style="max-height: 80px; max-width: 200px; filter: grayscale(100%);" />`;
+    const logoUrl = this.resolveLogoUrl(company.logo || null);
+    const isArrears = closingBalance > 0;
 
     return `
       <!DOCTYPE html>
       <html>
       <head>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-          body { font-family: 'Inter', sans-serif; padding: 40px; color: #111; line-height: 1.4; margin: 0; background: #fff; font-size: 11px; }
-          .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #000; padding-bottom: 30px; margin-bottom: 40px; }
-          .company-info h1 { font-size: 22px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: -1px; }
-          .company-info p { margin: 5px 0 0; color: #666; font-size: 11px; max-width: 300px; }
-          .meta-info { text-align: right; font-size: 11px; color: #666; }
-          .meta-info p { margin: 2px 0; }
+          @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
           
-          .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
-          .section-title { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #999; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 12px; }
-          .data-box p { margin: 3px 0; font-size: 11px; }
-          .data-box .bold { font-weight: 700; }
+          body { 
+            font-family: 'Inter', sans-serif; 
+            color: #1a1a1a; 
+            padding: 40px; 
+            line-height: 1.6; 
+            margin: 0; 
+            background: #fff; 
+            font-size: 11px; 
+          }
+
+          .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-start; 
+            margin-bottom: 50px; 
+          }
+
+          .brand { display: flex; align-items: center; gap: 15px; }
+          .logo { max-height: 45px; border-radius: 4px; }
+          .company-name { 
+            font-family: 'Outfit', sans-serif; 
+            font-size: 18px; 
+            font-weight: 700; 
+            letter-spacing: -0.02em; 
+            margin: 0; 
+          }
           
-          .ledger-summary { border: 1.5px solid #000; padding: 0; border-radius: 6px; overflow: hidden; }
-          .ls-row { display: flex; justify-content: space-between; padding: 6px 12px; font-size: 11px; border-bottom: 1px solid #eee; }
-          .ls-row:last-child { border-bottom: none; }
-          .ls-row.dark { background: transparent; color: #000; font-weight: 900; border-top: 1.5px solid #000; padding-top: 8px; padding-bottom: 8px; }
-          .ls-row span { font-family: 'Courier New', Courier, monospace; font-weight: bold; }
-          
+          .statement-title { 
+            text-align: right; 
+          }
+          .statement-title h1 { 
+            font-family: 'Outfit', sans-serif; 
+            font-size: 28px; 
+            font-weight: 300; 
+            text-transform: uppercase; 
+            letter-spacing: 0.15em; 
+            margin: 0; 
+            color: #9ca3af;
+          }
+          .statement-period { 
+            font-family: 'DM Mono', monospace; 
+            font-size: 9px; 
+            color: #6b7280; 
+            text-transform: uppercase; 
+            margin-top: 5px; 
+          }
+
+          .info-grid { 
+            display: grid; 
+            grid-template-columns: 1.2fr 1.2fr 1fr; 
+            gap: 30px; 
+            margin-bottom: 40px; 
+          }
+          .section-label { 
+            font-family: 'DM Mono', monospace; 
+            font-size: 8px; 
+            font-weight: 500; 
+            text-transform: uppercase; 
+            letter-spacing: 0.1em; 
+            color: #9ca3af; 
+            margin-bottom: 8px; 
+            display: block;
+          }
+          .info-content p { margin: 2px 0; font-size: 11px; }
+          .info-content .main { font-weight: 700; font-size: 13px; color: #000; }
+
+          .summary-card { 
+            background: #fdfdfd; 
+            border: 1px solid #f3f4f6; 
+            border-radius: 12px; 
+            padding: 20px; 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 20px;
+            margin-bottom: 40px;
+          }
+          .metric { text-align: center; }
+          .metric-label { font-size: 9px; color: #6b7280; text-transform: uppercase; margin-bottom: 4px; }
+          .metric-value { font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 600; }
+          .metric.highlight .metric-value { color: ${isArrears ? '#dc2626' : '#059669'}; }
+
           table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-          th { padding: 8px; text-align: left; font-size: 9px; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #000; }
-          td { padding: 8px; font-size: 10px; border-bottom: 1px solid #f9f9f9; }
-          .month-row { background: #fafafa; font-weight: 800; font-size: 9px; text-transform: uppercase; color: #999; }
-          .amount { text-align: right; font-family: 'Courier New', Courier, monospace; }
-          .balance { font-weight: bold; background: #fafafa; }
-          
-          .summaries { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; border-top: 1px solid #eee; padding-top: 40px; }
-          .summary-item { display: flex; justify-content: space-between; font-size: 10px; padding: 4px 0; border-bottom: 1px solid #f9f9f9; }
-          .total-box { border: 1.5px solid #000; background: transparent; color: #000; padding: 8px; border-radius: 4px; display: flex; justify-content: space-between; font-weight: bold; margin-top: 10px; font-size: 11px; }
-          
-          .deposit-card { background: #f9fafb; border-radius: 8px; padding: 15px; }
-          .footer { margin-top: 80px; padding-top: 20px; border-top: 1px solid #eee; display: flex; justify-content: space-between; font-size: 9px; color: #999; text-transform: uppercase; }
+          th { 
+            padding: 12px 8px; 
+            text-align: left; 
+            font-size: 9px; 
+            font-weight: 600; 
+            text-transform: uppercase; 
+            letter-spacing: 0.05em; 
+            color: #6b7280; 
+            border-bottom: 1px solid #111; 
+          }
+          td { padding: 12px 8px; border-bottom: 1px solid #f3f4f6; }
+          .month-divider td { 
+            background: #f9fafb; 
+            font-weight: 600; 
+            font-size: 9px; 
+            color: #9ca3af; 
+            text-transform: uppercase; 
+            letter-spacing: 0.05em;
+          }
+          .amount-cell { font-family: 'DM Mono', monospace; text-align: right; font-weight: 500; }
+          .balance-cell { font-family: 'DM Mono', monospace; text-align: right; font-weight: 600; color: #000; }
+
+          .bottom-sections { 
+            display: grid; 
+            grid-template-columns: 1.5fr 1fr; 
+            gap: 50px; 
+            padding-top: 30px; 
+            border-top: 1px solid #f3f4f6; 
+          }
+          .summary-table { width: 100%; font-size: 10px; }
+          .summary-table td { padding: 6px 0; border: none; }
+          .summary-table .label { color: #6b7280; }
+          .summary-table .value { text-align: right; font-weight: 600; }
+          .summary-table .total-row td { 
+            padding-top: 12px; 
+            border-top: 1px solid #f3f4f6; 
+            font-size: 12px; 
+            font-weight: 700; 
+          }
+
+          .instructions { 
+            background: #fafafa; 
+            padding: 20px; 
+            border-radius: 8px; 
+            font-size: 10px; 
+            color: #4b5563; 
+          }
+          .instructions h4 { margin: 0 0 10px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+          .instructions p { margin: 5px 0; line-height: 1.6; }
+
+          .footer { 
+            margin-top: 60px; 
+            padding-top: 20px; 
+            border-top: 1px solid #f3f4f6; 
+            display: flex; 
+            justify-content: space-between; 
+            font-size: 9px; 
+            color: #9ca3af; 
+          }
         </style>
       </head>
       <body>
         <div class="header">
-          <div style="display: flex; gap: 20px; align-items: center;">
-            ${logoHtml}
-            <div class="company-info">
-              <h1>${company.name || 'AEDRA MANAGEMENT'}</h1>
-              <p>${company.address || 'P.O BOX 80000-80100, MOMBASA, KENYA'}</p>
+          <div class="brand">
+            ${logoUrl ? `<img src="${logoUrl}" class="logo" />` : '<div style="width:40px; height:40px; background:#f3f4f6;"></div>'}
+            <div>
+              <h2 class="company-name">${company.name || 'AEDRA MANAGEMENT'}</h2>
+              <p style="font-size: 10px; color: #6b7280; margin: 0;">${company.address || 'Mombasa, Kenya'}</p>
             </div>
           </div>
-          <div class="meta-info">
-            <p>TEL: ${company.phone || 'Property Management Office'}</p>
-            <p>EMAIL: ${company.email || 'support@aedra.co.ke'}</p>
-            ${company.pinNumber ? `<p style="margin-top: 8px; font-weight: bold;">PIN: ${company.pinNumber}</p>` : ''}
+          <div class="statement-title">
+            <h1>Statement</h1>
+            <div class="statement-period">${new Date(range.start).toLocaleString('en-US', { month: 'short', year: 'numeric' })} — ${new Date(range.end).toLocaleString('en-US', { month: 'short', year: 'numeric' })}</div>
           </div>
         </div>
 
-        <div class="grid">
-          <div class="data-box">
-            <div class="section-title">Client Information</div>
-            <p class="bold">${tenant.firstName} ${tenant.lastName}</p>
-            <p style="color: #666;">Code: ${tenant.tenantCode || 'TC-' + tenant.id.slice(0, 6).toUpperCase()}</p>
-            <p style="color: #666;">${tenant.phone || ''}</p>
+        <div class="info-grid">
+          <div class="info-content">
+            <span class="section-label">Billed To</span>
+            <p class="main">${tenant.firstName} ${tenant.lastName}</p>
+            <p>${tenant.phone || ''}</p>
+            <p>Code: ${tenant.tenantCode || 'TC-' + tenant.id.slice(0, 6).toUpperCase()}</p>
           </div>
           
-          <div class="data-box">
-            <div class="section-title">Lease Details</div>
-            <p class="bold">${property.name} · Unit ${unit.unitNumber}</p>
-            <p style="color: #666; font-size: 11px;">${property.address || ''}</p>
-            <p style="margin-top: 10px; font-size: 11px;">Started: <span class="bold">${dt(lease.startDate)}</span></p>
-            <p style="font-size: 11px;">Rent: <span class="bold">KES ${fmt(lease.rentAmount)}</span></p>
+          <div class="info-content">
+            <span class="section-label">Lease Context</span>
+            <p class="main">${property.name} · ${unit.unitNumber}</p>
+            <p>${property.address || ''}</p>
+            <p>Rent: KES ${fmt(lease.rentAmount)}</p>
           </div>
 
-          <div class="data-box">
-            <div class="section-title">Ledger Summary</div>
-            <div class="ledger-summary">
-              <div class="ls-row">
-                <span>Opening Balance</span>
-                <span>KES ${fmt(openingBalance)}</span>
-              </div>
-              <div class="ls-row dark">
-                <span>Current Closing</span>
-                <span>KES ${fmt(closingBalance)}</span>
-              </div>
-            </div>
-            <p style="font-size: 9px; color: #999; text-align: right; margin-top: 5px; font-style: italic;">
-              Period: ${dt(range.start)} to ${dt(range.end)}
-            </p>
+          <div class="info-content">
+            <span class="section-label">Contact & Support</span>
+            <p>${company.phone || 'Admin Office'}</p>
+            <p>${company.email || 'support@aedra.co.ke'}</p>
+            ${company.pinNumber ? `<p>PIN: ${company.pinNumber}</p>` : ''}
+          </div>
+        </div>
+
+        <div class="summary-card">
+          <div class="metric">
+            <div class="metric-label">Opening Balance</div>
+            <div class="metric-value">KES ${fmt(openingBalance)}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Total Volume</div>
+            <div class="metric-value">KES ${fmt(summaries.invoices.reduce((a: any, b: any) => a + b.amount, 0))}</div>
+          </div>
+          <div class="metric highlight">
+            <div class="metric-label">${isArrears ? 'Closing Arrears' : 'Closing Balance'}</div>
+            <div class="metric-value">KES ${fmt(closingBalance)}</div>
           </div>
         </div>
 
         <table>
           <thead>
             <tr>
-              <th width="15%">Date</th>
+              <th width="12%">Date</th>
               <th width="15%">Reference</th>
               <th>Description</th>
               <th width="12%" style="text-align: right;">Debit</th>
@@ -1115,19 +1230,19 @@ export class ReportsGeneratorService {
             ${Object.entries(groupedLedger)
               .map(
                 ([month, items]) => `
-              <tr>
-                <td colspan="6" class="month-row">${month}</td>
+              <tr class="month-divider">
+                <td colspan="6">${month}</td>
               </tr>
               ${items
                 .map(
                   (item) => `
                 <tr>
-                  <td style="color: #666;">${dt(item.date)}</td>
-                  <td style="font-size: 10px; color: #999;">${item.code}</td>
+                  <td style="color: #6b7280;">${dt(item.date)}</td>
+                  <td style="font-size: 10px; color: #9ca3af;">${item.code}</td>
                   <td style="font-weight: 500;">${item.description}</td>
-                  <td class="amount">${item.debit > 0 ? fmt(item.debit) : '-'}</td>
-                  <td class="amount">${item.credit > 0 ? fmt(item.credit) : '-'}</td>
-                  <td class="amount balance" style="color: ${item.balance > 0 ? '#000' : '#d00'}">${fmt(item.balance)}</td>
+                  <td class="amount-cell">${item.debit > 0 ? fmt(item.debit) : '—'}</td>
+                  <td class="amount-cell">${item.credit > 0 ? fmt(item.credit) : '—'}</td>
+                  <td class="balance-cell">${fmt(item.balance)}</td>
                 </tr>
               `,
                 )
@@ -1138,69 +1253,39 @@ export class ReportsGeneratorService {
           </tbody>
         </table>
 
-        <div class="summaries">
-          <div>
-            <div class="section-title">Invoice Summary</div>
-            ${summaries.invoices
-              .map(
-                (s: any) => `
-              <div class="summary-item">
-                <span style="color: #666;">${s.type.replace(/_/g, ' ')}</span>
-                <span class="bold">${fmt(s.amount)}</span>
-              </div>
-            `,
-              )
-              .join('')}
-            <div class="total-box">
-              <span>Total Debits</span>
-              <span>${fmt(summaries.invoices.reduce((a: any, b: any) => a + b.amount, 0))}</span>
-            </div>
+        <div class="bottom-sections">
+          <div class="instructions">
+            <h4>Payment Instructions</h4>
+            <p>Please use your Tenant Code <strong>${tenant.tenantCode || 'TC-' + tenant.id.slice(0, 6).toUpperCase()}</strong> as the account reference when making payments via M-Pesa or Bank.</p>
+            <p>For any discrepancies, contact our finance desk at ${company.phone || 'our support line'} within 7 days.</p>
           </div>
-
-          <div>
-            <div class="section-title">Payment Summary</div>
-            ${summaries.payments
-              .map(
-                (s: any) => `
-              <div class="summary-item">
-                <span style="color: #666;">${s.type.replace(/_/g, ' ')}</span>
-                <span class="bold">${fmt(s.amount)}</span>
-              </div>
-            `,
-              )
-              .join('')}
-            <div class="total-box">
-              <span>Total Credits</span>
-              <span>${fmt(summaries.payments.reduce((a: any, b: any) => a + b.amount, 0))}</span>
-            </div>
-          </div>
-
-          <div>
-            <div class="section-title">Deposit Summary</div>
-            <div class="deposit-card">
-              <div class="summary-item" style="border-bottom-color: #eee;">
-                <span style="color: #999; text-transform: uppercase; font-size: 9px;">Status</span>
-                <span style="color: #16a34a; font-weight: 900; font-size: 10px;">SECURED</span>
-              </div>
-              <div class="summary-item" style="border-bottom-color: #eee; margin-top: 10px;">
-                <span style="color: #666;">L/L Held</span>
-                <span class="bold">KES ${fmt(lease.deposit || 0)}</span>
-              </div>
-              <div class="summary-item" style="border-bottom-color: #eee;">
-                <span style="color: #666;">Agent Held</span>
-                <span class="bold">KES 0.00</span>
-              </div>
-              <div class="summary-item" style="border-bottom: none; margin-top: 5px; font-size: 13px;">
-                <span class="bold">Refundable</span>
-                <span class="bold" style="color: #000;">KES ${fmt(lease.deposit || 0)}</span>
-              </div>
-            </div>
+          
+          <div class="financial-summary">
+            <span class="section-label">Consolidated Summary</span>
+            <table class="summary-table">
+              <tr>
+                <td class="label">Total Invoiced</td>
+                <td class="value">KES ${fmt(summaries.invoices.reduce((a: any, b: any) => a + b.amount, 0))}</td>
+              </tr>
+              <tr>
+                <td class="label">Total Paid</td>
+                <td class="value">KES ${fmt(summaries.payments.reduce((a: any, b: any) => a + b.amount, 0))}</td>
+              </tr>
+              <tr>
+                <td class="label">Security Deposit</td>
+                <td class="value">KES ${fmt(lease.deposit || 0)}</td>
+              </tr>
+              <tr class="total-row">
+                <td>Position</td>
+                <td class="value">KES ${fmt(closingBalance)}</td>
+              </tr>
+            </table>
           </div>
         </div>
 
         <div class="footer">
-          <div>© ${new Date().getFullYear()} ${company.name} · Statement Generated via Aedra Platform</div>
-          <div>Computer Generated Document · Page 1 of 1</div>
+          <div>Generated by Aedra AI Management • ${new Date().toLocaleDateString()}</div>
+          <div>Computer Generated Document • Confidential</div>
         </div>
       </body>
       </html>
