@@ -1039,7 +1039,7 @@ export class ReportsGeneratorService {
           }
 
           .brand { display: flex; align-items: flex-end; gap: 10px; }
-          .logo { max-height: 32px; border-radius: 2px; }
+          .logo { max-height: 90px; border-radius: 2px; }
           .company-name { 
             font-family: 'Outfit', sans-serif; 
             font-size: 15px; 
@@ -1110,7 +1110,7 @@ export class ReportsGeneratorService {
             letter-spacing: 0.04em;
           }
           .amount-cell { font-family: 'DM Mono', monospace; text-align: right; font-weight: 400; font-size: 9px; }
-          .balance-cell { font-family: 'DM Mono', monospace; text-align: right; font-weight: 600; color: #000; font-size: 10px; background: #fafafa; }
+          .balance-cell { font-family: 'DM Mono', monospace; text-align: right; font-weight: 500; color: #000; font-size: 10px; background: #fafafa; }
 
           .bottom-sections { 
             display: grid; 
