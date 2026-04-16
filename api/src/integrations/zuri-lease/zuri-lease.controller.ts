@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ZuriLeaseService } from './zuri-lease.service';
 import { AedraImportService } from './aedra-import.service';
-import { ConnectorConfig } from '../types';
+import { ConnectorConfig } from '../../sdk/zuri-lease';
 
 import { CompaniesService } from '../../companies/companies.service';
 

@@ -1,4 +1,4 @@
-import { ZuriLeaseConnector } from '../src/integrations/zuri-lease/zuri-lease.connector';
+import { ZuriLeaseConnector } from '../src/sdk/zuri-lease';
 
 async function debug() {
   const config = {

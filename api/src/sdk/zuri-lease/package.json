@@ -1,0 +1,19 @@
+{
+  "name": "zuri-lease-sdk",
+  "version": "1.0.0",
+  "description": "Standalone scraper for Zuri Lease property management systems",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "puppeteer": "^22.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "scripts": {
+    "build": "tsc"
+  }
+}

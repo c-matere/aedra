@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { ZuriLeaseConnector } from '../src/integrations/zuri-lease/zuri-lease.connector';
+import { ZuriLeaseConnector } from '../src/sdk/zuri-lease';
 import * as dotenv from 'dotenv';
 import { createHash } from 'crypto';
 

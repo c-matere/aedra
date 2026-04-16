@@ -5,7 +5,7 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 import { PrismaClient } from '@prisma/client';
-import { ZuriLeaseConnector } from '../src/integrations/zuri-lease/zuri-lease.connector';
+import { ZuriLeaseConnector } from '../src/sdk/zuri-lease';
 
 async function debugDiscovery() {
     const prisma = new PrismaClient();

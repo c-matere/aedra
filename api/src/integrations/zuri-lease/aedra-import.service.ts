@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ZuriLeaseService } from './zuri-lease.service';
-import { ConnectorConfig } from '../types';
-import { ZuriLeaseData } from './types';
+import { ConnectorConfig, ZuriLeaseData } from '../../sdk/zuri-lease';
 import { createHash } from 'crypto';
 
 function toUUID(prefix: string, id: string): string {

@@ -1,4 +1,4 @@
-import { ZuriLeaseConnector } from '../src/integrations/zuri-lease/zuri-lease.connector';
+import { ZuriLeaseConnector } from '../src/sdk/zuri-lease';
 import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';

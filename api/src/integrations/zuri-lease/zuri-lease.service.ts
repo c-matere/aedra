@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ZuriLeaseConnector } from './zuri-lease.connector';
-import { ConnectorConfig } from '../types';
-import { ZuriLeaseData } from './types';
+import * as path from 'path';
+import { ZuriLeaseConnector, ConnectorConfig, ZuriLeaseData } from '../../sdk/zuri-lease';
 
 @Injectable()
 export class ZuriLeaseService {
