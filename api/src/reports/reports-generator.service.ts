@@ -1032,18 +1032,21 @@ export class ReportsGeneratorService {
           .header { 
             display: flex; 
             justify-content: space-between; 
-            align-items: flex-start; 
-            margin-bottom: 40px; 
+            align-items: flex-end; 
+            margin-bottom: 35px; 
+            padding-bottom: 15px;
+            border-bottom: 1px solid #f3f4f6;
           }
 
-          .brand { display: flex; align-items: center; gap: 12px; }
-          .logo { max-height: 40px; border-radius: 4px; }
+          .brand { display: flex; align-items: flex-end; gap: 10px; }
+          .logo { max-height: 32px; border-radius: 2px; }
           .company-name { 
             font-family: 'Outfit', sans-serif; 
-            font-size: 16px; 
+            font-size: 15px; 
             font-weight: 700; 
             letter-spacing: -0.01em; 
             margin: 0; 
+            line-height: 1;
           }
           
           .statement-title { 
@@ -1051,11 +1054,12 @@ export class ReportsGeneratorService {
           }
           .statement-title h1 { 
             font-family: 'Outfit', sans-serif; 
-            font-size: 20px; 
+            font-size: 18px; 
             font-weight: 400; 
             text-transform: uppercase; 
             letter-spacing: 0.12em; 
             margin: 0; 
+            line-height: 1;
             color: #9ca3af;
           }
           .statement-period { 
@@ -1063,13 +1067,13 @@ export class ReportsGeneratorService {
             font-size: 8px; 
             color: #6b7280; 
             text-transform: uppercase; 
-            margin-top: 4px; 
+            margin-top: 5px; 
           }
 
           .info-grid { 
             display: grid; 
-            grid-template-columns: 1.2fr 1.2fr 1fr; 
-            gap: 25px; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 40px; 
             margin-bottom: 35px; 
           }
           .section-label { 
@@ -1079,26 +1083,11 @@ export class ReportsGeneratorService {
             text-transform: uppercase; 
             letter-spacing: 0.08em; 
             color: #9ca3af; 
-            margin-bottom: 6px; 
+            margin-bottom: 5px; 
             display: block;
           }
-          .info-content p { margin: 1px 0; font-size: 10px; }
-          .info-content .main { font-weight: 600; font-size: 12px; color: #000; }
-
-          .summary-card { 
-            background: #fdfdfd; 
-            border: 1px solid #f3f4f6; 
-            border-radius: 10px; 
-            padding: 16px; 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); 
-            gap: 15px;
-            margin-bottom: 35px;
-          }
-          .metric { text-align: center; }
-          .metric-label { font-size: 8px; color: #6b7280; text-transform: uppercase; margin-bottom: 2px; }
-          .metric-value { font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 600; }
-          .metric.highlight .metric-value { color: ${isArrears ? '#dc2626' : '#059669'}; }
+          .info-content p { margin: 1px 0; font-size: 10px; color: #4b5563; }
+          .info-content .main { font-weight: 600; font-size: 11px; color: #000; }
 
           table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
           th { 
@@ -1182,36 +1171,14 @@ export class ReportsGeneratorService {
             <span class="section-label">Billed To</span>
             <p class="main">${tenant.firstName} ${tenant.lastName}</p>
             <p>${tenant.phone || ''}</p>
-            <p>Code: ${tenant.tenantCode || 'TC-' + tenant.id.slice(0, 6).toUpperCase()}</p>
+            <p>Ref: ${tenant.tenantCode || 'TC-' + tenant.id.slice(0, 6).toUpperCase()}</p>
           </div>
           
           <div class="info-content">
             <span class="section-label">Lease Context</span>
-            <p class="main">${property.name} · ${unit.unitNumber}</p>
+            <p class="main">${property.name} · Unit ${unit.unitNumber}</p>
             <p>${property.address || ''}</p>
-            <p>Rent: KES ${fmt(lease.rentAmount)}</p>
-          </div>
-
-          <div class="info-content">
-            <span class="section-label">Contact & Support</span>
-            <p>${company.phone || 'Admin Office'}</p>
-            <p>${company.email || 'support@aedra.co.ke'}</p>
-            ${company.pinNumber ? `<p>PIN: ${company.pinNumber}</p>` : ''}
-          </div>
-        </div>
-
-        <div class="summary-card">
-          <div class="metric">
-            <div class="metric-label">Opening Balance</div>
-            <div class="metric-value">KES ${fmt(openingBalance)}</div>
-          </div>
-          <div class="metric">
-            <div class="metric-label">Total Volume</div>
-            <div class="metric-value">KES ${fmt(summaries.invoices.reduce((a: any, b: any) => a + b.amount, 0))}</div>
-          </div>
-          <div class="metric highlight">
-            <div class="metric-label">${isArrears ? 'Closing Arrears' : 'Closing Balance'}</div>
-            <div class="metric-value">KES ${fmt(closingBalance)}</div>
+            <p>Monthly Rent: KES ${fmt(lease.rentAmount)}</p>
           </div>
         </div>
 
