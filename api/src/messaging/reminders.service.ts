@@ -84,7 +84,7 @@ export class RemindersService {
           if (useWhatsApp) {
             await this.whatsappService.sendRentReminder({
               companyId: actor.companyId,
-              to: tenant.phone,
+              to: tenant.phone!,
               tenantName: tenant.firstName,
               amountDue: balance,
               unitNumber: unit.number,
@@ -95,7 +95,7 @@ export class RemindersService {
             // Fallback to SMS if WhatsApp is disabled but SMS is enabled
             await this.smsService.sendSms({
               companyId: actor.companyId,
-              to: tenant.phone,
+              to: tenant.phone!,
               message,
             });
           }

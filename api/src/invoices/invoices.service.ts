@@ -164,7 +164,7 @@ export class InvoicesService {
         try {
           await this.whatsappService.sendInvoiceNotice({
             companyId: actor.companyId,
-            to: tenant.phone,
+            to: tenant.phone!,
             tenantName: tenant.firstName,
             amount: invoice.amount,
             description: invoice.description,
@@ -179,7 +179,7 @@ export class InvoicesService {
           const msg = `Hi ${tenant.firstName}, a new invoice (${invoice.description}) for KES ${invoice.amount.toLocaleString()} has been issued for Unit ${unitNumber}. Due: ${dueDate}.`;
           await this.smsService.sendSms({
             companyId: actor.companyId,
-            to: tenant.phone,
+            to: tenant.phone!,
             message: msg,
           });
         } catch (err) {
@@ -355,7 +355,7 @@ export class InvoicesService {
           try {
             await this.whatsappService.sendInvoiceNotice({
               companyId,
-              to: tenant.phone,
+              to: tenant.phone!,
               tenantName: tenant.firstName,
               amount: invoice.amount,
               description: invoice.description,
@@ -370,7 +370,7 @@ export class InvoicesService {
             const msg = `Hi ${tenant.firstName}, your rent invoice for Unit ${unitNumber} (KES ${invoice.amount.toLocaleString()}) is ready. Due: ${dueDate}.`;
             await this.smsService.sendSms({
               companyId,
-              to: tenant.phone,
+              to: tenant.phone!,
               message: msg,
             });
           } catch (err) {

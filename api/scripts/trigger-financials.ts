@@ -14,9 +14,11 @@ async function main() {
   
   // Instantiate service 
   // (Note: we use the prisma client directly for simplicity in a script)
-  const invoicesService = new InvoicesService(prisma as any, {
-    sendInvoiceNotice: async () => ({}), // Mocked for script
-  } as any);
+  const invoicesService = new InvoicesService(
+    prisma as any,
+    { sendInvoiceNotice: async () => ({}) } as any, // Mocked WhatsApp
+    { sendSms: async () => ({}) } as any, // Mocked SMS
+  );
   
   const actor = {
     id: 'system',

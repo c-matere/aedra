@@ -225,7 +225,7 @@ export class PaymentsService {
       if (company?.waPaymentConfirmationsEnabled) {
         this.whatsappService
           .sendPaymentConfirmation({
-            to: tenant.phone,
+            to: tenant.phone!,
             tenantName: tenant.firstName,
             amount: amount,
             unitNumber: unitNumber,
@@ -239,7 +239,7 @@ export class PaymentsService {
         const msg = `Hi ${tenant.firstName}, we have received your payment of KES ${amount.toLocaleString()} for Unit ${unitNumber}. Thank you!`;
         this.smsService
           .sendSms({
-            to: tenant.phone,
+            to: tenant.phone!,
             message: msg,
             companyId: tenant.companyId,
           })
