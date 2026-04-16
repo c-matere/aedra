@@ -102,6 +102,7 @@ export class PropertiesService {
           propertyType: true,
           description: true,
           commissionPercentage: true,
+          companyId: true,
           units: {
             select: {
               status: true,

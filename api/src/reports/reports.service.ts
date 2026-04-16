@@ -324,6 +324,7 @@ export class ReportsService {
           : 'Aedra Resident Manager',
         address: property.address,
         commissionPercentage: property.commissionPercentage,
+        companyId: property.companyId,
       },
       totals: {
         occupancy: occupancyRate,

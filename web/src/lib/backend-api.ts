@@ -1397,6 +1397,7 @@ export interface PortfolioReportData {
     manager: string;
     address: string;
     commissionPercentage: number;
+    companyId: string;
   };
   totals: {
     occupancy: number;
