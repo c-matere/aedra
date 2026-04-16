@@ -1023,26 +1023,26 @@ export class ReportsGeneratorService {
             font-family: 'Inter', sans-serif; 
             color: #1a1a1a; 
             padding: 40px; 
-            line-height: 1.6; 
+            line-height: 1.5; 
             margin: 0; 
             background: #fff; 
-            font-size: 11px; 
+            font-size: 10px; 
           }
 
           .header { 
             display: flex; 
             justify-content: space-between; 
             align-items: flex-start; 
-            margin-bottom: 50px; 
+            margin-bottom: 40px; 
           }
 
-          .brand { display: flex; align-items: center; gap: 15px; }
-          .logo { max-height: 45px; border-radius: 4px; }
+          .brand { display: flex; align-items: center; gap: 12px; }
+          .logo { max-height: 40px; border-radius: 4px; }
           .company-name { 
             font-family: 'Outfit', sans-serif; 
-            font-size: 18px; 
+            font-size: 16px; 
             font-weight: 700; 
-            letter-spacing: -0.02em; 
+            letter-spacing: -0.01em; 
             margin: 0; 
           }
           
@@ -1051,113 +1051,113 @@ export class ReportsGeneratorService {
           }
           .statement-title h1 { 
             font-family: 'Outfit', sans-serif; 
-            font-size: 28px; 
-            font-weight: 300; 
+            font-size: 20px; 
+            font-weight: 400; 
             text-transform: uppercase; 
-            letter-spacing: 0.15em; 
+            letter-spacing: 0.12em; 
             margin: 0; 
             color: #9ca3af;
           }
           .statement-period { 
             font-family: 'DM Mono', monospace; 
-            font-size: 9px; 
+            font-size: 8px; 
             color: #6b7280; 
             text-transform: uppercase; 
-            margin-top: 5px; 
+            margin-top: 4px; 
           }
 
           .info-grid { 
             display: grid; 
             grid-template-columns: 1.2fr 1.2fr 1fr; 
-            gap: 30px; 
-            margin-bottom: 40px; 
+            gap: 25px; 
+            margin-bottom: 35px; 
           }
           .section-label { 
             font-family: 'DM Mono', monospace; 
-            font-size: 8px; 
+            font-size: 7px; 
             font-weight: 500; 
             text-transform: uppercase; 
-            letter-spacing: 0.1em; 
+            letter-spacing: 0.08em; 
             color: #9ca3af; 
-            margin-bottom: 8px; 
+            margin-bottom: 6px; 
             display: block;
           }
-          .info-content p { margin: 2px 0; font-size: 11px; }
-          .info-content .main { font-weight: 700; font-size: 13px; color: #000; }
+          .info-content p { margin: 1px 0; font-size: 10px; }
+          .info-content .main { font-weight: 600; font-size: 12px; color: #000; }
 
           .summary-card { 
             background: #fdfdfd; 
             border: 1px solid #f3f4f6; 
-            border-radius: 12px; 
-            padding: 20px; 
+            border-radius: 10px; 
+            padding: 16px; 
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
-            gap: 20px;
-            margin-bottom: 40px;
+            gap: 15px;
+            margin-bottom: 35px;
           }
           .metric { text-align: center; }
-          .metric-label { font-size: 9px; color: #6b7280; text-transform: uppercase; margin-bottom: 4px; }
-          .metric-value { font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 600; }
+          .metric-label { font-size: 8px; color: #6b7280; text-transform: uppercase; margin-bottom: 2px; }
+          .metric-value { font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 600; }
           .metric.highlight .metric-value { color: ${isArrears ? '#dc2626' : '#059669'}; }
 
-          table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
           th { 
-            padding: 12px 8px; 
+            padding: 10px 8px; 
             text-align: left; 
-            font-size: 9px; 
+            font-size: 8px; 
             font-weight: 600; 
             text-transform: uppercase; 
             letter-spacing: 0.05em; 
             color: #6b7280; 
             border-bottom: 1px solid #111; 
           }
-          td { padding: 12px 8px; border-bottom: 1px solid #f3f4f6; }
+          td { padding: 10px 8px; border-bottom: 1px solid #f3f4f6; }
           .month-divider td { 
             background: #f9fafb; 
             font-weight: 600; 
-            font-size: 9px; 
+            font-size: 8px; 
             color: #9ca3af; 
             text-transform: uppercase; 
-            letter-spacing: 0.05em;
+            letter-spacing: 0.04em;
           }
-          .amount-cell { font-family: 'DM Mono', monospace; text-align: right; font-weight: 500; }
-          .balance-cell { font-family: 'DM Mono', monospace; text-align: right; font-weight: 600; color: #000; }
+          .amount-cell { font-family: 'DM Mono', monospace; text-align: right; font-weight: 400; font-size: 9px; }
+          .balance-cell { font-family: 'DM Mono', monospace; text-align: right; font-weight: 600; color: #000; font-size: 10px; background: #fafafa; }
 
           .bottom-sections { 
             display: grid; 
             grid-template-columns: 1.5fr 1fr; 
-            gap: 50px; 
-            padding-top: 30px; 
+            gap: 40px; 
+            padding-top: 25px; 
             border-top: 1px solid #f3f4f6; 
           }
-          .summary-table { width: 100%; font-size: 10px; }
-          .summary-table td { padding: 6px 0; border: none; }
+          .summary-table { width: 100%; font-size: 9px; }
+          .summary-table td { padding: 4px 0; border: none; }
           .summary-table .label { color: #6b7280; }
           .summary-table .value { text-align: right; font-weight: 600; }
           .summary-table .total-row td { 
-            padding-top: 12px; 
+            padding-top: 10px; 
             border-top: 1px solid #f3f4f6; 
-            font-size: 12px; 
+            font-size: 11px; 
             font-weight: 700; 
           }
 
           .instructions { 
             background: #fafafa; 
-            padding: 20px; 
+            padding: 16px; 
             border-radius: 8px; 
-            font-size: 10px; 
+            font-size: 9px; 
             color: #4b5563; 
           }
-          .instructions h4 { margin: 0 0 10px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
-          .instructions p { margin: 5px 0; line-height: 1.6; }
+          .instructions h4 { margin: 0 0 8px 0; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+          .instructions p { margin: 4px 0; line-height: 1.5; }
 
           .footer { 
-            margin-top: 60px; 
+            margin-top: 50px; 
             padding-top: 20px; 
             border-top: 1px solid #f3f4f6; 
             display: flex; 
             justify-content: space-between; 
-            font-size: 9px; 
+            font-size: 8px; 
             color: #9ca3af; 
           }
         </style>
@@ -1165,10 +1165,10 @@ export class ReportsGeneratorService {
       <body>
         <div class="header">
           <div class="brand">
-            ${logoUrl ? `<img src="${logoUrl}" class="logo" />` : '<div style="width:40px; height:40px; background:#f3f4f6;"></div>'}
+            ${logoUrl ? `<img src="${logoUrl}" class="logo" />` : '<div style="width:35px; height:35px; background:#f3f4f6;"></div>'}
             <div>
               <h2 class="company-name">${company.name || 'AEDRA MANAGEMENT'}</h2>
-              <p style="font-size: 10px; color: #6b7280; margin: 0;">${company.address || 'Mombasa, Kenya'}</p>
+              <p style="font-size: 9px; color: #6b7280; margin: 0;">${company.address || 'Mombasa, Kenya'}</p>
             </div>
           </div>
           <div class="statement-title">
@@ -1238,8 +1238,8 @@ export class ReportsGeneratorService {
                   (item) => `
                 <tr>
                   <td style="color: #6b7280;">${dt(item.date)}</td>
-                  <td style="font-size: 10px; color: #9ca3af;">${item.code}</td>
-                  <td style="font-weight: 500;">${item.description}</td>
+                  <td style="font-size: 9px; color: #9ca3af;">${item.code}</td>
+                  <td style="font-weight: 500; font-size: 10px;">${item.description}</td>
                   <td class="amount-cell">${item.debit > 0 ? fmt(item.debit) : '—'}</td>
                   <td class="amount-cell">${item.credit > 0 ? fmt(item.credit) : '—'}</td>
                   <td class="balance-cell">${fmt(item.balance)}</td>
