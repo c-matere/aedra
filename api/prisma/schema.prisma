@@ -101,6 +101,10 @@ model Company {
   jengaApiKey                String?
   jengaPrivateKey            String?
   jengaEnabled               Boolean                @default(false)
+  smsLeopardApiKey           String?
+  smsLeopardApiSecret        String?
+  smsLeopardSource           String?
+  smsAlertsEnabled           Boolean                @default(true)
   authorizationRequests      AuthorizationRequest[]
   chatHistories              ChatHistory[]
   documents                  Document[]
@@ -118,6 +122,7 @@ model Company {
   workflows                  WorkflowInstance[]
   recurringExpenses          RecurringExpense[]
   invoices                   Invoice[]
+  smsLogs                    SmsLog[]
 }
 
 /// A custom role within a company, defining a set of permissions.
@@ -611,6 +616,21 @@ model WhatsAppLog {
   metaMessageId String?
   createdAt     DateTime   @default(now())
   company       Company?   @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([to])
+}
+
+model SmsLog {
+  id         String     @id @default(uuid())
+  companyId  String?
+  to         String
+  message    String
+  status     String
+  senderType SenderType
+  externalId String?
+  createdAt  DateTime   @default(now())
+  company    Company?   @relation(fields: [companyId], references: [id])
 
   @@index([companyId])
   @@index([to])

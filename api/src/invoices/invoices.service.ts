@@ -10,6 +10,7 @@ import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
 import { CreateInvoiceDto, UpdateInvoiceDto } from './dto/invoice.dto';
 import { Prisma } from '@prisma/client';
 import { WhatsappService } from '../messaging/whatsapp.service';
+import { SmsService } from '../messaging/sms.service';
 
 @Injectable()
 export class InvoicesService {
@@ -18,6 +19,7 @@ export class InvoicesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsappService: WhatsappService,
+    private readonly smsService: SmsService,
   ) {}
 
   async findAll(
@@ -147,32 +149,41 @@ export class InvoicesService {
       },
     });
 
-    // Notify tenant if enabled
+    // Notify tenant if enabled (WhatsApp or SMS)
     if (actor.companyId) {
       const company = await this.prisma.company.findUnique({
         where: { id: actor.companyId },
-        select: { waInvoiceNotificationsEnabled: true },
+        select: { waInvoiceNotificationsEnabled: true, smsAlertsEnabled: true },
       });
 
-      if (
-        company?.waInvoiceNotificationsEnabled &&
-        invoice.lease.tenant.phone
-      ) {
+      const tenant = invoice.lease.tenant;
+      const unitNumber = invoice.lease.unit?.unitNumber || 'N/A';
+      const dueDate = invoice.dueDate.toLocaleDateString();
+
+      if (company?.waInvoiceNotificationsEnabled && tenant.phone) {
         try {
           await this.whatsappService.sendInvoiceNotice({
             companyId: actor.companyId,
-            to: invoice.lease.tenant.phone,
-            tenantName: invoice.lease.tenant.firstName,
+            to: tenant.phone,
+            tenantName: tenant.firstName,
             amount: invoice.amount,
             description: invoice.description,
-            unitNumber: invoice.lease.unit?.unitNumber || 'N/A',
-            dueDate: invoice.dueDate.toLocaleDateString(),
+            unitNumber: unitNumber,
+            dueDate: dueDate,
           });
         } catch (err) {
-          // Log but don't fail invoice creation
-          this.logger.error(
-            `Failed to send invoice notification: ${err.message}`,
-          );
+          this.logger.error(`[WhatsApp] Invoice notification failed: ${err.message}`);
+        }
+      } else if (company?.smsAlertsEnabled && tenant.phone) {
+        try {
+          const msg = `Hi ${tenant.firstName}, a new invoice (${invoice.description}) for KES ${invoice.amount.toLocaleString()} has been issued for Unit ${unitNumber}. Due: ${dueDate}.`;
+          await this.smsService.sendSms({
+            companyId: actor.companyId,
+            to: tenant.phone,
+            message: msg,
+          });
+        } catch (err) {
+          this.logger.error(`[SMS] Invoice notification failed: ${err.message}`);
         }
       }
     }
@@ -330,27 +341,40 @@ export class InvoicesService {
           },
         });
 
-        // Notify tenant if enabled
+        // Notify tenant if enabled (WhatsApp or SMS)
         const company = await this.prisma.company.findUnique({
           where: { id: companyId },
-          select: { waInvoiceNotificationsEnabled: true },
+          select: { waInvoiceNotificationsEnabled: true, smsAlertsEnabled: true },
         });
 
-        if (company?.waInvoiceNotificationsEnabled && lease.tenant.phone) {
+        const tenant = lease.tenant;
+        const unitNumber = lease.unit?.unitNumber || 'N/A';
+        const dueDate = invoice.dueDate.toLocaleDateString();
+
+        if (company?.waInvoiceNotificationsEnabled && tenant.phone) {
           try {
             await this.whatsappService.sendInvoiceNotice({
               companyId,
-              to: lease.tenant.phone,
-              tenantName: lease.tenant.firstName,
+              to: tenant.phone,
+              tenantName: tenant.firstName,
               amount: invoice.amount,
               description: invoice.description,
-              unitNumber: lease.unit?.unitNumber || 'N/A',
-              dueDate: invoice.dueDate.toLocaleDateString(),
+              unitNumber: unitNumber,
+              dueDate: dueDate,
             });
           } catch (err) {
-            this.logger.error(
-              `Failed to send bulk invoice notification: ${err.message}`,
-            );
+            this.logger.error(`[WhatsApp] Bulk invoice notification failed: ${err.message}`);
+          }
+        } else if (company?.smsAlertsEnabled && tenant.phone) {
+          try {
+            const msg = `Hi ${tenant.firstName}, your rent invoice for Unit ${unitNumber} (KES ${invoice.amount.toLocaleString()}) is ready. Due: ${dueDate}.`;
+            await this.smsService.sendSms({
+              companyId,
+              to: tenant.phone,
+              message: msg,
+            });
+          } catch (err) {
+            this.logger.error(`[SMS] Bulk invoice notification failed: ${err.message}`);
           }
         }
         createdCount++;

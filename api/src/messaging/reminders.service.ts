@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsappService } from './whatsapp.service';
+import { SmsService } from './sms.service';
 import { UnitsService } from '../units/units.service';
 import { AuthenticatedUser } from '../auth/authenticated-user.interface';
 
@@ -11,6 +12,7 @@ export class RemindersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsappService: WhatsappService,
+    private readonly smsService: SmsService,
     private readonly unitsService: UnitsService,
   ) {}
 
@@ -25,19 +27,22 @@ export class RemindersService {
       propertyId,
     );
 
-    // Check if WhatsApp alerts are enabled for this company
+    // Check if WhatsApp/SMS alerts are enabled for this company
     const company = await this.prisma.company.findUnique({
       where: { id: actor.companyId },
-      select: { waAlertsEnabled: true },
+      select: { waAlertsEnabled: true, smsAlertsEnabled: true },
     });
 
-    if (company && !company.waAlertsEnabled) {
+    const useWhatsApp = company?.waAlertsEnabled ?? true;
+    const useSms = company?.smsAlertsEnabled ?? true;
+
+    if (!useWhatsApp && !useSms) {
       this.logger.warn(
-        `WhatsApp alerts are disabled for company ${actor.companyId}. Skipping bulk reminders.`,
+        `Both WhatsApp and SMS alerts are disabled for company ${actor.companyId}. Skipping bulk reminders.`,
       );
       return {
         success: false,
-        message: 'WhatsApp alerts are disabled in settings.',
+        message: 'No messaging channels are enabled in settings.',
         totalSent: 0,
         details: [],
       };
@@ -72,19 +77,29 @@ export class RemindersService {
           tone,
         );
 
-        // STEP 5 — Async send (simulated async within loop for now,
-        // in production this would be a queue)
+        // STEP 5 — Async send
         try {
           const dueDateStr = 'the 5th'; // Simplified for now
-          await this.whatsappService.sendRentReminder({
-            companyId: actor.companyId,
-            to: tenant.phone,
-            tenantName: tenant.firstName,
-            amountDue: balance,
-            unitNumber: unit.number,
-            dueDate: dueDateStr,
-            isFirm: tone !== 'GENTLE',
-          });
+
+          if (useWhatsApp) {
+            await this.whatsappService.sendRentReminder({
+              companyId: actor.companyId,
+              to: tenant.phone,
+              tenantName: tenant.firstName,
+              amountDue: balance,
+              unitNumber: unit.number,
+              dueDate: dueDateStr,
+              isFirm: tone !== 'GENTLE',
+            });
+          } else if (useSms) {
+            // Fallback to SMS if WhatsApp is disabled but SMS is enabled
+            await this.smsService.sendSms({
+              companyId: actor.companyId,
+              to: tenant.phone,
+              message,
+            });
+          }
+
           totalSent++;
           results.push({
             tenant: tenant.firstName,

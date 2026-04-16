@@ -7,6 +7,7 @@ import { RemindersService } from './reminders.service';
 import { UnitsModule } from '../units/units.module';
 import { EmailService } from './email.service';
 import { CacheModule } from '@nestjs/cache-manager';
+import { SmsService } from './sms.service';
 
 @Module({
   imports: [
@@ -15,8 +16,8 @@ import { CacheModule } from '@nestjs/cache-manager';
     CacheModule.register(),
     forwardRef(() => AiModule),
   ],
-  providers: [WhatsappService, RemindersService, EmailService],
+  providers: [WhatsappService, RemindersService, EmailService, SmsService],
   controllers: [WhatsappController],
-  exports: [WhatsappService, RemindersService, EmailService],
+  exports: [WhatsappService, RemindersService, EmailService, SmsService],
 })
 export class MessagingModule {}

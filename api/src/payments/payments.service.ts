@@ -8,6 +8,7 @@ import { PaymentMethod, PaymentType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { FinancesService } from '../finances/finances.service';
 import { WhatsappService } from '../messaging/whatsapp.service';
+import { SmsService } from '../messaging/sms.service';
 import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
 
 export interface CreatePaymentDto {
@@ -36,6 +37,7 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly financesService: FinancesService,
     private readonly whatsappService: WhatsappService,
+    private readonly smsService: SmsService,
   ) {}
 
   async findAll(
@@ -209,27 +211,40 @@ export class PaymentsService {
       });
     }
 
-    // Send WhatsApp confirmation
+    // Send Confirmation (WhatsApp or SMS)
     if (payment.lease.tenant.phone && payment.lease.tenant.companyId) {
       const company = await this.prisma.company.findUnique({
         where: { id: payment.lease.tenant.companyId },
-        select: { waPaymentConfirmationsEnabled: true },
+        select: { waPaymentConfirmationsEnabled: true, smsAlertsEnabled: true },
       });
+
+      const tenant = payment.lease.tenant;
+      const unitNumber = payment.lease.unit?.unitNumber || 'N/A';
+      const amount = payment.amount;
 
       if (company?.waPaymentConfirmationsEnabled) {
         this.whatsappService
           .sendPaymentConfirmation({
-            to: payment.lease.tenant.phone,
-            tenantName: payment.lease.tenant.firstName,
-            amount: payment.amount,
-            unitNumber: payment.lease.unit?.unitNumber || 'N/A',
-            companyId: payment.lease.tenant.companyId,
+            to: tenant.phone,
+            tenantName: tenant.firstName,
+            amount: amount,
+            unitNumber: unitNumber,
+            companyId: tenant.companyId,
           })
           .catch((err) => {
-            console.error(
-              '[WhatsApp] Failed to send payment confirmation:',
-              err,
-            );
+            console.error('[WhatsApp] Confirmation failed:', err);
+          });
+      } else if (company?.smsAlertsEnabled) {
+        // Fallback to SMS if WhatsApp is disabled
+        const msg = `Hi ${tenant.firstName}, we have received your payment of KES ${amount.toLocaleString()} for Unit ${unitNumber}. Thank you!`;
+        this.smsService
+          .sendSms({
+            to: tenant.phone,
+            message: msg,
+            companyId: tenant.companyId,
+          })
+          .catch((err) => {
+            console.error('[SMS] Confirmation failed:', err);
           });
       }
     }
