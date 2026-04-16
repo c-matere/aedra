@@ -19,7 +19,7 @@ import {
     BarChart3,
     Printer
 } from "lucide-react"
-import { generateFinancialStatementPdf } from "@/lib/report-pdf-generator"
+import { generateFinancialStatementPdf, generatePropertyFinancialLedgerPdf } from "@/lib/report-pdf-generator"
 import type {
     ReportSummary,
     ReportOccupancy,
@@ -116,87 +116,22 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                     return
                 }
 
-                const data = reportRes.data
-                const totals = data.totals || {}
-                const propertyInfo = data.property || {}
-                const expensesByCategory = totals.expensesByCategory || []
-                const commissionAmount = ((totals.payments || 0) * (propertyInfo.commissionPercentage || 0)) / 100
-                
-                const maintenanceExpenses = expensesByCategory
-                    .filter(e => ['MAINTENANCE', 'REPAIR'].includes(e.category))
-                    .reduce((sum, e) => sum + e.amount, 0)
-                const utilityExpenses = expensesByCategory
-                    .filter(e => e.category === 'UTILITY')
-                    .reduce((sum, e) => sum + e.amount, 0)
-                const otherExpenses = (totals.expenses || 0) - maintenanceExpenses - utilityExpenses
-                const netLandlordShare = (totals.payments || 0) - commissionAmount - (totals.expenses || 0)
-
                 const landlordName = property.landlord 
                     ? `${property.landlord.firstName} ${property.landlord.lastName}` 
                     : "Not Assigned";
-
-                const csvRows = [
-                    ["PROPERTY FINANCIAL REPORT", (propertyInfo.name || property.name).toUpperCase()],
-                    ["LANDLORD", landlordName],
-                    ["ADDRESS", propertyInfo.address || property.address || "N/A"],
-                    ["REPORT MONTH", data.month || "Current Month"],
-                    ["GENERATED AT", new Date().toLocaleString()],
-                    [""],
-                    ["UNIT BREAKDOWN"],
-                    ["UNIT NUMBER", "TENANT", "EXPECTED RENT", "ACTUAL PAID", "BALANCE"],
-                    ...(data.tenantPayments.map(tp => [
-                        tp.unit,
-                        tp.name,
-                        tp.rentAmount || 0,
-                        tp.paidThisMonth || 0,
-                        (tp.rentAmount || 0) - (tp.paidThisMonth || 0)
-                    ]) || [])
-                ]
-
-                // Add vacant units to the breakdown
-                const occupiedUnitNumbers = new Set(data.tenantPayments.map(tp => tp.unit))
-                property.units?.forEach(u => {
-                    if (!occupiedUnitNumbers.has(u.unitNumber)) {
-                        csvRows.push([
-                            u.unitNumber,
-                            "",
-                            "",
-                            "",
-                            ""
-                        ])
+                
+                // Fetch Company Info for branding
+                let companyData = null;
+                const companyIdToFetch = property.companyId;
+                
+                if (companyIdToFetch) {
+                    const companyRes = await getCompany(token, companyIdToFetch);
+                    if (companyRes.data) {
+                        companyData = companyRes.data;
                     }
-                })
-
-                csvRows.push(
-                    [""],
-                    ["BUILDING SUMMARY (FOR THE MONTH)"],
-                    ["TOTAL RENT COLLECTED", `KES ${(totals.payments || 0).toLocaleString()}`],
-                    ["AGENT COMMISSION", `KES ${commissionAmount.toLocaleString()} (${propertyInfo.commissionPercentage || 0}%)`],
-                    ["MAINTENANCE & REPAIRS", `KES ${maintenanceExpenses.toLocaleString()}`],
-                    ["UTILITIES", `KES ${utilityExpenses.toLocaleString()}`],
-                    ["OTHER EXPENSES", `KES ${otherExpenses.toLocaleString()}`],
-                    ["-----------------------------------"],
-                    ["NET LANDLORD SHARE", `KES ${netLandlordShare.toLocaleString()}`],
-                )
-
-                const escapeCSV = (val: any) => {
-                    const s = String(val ?? "");
-                    if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes(" ")) {
-                        return `"${s.replace(/"/g, '""')}"`;
-                    }
-                    return s;
-                };
-
-                const csvContent = "\uFEFF" + csvRows.map(row => row.map(escapeCSV).join(",")).join("\n")
-                const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-                const url = URL.createObjectURL(blob)
-                const link = document.createElement("a")
-                link.setAttribute("href", url)
-                link.setAttribute("download", `${property.name.replace(/\s+/g, '_')}_Financial_Report.csv`)
-                document.body.appendChild(link)
-                link.click()
-                document.body.removeChild(link)
-                URL.revokeObjectURL(url)
+                }
+                
+                await generatePropertyFinancialLedgerPdf(reportRes.data, landlordName, companyData, property.units)
             } else if (format === 'FINANCIAL_PDF') {
                 const reportRes = await getPortfolioReport(token, property.id)
                 if (reportRes.error || !reportRes.data) {
@@ -208,13 +143,12 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                     ? `${property.landlord.firstName} ${property.landlord.lastName}` 
                     : "Not Assigned";
                 
-                // Fetch Company Info for branding
-                const userString = localStorage.getItem("aedra_user");
-                const user = userString ? JSON.parse(userString) : null;
+                // Fetch Company Info for branding (using Property's Company ID, not User's from localStorage)
                 let companyData = null;
+                const companyIdToFetch = property.companyId;
                 
-                if (user?.companyId) {
-                    const companyRes = await getCompany(token, user.companyId);
+                if (companyIdToFetch) {
+                    const companyRes = await getCompany(token, companyIdToFetch);
                     if (companyRes.data) {
                         companyData = companyRes.data;
                     }
@@ -432,8 +366,8 @@ export function ReportsClient({ summary, occupancy, revenue, auditLogs, role, to
                                             onClick={() => handleGenerateEntityReport('CSV')}
                                             className="border-white/10 bg-white/5 hover:bg-emerald-500/10 hover:text-emerald-400 text-xs font-bold rounded-xl h-14"
                                         >
-                                            <FileDown className="h-4 w-4 mr-2 text-emerald-500" />
-                                            CSV Ledger
+                                            <Printer className="h-4 w-4 mr-2 text-emerald-500" />
+                                            Financial Ledger
                                         </Button>
                                     </div>
                                     <Button 

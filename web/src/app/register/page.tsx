@@ -55,7 +55,7 @@ export default function RegisterPage() {
             <Card className="w-full max-w-md bg-neutral-900 border-neutral-800 text-white z-10 shadow-2xl">
                 <CardHeader className="space-y-1 flex flex-col items-center">
                     <div className="mb-4 hover:opacity-90 transition-opacity">
-                        <img src="/aedra logo.png" alt="Aedra" className="h-12 w-auto" />
+                        <img src="/aedra-logo.png" alt="Aedra" className="h-12 w-auto" />
                     </div>
                     <CardTitle className="text-2xl font-bold tracking-tight">Create your company</CardTitle>
                     <CardDescription className="text-neutral-400 text-center">

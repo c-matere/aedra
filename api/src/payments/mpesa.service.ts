@@ -283,20 +283,22 @@ Thank you!
     // STEP 8 — Deliver to tenant (using template for better deliverability)
     const balance = shortfall; // Simplified balance calculation
 
-    await this.whatsappService
-      .sendPaymentConfirmation({
-        companyId: company.id,
-        to: tenant.phone,
-        tenantName: tenant.firstName,
-        amount: amount,
-        unitNumber: unit.unitNumber,
-        newBalance: balance,
-      })
-      .catch((err) =>
-        this.logger.error(
-          `Receipt delivery failed (Template) to tenant ${tenant.phone}: ${err.message}`,
-        ),
-      );
+    if (company.waPaymentConfirmationsEnabled && tenant.phone) {
+      this.whatsappService
+        .sendPaymentConfirmation({
+          companyId: company.id,
+          to: tenant.phone,
+          tenantName: tenant.firstName,
+          amount: amount,
+          unitNumber: unit.unitNumber,
+          newBalance: balance,
+        })
+        .catch((err) =>
+          this.logger.error(
+            `Receipt delivery failed (Template) to tenant ${tenant.phone}: ${err.message}`,
+          ),
+        );
+    }
 
     // STEP 9 — Notify agent
     const agentMessage = isSwahili

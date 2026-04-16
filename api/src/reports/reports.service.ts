@@ -159,6 +159,7 @@ export class ReportsService {
                   where: {
                     deletedAt: null,
                     paidAt: { gte: historyStart, lte: end },
+                    type: { notIn: ['PENALTY', 'AGREEMENT_FEE'] },
                   },
                   orderBy: { paidAt: 'desc' },
                 },
@@ -242,6 +243,31 @@ export class ReportsService {
       d.setMonth(d.getMonth() - i);
       monthLabels.push(d.toLocaleString('en-US', { month: 'short' }));
     }
+    
+    // Fetch historical cumulative balances per lease (excluding penalties)
+    const [histInvoices, histPayments] = await Promise.all([
+      this.prisma.invoice.groupBy({
+        by: ['leaseId'],
+        where: {
+          lease: { propertyId },
+          deletedAt: null,
+          type: { notIn: ['PENALTY', 'AGREEMENT_FEE'] },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.payment.groupBy({
+        by: ['leaseId'],
+        where: {
+          lease: { propertyId },
+          deletedAt: null,
+          type: { notIn: ['PENALTY', 'AGREEMENT_FEE'] },
+        },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const invoiceMap = new Map(histInvoices.map(i => [i.leaseId, i._sum.amount || 0]));
+    const paymentMap = new Map(histPayments.map(p => [p.leaseId, p._sum.amount || 0]));
 
     const tenantPayments = property.units
       .filter((u) => u.leases.length > 0)
@@ -259,6 +285,10 @@ export class ReportsService {
           .filter((p) => p.paidAt >= start && p.paidAt <= end)
           .reduce((sum, p) => sum + p.amount, 0);
 
+        const totalInvoiced = invoiceMap.get(lease.id) || 0;
+        const totalPaid = paymentMap.get(lease.id) || 0;
+        const totalBalance = totalInvoiced - totalPaid;
+
         const okCount = monthlyStatus.filter((s) => s.status === 'ok').length;
         const ltv = Math.round((okCount / monthLabels.length) * 100);
 
@@ -267,6 +297,7 @@ export class ReportsService {
           unit: u.unitNumber,
           rentAmount: lease.rentAmount,
           paidThisMonth,
+          totalBalance,
           payments: monthlyStatus,
           ltv,
         };

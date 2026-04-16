@@ -734,11 +734,11 @@ export function getLogoUrl(logo?: string | null): string | null {
   if (logo.startsWith("http")) return logo;
   
   // For assets like logos, we ALWAYS want the public/client-resolvable URL.
-  // backendBaseUrl() might return an internal Docker URL if running on the server.
   const base = process.env.NEXT_PUBLIC_AEDRA_API_URL || backendBaseUrl();
+  const normalizedBase = base.endsWith("/") ? base.slice(0, -1) : base;
   
   const normalizedLogo = logo.startsWith("/") ? logo : "/" + logo;
-  return `${base}${normalizedLogo}`;
+  return `${normalizedBase}${normalizedLogo}`;
 }
 
 async function backendGet<T>(
@@ -1417,6 +1417,7 @@ export interface PortfolioReportData {
     unit: string;
     rentAmount: number;
     paidThisMonth: number;
+    totalBalance: number;
     ltv: number;
     payments: { month: string; status: string }[];
   }[];

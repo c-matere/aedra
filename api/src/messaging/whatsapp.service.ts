@@ -17,6 +17,41 @@ export class WhatsappService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  private async resolveCredentials(companyId?: string) {
+    let accessToken = process.env.META_ACCESS_TOKEN;
+    let phoneNumberId = process.env.META_PHONE_NUMBER_ID;
+    let senderType: SenderType = SenderType.SYSTEM;
+
+    if (companyId) {
+      const company: any = await this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: {
+          waAccessToken: true,
+          waPhoneNumberId: true,
+        } as any,
+      });
+
+      if (company?.waAccessToken && company?.waPhoneNumberId) {
+        accessToken = company.waAccessToken;
+        phoneNumberId = company.waPhoneNumberId;
+        senderType = SenderType.COMPANY;
+      } else {
+        this.logger.log(
+          `[WhatsApp] No credentials found for company ${companyId}. Falling back to global (system) account.`,
+        );
+      }
+    }
+
+    if (!accessToken || !phoneNumberId) {
+      this.logger.error(`WhatsApp credentials missing (System fallback failed)`);
+      throw new InternalServerErrorException(
+        'WhatsApp messaging is not configured.',
+      );
+    }
+
+    return { accessToken, phoneNumberId, senderType };
+  }
+
   private async parseMetaResponse(response: Response): Promise<any> {
     const raw = await response.text().catch(() => '');
     if (!raw) return null;
@@ -239,34 +274,8 @@ export class WhatsappService {
       components = [],
     } = params;
 
-    let accessToken = process.env.META_ACCESS_TOKEN;
-    let phoneNumberId = process.env.META_PHONE_NUMBER_ID;
-    let senderType: SenderType = SenderType.SYSTEM;
-
-    if (companyId) {
-      const company: any = await this.prisma.company.findUnique({
-        where: { id: companyId },
-        select: {
-          waAccessToken: true,
-          waPhoneNumberId: true,
-        } as any,
-      });
-
-      if (company?.waAccessToken && company?.waPhoneNumberId) {
-        accessToken = company.waAccessToken;
-        phoneNumberId = company.waPhoneNumberId;
-        senderType = SenderType.COMPANY;
-      }
-    }
-
-    if (!accessToken || !phoneNumberId) {
-      this.logger.error(
-        `WhatsApp credentials missing (System fallback failed)`,
-      );
-      throw new InternalServerErrorException(
-        'WhatsApp messaging is not configured.',
-      );
-    }
+    const { accessToken, phoneNumberId, senderType } =
+      await this.resolveCredentials(companyId);
 
     const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
 
@@ -360,31 +369,8 @@ export class WhatsappService {
   }) {
     const { companyId, to, interactive } = params;
 
-    let accessToken = process.env.META_ACCESS_TOKEN;
-    let phoneNumberId = process.env.META_PHONE_NUMBER_ID;
-    let senderType: SenderType = SenderType.SYSTEM;
-
-    if (companyId) {
-      const company: any = await this.prisma.company.findUnique({
-        where: { id: companyId },
-        select: {
-          waAccessToken: true,
-          waPhoneNumberId: true,
-        } as any,
-      });
-
-      if (company?.waAccessToken && company?.waPhoneNumberId) {
-        accessToken = company.waAccessToken;
-        phoneNumberId = company.waPhoneNumberId;
-        senderType = SenderType.COMPANY;
-      }
-    }
-
-    if (!accessToken || !phoneNumberId) {
-      throw new InternalServerErrorException(
-        'WhatsApp messaging is not configured.',
-      );
-    }
+    const { accessToken, phoneNumberId, senderType } =
+      await this.resolveCredentials(companyId);
 
     const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
 
@@ -491,21 +477,8 @@ export class WhatsappService {
   }) {
     const { companyId, to, messageId, emoji } = params;
 
-    let accessToken = process.env.META_ACCESS_TOKEN;
-    let phoneNumberId = process.env.META_PHONE_NUMBER_ID;
-
-    if (companyId) {
-      const company: any = await this.prisma.company.findUnique({
-        where: { id: companyId },
-        select: { waAccessToken: true, waPhoneNumberId: true } as any,
-      });
-      if (company?.waAccessToken && company?.waPhoneNumberId) {
-        accessToken = company.waAccessToken;
-        phoneNumberId = company.waPhoneNumberId;
-      }
-    }
-
-    if (!accessToken || !phoneNumberId) return;
+    const { accessToken, phoneNumberId } =
+      await this.resolveCredentials(companyId);
 
     const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
     const payload = {
@@ -567,31 +540,8 @@ export class WhatsappService {
   }) {
     const { companyId, to, text } = params;
 
-    let accessToken = process.env.META_ACCESS_TOKEN;
-    let phoneNumberId = process.env.META_PHONE_NUMBER_ID;
-    let senderType: SenderType = SenderType.SYSTEM;
-
-    if (companyId) {
-      const company: any = await this.prisma.company.findUnique({
-        where: { id: companyId },
-        select: {
-          waAccessToken: true,
-          waPhoneNumberId: true,
-        } as any,
-      });
-
-      if (company?.waAccessToken && company?.waPhoneNumberId) {
-        accessToken = company.waAccessToken;
-        phoneNumberId = company.waPhoneNumberId;
-        senderType = SenderType.COMPANY;
-      }
-    }
-
-    if (!accessToken || !phoneNumberId) {
-      throw new InternalServerErrorException(
-        'WhatsApp messaging is not configured.',
-      );
-    }
+    const { accessToken, phoneNumberId, senderType } =
+      await this.resolveCredentials(companyId);
 
     const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
 
@@ -674,31 +624,8 @@ export class WhatsappService {
   }) {
     const { companyId, to, url, fileName, caption } = params;
 
-    let accessToken = process.env.META_ACCESS_TOKEN;
-    let phoneNumberId = process.env.META_PHONE_NUMBER_ID;
-    let senderType: SenderType = SenderType.SYSTEM;
-
-    if (companyId) {
-      const company: any = await this.prisma.company.findUnique({
-        where: { id: companyId },
-        select: {
-          waAccessToken: true,
-          waPhoneNumberId: true,
-        } as any,
-      });
-
-      if (company?.waAccessToken && company?.waPhoneNumberId) {
-        accessToken = company.waAccessToken;
-        phoneNumberId = company.waPhoneNumberId;
-        senderType = SenderType.COMPANY;
-      }
-    }
-
-    if (!accessToken || !phoneNumberId) {
-      throw new InternalServerErrorException(
-        'WhatsApp messaging is not configured.',
-      );
-    }
+    const { accessToken, phoneNumberId, senderType } =
+      await this.resolveCredentials(companyId);
 
     const metaUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
 
@@ -783,27 +710,8 @@ export class WhatsappService {
       components = [],
     } = params;
 
-    let accessToken = process.env.META_ACCESS_TOKEN;
-    let phoneNumberId = process.env.META_PHONE_NUMBER_ID;
-    let senderType: SenderType = SenderType.SYSTEM;
-
-    if (companyId) {
-      const company: any = await this.prisma.company.findUnique({
-        where: { id: companyId },
-        select: { waAccessToken: true, waPhoneNumberId: true } as any,
-      });
-      if (company?.waAccessToken && company?.waPhoneNumberId) {
-        accessToken = company.waAccessToken;
-        phoneNumberId = company.waPhoneNumberId;
-        senderType = SenderType.COMPANY;
-      }
-    }
-
-    if (!accessToken || !phoneNumberId) {
-      throw new InternalServerErrorException(
-        'WhatsApp messaging is not configured.',
-      );
-    }
+    const { accessToken, phoneNumberId, senderType } =
+      await this.resolveCredentials(companyId);
 
     const metaUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
 

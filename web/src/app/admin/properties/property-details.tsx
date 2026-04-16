@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { RecurringExpenses } from "./recurring-expenses"
 import { ListTodo, Settings, Printer } from "lucide-react"
-import { generateFinancialStatementPdf } from "@/lib/report-pdf-generator"
+import { generateFinancialStatementPdf, generatePropertyFinancialLedgerPdf } from "@/lib/report-pdf-generator"
 
 interface PropertyDetailsPanelProps {
     propertyId: string | null
@@ -80,92 +80,20 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                     return
                 }
 
-                const data = reportRes.data
-                const totals = data.totals || {}
-                const propertyInfo = data.property || {}
-                const expensesByCategory = totals.expensesByCategory || []
-
-                const commissionAmount = ((totals.payments || 0) * (propertyInfo.commissionPercentage || 0)) / 100
-
-                const maintenanceExpenses = expensesByCategory
-                    .filter(e => ['MAINTENANCE', 'REPAIR'].includes(e.category))
-                    .reduce((sum, e) => sum + e.amount, 0)
-
-                const utilityExpenses = expensesByCategory
-                    .filter(e => e.category === 'UTILITY')
-                    .reduce((sum, e) => sum + e.amount, 0)
-
-                const otherExpenses = (totals.expenses || 0) - maintenanceExpenses - utilityExpenses
-                const netLandlordShare = (totals.payments || 0) - commissionAmount - (totals.expenses || 0)
-
                 const landlordName = property.landlord 
                     ? `${property.landlord.firstName} ${property.landlord.lastName}` 
                     : "Not Assigned";
-
-                const csvRows = [
-                    ["PROPERTY FINANCIAL REPORT", (propertyInfo.name || property.name).toUpperCase()],
-                    ["LANDLORD", landlordName],
-                    ["ADDRESS", propertyInfo.address || property.address || "N/A"],
-                    ["REPORT MONTH", data.month || "Current Month"],
-                    ["GENERATED AT", new Date().toLocaleString()],
-                    [""],
-                    ["UNIT BREAKDOWN"],
-                    ["UNIT NUMBER", "TENANT", "EXPECTED RENT", "ACTUAL PAID", "BALANCE"],
-                    ...(data.tenantPayments.map(tp => [
-                        tp.unit,
-                        tp.name,
-                        tp.rentAmount || 0,
-                        tp.paidThisMonth || 0,
-                        (tp.rentAmount || 0) - (tp.paidThisMonth || 0)
-                    ]) || [])
-                ]
-
-                // Add vacant units to the breakdown
-                const occupiedUnitNumbers = new Set(data.tenantPayments.map(tp => tp.unit))
-                property.units?.forEach(u => {
-                    if (!occupiedUnitNumbers.has(u.unitNumber)) {
-                        csvRows.push([
-                            u.unitNumber,
-                            "",
-                            "",
-                            "",
-                            ""
-                        ])
+                
+                // Fetch Company Info for branding
+                let companyData = null;
+                if (property?.companyId) {
+                    const companyRes = await getCompany(token, property.companyId);
+                    if (companyRes.data) {
+                        companyData = companyRes.data;
                     }
-                })
-
-                // Add Building Summary AFTER the breakdown
-                csvRows.push(
-                    [""],
-                    ["BUILDING SUMMARY (FOR THE MONTH)"],
-                    ["TOTAL RENT COLLECTED", `KES ${(totals.payments || 0).toLocaleString()}`],
-                    ["AGENT COMMISSION", `KES ${commissionAmount.toLocaleString()} (${propertyInfo.commissionPercentage || 0}%)`],
-                    ["MAINTENANCE & REPAIRS", `KES ${maintenanceExpenses.toLocaleString()}`],
-                    ["UTILITIES", `KES ${utilityExpenses.toLocaleString()}`],
-                    ["OTHER EXPENSES", `KES ${otherExpenses.toLocaleString()}`],
-                    ["-----------------------------------"],
-                    ["NET LANDLORD SHARE", `KES ${netLandlordShare.toLocaleString()}`],
-                )
-
-                // Helper to escape CSV values
-                const escapeCSV = (val: any) => {
-                    const s = String(val ?? "");
-                    if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes(" ")) {
-                        return `"${s.replace(/"/g, '""')}"`;
-                    }
-                    return s;
-                };
-
-                const csvContent = "\uFEFF" + csvRows.map(row => row.map(escapeCSV).join(",")).join("\n")
-                const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-                const url = URL.createObjectURL(blob)
-                const link = document.createElement("a")
-                link.setAttribute("href", url)
-                link.setAttribute("download", `${property.name.replace(/\s+/g, '_')}_Financial_Report_${data.month.replace(/\s+/g, '_')}.csv`)
-                document.body.appendChild(link)
-                link.click()
-                document.body.removeChild(link)
-                URL.revokeObjectURL(url)
+                }
+                
+                await generatePropertyFinancialLedgerPdf(reportRes.data, landlordName, companyData, property.units)
             } else if (format === 'FINANCIAL_PDF') {
                 const reportRes = await getPortfolioReport(token, property.id)
                 if (reportRes.error || !reportRes.data) {
@@ -493,10 +421,10 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                                             onClick={() => handleGenerateReport('CSV')}
                                             className="flex items-center gap-2 p-3 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer rounded-lg transition-colors"
                                         >
-                                            <FileDown className="h-4 w-4 text-emerald-500" />
+                                            <Printer className="h-4 w-4 text-emerald-500" />
                                             <div className="flex flex-col">
-                                                <span className="font-bold text-xs">Spreadsheet (CSV)</span>
-                                                <span className="text-[9px] text-neutral-500">Best for data analysis</span>
+                                                <span className="font-bold text-xs">Financial Ledger (PDF)</span>
+                                                <span className="text-[9px] text-neutral-500">Professional financial breakdown</span>
                                             </div>
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>

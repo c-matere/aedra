@@ -135,7 +135,7 @@ export default async function AdminLayout({
                             </span>
                         </>
                     ) : (
-                        <img src="/aedra logo.png" alt="Aedra" className="h-8 w-auto hover:opacity-90 transition-opacity" />
+                        <img src="/aedra-logo.png" alt="Aedra" className="h-8 w-auto hover:opacity-90 transition-opacity" />
                     )}
                 </div>
 
