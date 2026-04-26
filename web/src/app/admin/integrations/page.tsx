@@ -17,7 +17,8 @@ import {
   CreditCard,
   History,
   AlertCircle,
-  Loader2
+  Loader2,
+  Brain
 } from "lucide-react";
 import { ZuriSyncCard } from "./zuri-sync-card";
 import { MpesaSyncCard } from "./mpesa-sync-card";
