@@ -201,3 +201,15 @@ export interface AiServiceChatResponse {
   generatedFiles?: GeneratedFile[];
   requires_authorization?: boolean;
 }
+export interface ClassificationResult {
+  intent: string;
+  priority: 'NORMAL' | 'HIGH' | 'EMERGENCY';
+  complexity: number;
+  executionMode: 'LIGHT_COMPOSE' | 'ORCHESTRATED' | 'DIRECT_LOOKUP' | string;
+  language: string;
+  reason: string;
+  confidence: number;
+  entities?: any;
+  hasAttachments?: boolean;
+  subIntents?: string[];
+}

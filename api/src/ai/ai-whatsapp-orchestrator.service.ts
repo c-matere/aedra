@@ -11,10 +11,8 @@ import {
   DetectedLanguage,
 } from '../common/utils/language.util';
 import { tryDirectTool } from './ai.direct';
-import {
-  AiClassifierService,
-  ClassificationResult,
-} from './ai-classifier.service';
+import { ClassificationResult } from './ai-contracts.types';
+import { AiBrainClient } from './ai-brain.client';
 import { NextStepOrchestrator } from './next-step-orchestrator.service';
 import { ErrorRecoveryService } from './error-recovery.service';
 import { MenuRouterService } from './menu-router.service';
@@ -38,7 +36,7 @@ export class AiWhatsappOrchestratorService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsappService: WhatsappService,
-    private readonly classifier: AiClassifierService,
+    private readonly brainClient: AiBrainClient,
     private readonly orchestrator: NextStepOrchestrator,
     private readonly recovery: ErrorRecoveryService,
     private readonly aiService: AiService,
@@ -1473,7 +1471,7 @@ export class AiWhatsappOrchestratorService {
           if (!classification) {
             try {
               classification = await Promise.race([
-                this.classifier.classify(effectiveText, sender.role),
+                this.brainClient.classify(effectiveText, sender.role, language),
                 new Promise<any>((_, reject) =>
                   setTimeout(
                     () => reject(new Error('Classification timeout')),

@@ -6,6 +6,12 @@ import { AiReportToolService } from './ai-report-tool.service';
 import { AiHistoryToolService } from './ai-history-tool.service';
 import { AutonomousAgentService } from './autonomous-agent.service';
 
+/**
+ * AiToolRegistryService
+ * 
+ * Manages the discovery manifest and tool execution routing.
+ * See: /docs/ENGINEERING_VADE_MECUM.md for a guide on adding new tools.
+ */
 @Injectable()
 export class AiToolRegistryService {
   private readonly logger = new Logger(AiToolRegistryService.name);
@@ -17,6 +23,10 @@ export class AiToolRegistryService {
     private readonly historyTools: AiHistoryToolService,
     private readonly autonomousAgentService: AutonomousAgentService,
   ) {}
+
+  public getRoleAllowlist() {
+    return this.ROLE_TOOL_ALLOWLIST;
+  }
 
   private readonly ROLE_TOOL_ALLOWLIST: Record<string, string[]> = {
     [UserRole.TENANT]: [
@@ -423,5 +433,33 @@ export class AiToolRegistryService {
     if (exceptions.includes(name)) return false;
 
     return isRead;
+  }
+
+  public getManifestMetadata() {
+    return {
+      authoritativeTools: [
+        'get_tenant_arrears',
+        'list_payments',
+        'get_unit_details',
+        'get_lease_details',
+        'get_collection_rate',
+        'get_maintenance_status',
+        'get_occupancy_stats',
+        'search_tenants',
+      ],
+      highStakesTools: [
+        'process_payment',
+        'record_expense',
+        'log_maintenance_issue',
+        'update_ticket_status',
+        'update_maintenance_request',
+        'get_tenant_arrears',
+        'get_revenue_summary',
+        'generate_monthly_summary',
+        'register_tenant',
+        'send_notification',
+        'notify_tenant',
+      ],
+    };
   }
 }

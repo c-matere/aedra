@@ -45,7 +45,7 @@ import {
   ALLOWED_MAINTENANCE_STATUS,
   ALLOWED_UNIT_STATUS,
 } from './ai.constants';
-import { EmbeddingsService } from './embeddings.service';
+
 import { MenuRouterService } from './menu-router.service';
 import { AiEntityResolutionService } from './ai-entity-resolution.service';
 import { ConsistencyValidatorService } from './consistency-validator.service';
@@ -532,7 +532,7 @@ export class AiReadToolService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly unitsService: UnitsService,
     private readonly reportsService: ReportsService,
-    private readonly embeddings: EmbeddingsService,
+
     private readonly menuRouter: MenuRouterService,
     private readonly resolutionService: AiEntityResolutionService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
@@ -3034,19 +3034,8 @@ export class AiReadToolService implements OnModuleInit {
     query: string,
     companyId?: string,
   ): Promise<string[]> {
-    try {
-      const results = await this.embeddings.search(query, {
-        topK: 15,
-        filters: {
-          type: type.toUpperCase() as any,
-          ...(companyId && companyId !== 'NONE' ? { companyId } : {}),
-        },
-      });
-      return results.map((r: any) => r.id);
-    } catch (e) {
-      this.logger.error(`Vector search failed for ${type}: ${e.message}`);
-      return [];
-    }
+    this.logger.warn(`Vector search skipped for ${type}: EmbeddingsService no longer local.`);
+    return [];
   }
 
   /**

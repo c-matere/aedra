@@ -25,6 +25,7 @@ import { JengaSyncCard } from "./jenga-sync-card";
 import { SmsSyncCard } from "./sms-sync-card";
 import { MapsSyncCard } from "./maps-sync-card";
 import { WhatsAppSyncCard } from "./whatsapp-sync-card";
+import { BrainSyncCard } from "./brain-sync-card";
 import { CompanySelector } from "../settings/company-selector";
 import { IntegrationsContainer, FadeIn } from "./integrations-client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -179,7 +180,29 @@ export default async function IntegrationsPage({
         </div>
       ) : (
         <>
-            <FadeIn delay={0.1} className="space-y-6">
+            <FadeIn delay={0.05} className="space-y-6">
+                <h2 className="text-sm font-black text-neutral-500 uppercase tracking-widest flex items-center gap-2 px-6">
+                    <Brain className="h-4 w-4 text-indigo-500" />
+                    Cognitive Oversight & Autonomy
+                </h2>
+                <IntegrationsContainer>
+                    <BrainSyncCard token={sessionToken} />
+                    <Card className="bg-indigo-500/5 border border-dashed border-indigo-500/20 backdrop-blur-md flex flex-col items-center justify-center p-12 text-center gap-4 hover:bg-indigo-500/10 transition-colors group rounded-[2.5rem]">
+                        <div className="h-16 w-16 rounded-full bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Network className="h-8 w-8 text-indigo-600" />
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-base font-bold text-indigo-400/80">Neural Node Scalability</p>
+                            <p className="text-xs text-indigo-900/60 font-medium">Provision additional reasoning clusters.</p>
+                        </div>
+                        <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-indigo-500/40 hover:text-indigo-400 mt-4 disabled:opacity-50" disabled>
+                            Coming Soon
+                        </Button>
+                    </Card>
+                </IntegrationsContainer>
+            </FadeIn>
+
+            <FadeIn delay={0.1} className="space-y-6 pt-8">
                 <h2 className="text-sm font-black text-neutral-500 uppercase tracking-widest flex items-center gap-2 px-6">
                     <Smartphone className="h-4 w-4 text-emerald-500" />
                     Financial & Communications

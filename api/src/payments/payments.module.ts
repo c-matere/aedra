@@ -7,6 +7,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { MessagingModule } from '../messaging/messaging.module';
 import { FinancesModule } from '../finances/finances.module';
 import { ReportsModule } from '../reports/reports.module';
+import { AiModule } from '../ai/ai.module';
 
 @Global()
 @Module({
@@ -15,6 +16,7 @@ import { ReportsModule } from '../reports/reports.module';
     forwardRef(() => MessagingModule),
     FinancesModule,
     ReportsModule,
+    forwardRef(() => AiModule),
   ],
   controllers: [MpesaController, PaymentsController],
   providers: [MpesaService, PaymentsService],

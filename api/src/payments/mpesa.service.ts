@@ -1,7 +1,8 @@
-import { Injectable, Logger, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, ConflictException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsappService } from '../messaging/whatsapp.service';
 import { FinancesService } from '../finances/finances.service';
+import { AiBrainClient } from '../ai/ai-brain.client';
 import { PaymentMethod, PaymentType, UnitStatus } from '@prisma/client';
 
 export class MpesaWebhookDto {
@@ -28,6 +29,8 @@ export class MpesaService {
     private readonly prisma: PrismaService,
     private readonly whatsappService: WhatsappService,
     private readonly financesService: FinancesService,
+    @Inject(forwardRef(() => AiBrainClient))
+    private readonly brainClient: AiBrainClient,
   ) {}
 
   async handleC2BWebhook(data: MpesaWebhookDto, manualCompanyId?: string) {
@@ -129,6 +132,15 @@ export class MpesaService {
           `[M-Pesa] Commission record failed for ${payment.id}: ${err.message}`,
         ),
       );
+    
+    // STEP 5.5 — Autonomous Sentiment Recording (Rapport)
+    if (tenant && tenant.id) {
+       // On-time/Exact: +0.2, Overpayment: +0.5, Partial/Late: -0.1
+       const sentimentScore = matchStatus === 'EXACT' ? 0.2 : matchStatus === 'OVERPAYMENT' ? 0.5 : -0.1;
+       this.brainClient.recordSentiment(tenant.id, sentimentScore).catch(err => 
+         this.logger.error(`[M-Pesa] Failed to record autonomous sentiment: ${err.message}`)
+       );
+    }
 
     // STEP 6 — Receipt + agent notification (atomic)
     await this.processReceipt(payment, matchStatus);

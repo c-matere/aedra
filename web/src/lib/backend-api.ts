@@ -710,6 +710,7 @@ export const TARGET_ENDPOINTS = {
   acceptInvite: "/users/invite/accept",
   listInvitations: "/users/invitations",
   aiChat: "/ai/chat",
+  aiManifest: "/ai/manifest",
   listActiveWorkflows: "/ai/workflows/active",
   officeSummary: "/finances/office/summary",
   officeIncome: "/finances/office/income",
@@ -1860,4 +1861,8 @@ export async function fetchTenantStatementPdf(
   if (queryString) path += `?${queryString}`;
 
   return backendGet<{ url: string }>(path, token);
+}
+
+export async function getAiManifest(token: string): Promise<BackendRequestResult<any>> {
+  return backendGet<any>(TARGET_ENDPOINTS.aiManifest, token);
 }

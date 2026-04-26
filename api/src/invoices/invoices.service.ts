@@ -1,9 +1,11 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
@@ -18,7 +20,9 @@ export class InvoicesService {
 
   constructor(
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => WhatsappService))
     private readonly whatsappService: WhatsappService,
+    @Inject(forwardRef(() => SmsService))
     private readonly smsService: SmsService,
   ) {}
 

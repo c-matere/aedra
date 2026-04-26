@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common';
 import { WorkflowEngine } from './workflow.engine';
 import { findWorkflowByIntent } from './workflow.registry';
 import { RouteResult, RouteRequestOptions } from './workflow.types';
-import { ClassificationResult } from '../ai/ai-classifier.service';
+import { ClassificationResult } from '../ai/ai-contracts.types';
 import { checkWorkflowGuard } from './workflow.guard';
 
 const routerLogger = new Logger('WorkflowRouter');

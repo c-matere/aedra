@@ -1,4 +1,4 @@
-import { ClassificationResult } from '../ai/ai-classifier.service';
+import { ClassificationResult } from '../ai/ai-contracts.types';
 
 export interface GuardResult {
   allowed: boolean;

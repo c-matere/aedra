@@ -27,7 +27,7 @@ import {
   ALLOWED_PAYMENT_TYPE,
   ALLOWED_UNIT_STATUS,
 } from './ai.constants';
-import { EmbeddingsService } from './embeddings.service';
+
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getPersonaByRole } from './persona.registry';
 import { QuorumBridgeService } from './quorum-bridge.service';
@@ -46,7 +46,7 @@ export class AiWriteToolService {
     private readonly prisma: PrismaService,
     private readonly whatsappService: WhatsappService,
     private readonly auditLog: AuditLogService,
-    private readonly embeddings: EmbeddingsService,
+
     private readonly quorumBridge: QuorumBridgeService,
     private readonly pythonExecutor: AiPythonExecutorService,
     private readonly reportsGenerator: ReportsGeneratorService,
@@ -472,11 +472,7 @@ export class AiWriteToolService {
               actorCompanyId: context.companyId,
             },
           );
-          await this.updateEmbedding(
-            'TENANT',
-            tenant.id,
-            `${tenant.firstName} ${tenant.lastName}`,
-          );
+
           return { ...tenant, _vc: this.auditLog.buildVcSummary(_vcLog1) };
         }
 
@@ -626,11 +622,7 @@ export class AiWriteToolService {
                 method: 'BULK_CREATE',
               },
             );
-            await this.updateEmbedding(
-              'TENANT',
-              tenant.id,
-              `${tenant.firstName} ${tenant.lastName}`,
-            );
+
           }
 
           return {
@@ -684,11 +676,7 @@ export class AiWriteToolService {
             },
           });
 
-          await this.updateEmbedding(
-            'PROPERTY',
-            property.id,
-            `${property.name} ${property.address}`,
-          );
+
 
           // Automatically create units if unitCount is provided
           if (
@@ -2577,18 +2565,8 @@ export class AiWriteToolService {
   }
 
   private async updateEmbedding(type: string, id: string, text: string) {
-    try {
-      const embedding = await this.embeddings.generateEmbedding(text);
-      await this.prisma.$executeRawUnsafe(
-        `UPDATE "${type.charAt(0) + type.slice(1).toLowerCase()}" SET "embedding" = $1 WHERE "id" = $2`,
-        this.embeddings.formatForPostgres(embedding),
-        id,
-      );
-    } catch (e) {
-      this.logger.error(
-        `Failed to update embedding for ${type} ${id}: ${e.message}`,
-      );
-    }
+    // Moved to standalone brain service
+    this.logger.warn(`Update embedding skipped for ${type}:${id}`);
   }
 
   /**

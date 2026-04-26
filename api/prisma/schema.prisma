@@ -265,10 +265,25 @@ model Tenant {
   leases       Lease[]
   company      Company                @relation(fields: [companyId], references: [id])
   property     Property               @relation(fields: [propertyId], references: [id])
+  narratives   TenantNarrative[]
 
   @@index([companyId])
   @@index([propertyId])
   @@index([deletedAt])
+}
+
+/// Persistent narrative tracking for a tenant's relationship and sentiment over time.
+model TenantNarrative {
+  id                String   @id @default(uuid())
+  tenantId          String
+  currentSentiment  Float    @default(0) // -1.0 to 1.0 (hostile to delighted)
+  narrativeSummary  String?  @db.Text
+  interactionCount  Int      @default(0)
+  lastSentimentShift Float    @default(0)
+  updatedAt         DateTime @updatedAt
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
 }
 
 /// A lease agreement linking a Tenant to a Unit for a period of time.

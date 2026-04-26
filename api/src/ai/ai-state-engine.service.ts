@@ -1,158 +1,33 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ContextMemoryService, SessionContext } from './context-memory.service';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import Groq from 'groq-sdk';
 
 @Injectable()
 export class AiStateEngineService {
   private readonly logger = new Logger(AiStateEngineService.name);
-  private readonly primaryModel = 'gemini-2.0-flash';
-  private readonly fallbackModel = 'llama-3.1-8b-instant';
 
   constructor(
     private readonly contextMemory: ContextMemoryService,
-    private readonly genAI: GoogleGenerativeAI,
-    private readonly groq: Groq,
   ) {}
 
   /**
    * Extracts potential state updates from a user message.
-   * This is a "pre-planning" step to ensure the planner has a current view of the conversation subject.
+   * Reasoning is now handled by the standalone Brain service.
+   * We keep only basic regex anchoring here for immediate context resolution.
    */
   async extractState(
     chatId: string,
     message: string,
-    history: any[],
+    _history: any[],
   ): Promise<void> {
-    const context = await this.contextMemory.getContext(chatId);
-
-    // INTENT ANCHORING: Provide the last intent to help the model resolve fragments (e.g. "C2" -> Unit selection for "Report Leak")
-    const prompt = `Analyze the user message for property management context. 
-    CURRENT CONTEXT:
-    - Last Intent: ${context.lastIntent || 'NONE'}
-    - Active Unit: ${context.activeUnitId || 'NONE'}
-    - Active Tenant: ${context.activeTenant?.name || 'NONE'}
-    
-    User Message: "${message}"
-    
-    EXTRACT:
-    - tenantName: if mentioned or confirmed.
-    - unitNumber: if mentioned. Look for patterns like "B4", "C2", "unit 5", "A0". In Swahili: "nipo B4" means Unit B4.
-    - issueType: if mentioned (leak, blockage, penalty, etc).
-    - intent: if the user is switching topics (e.g., from repair to arrears). Output "CONTINUE" if they are just providing details for the current task.
-    
-    RESPONSE FORMAT: JSON only.
-    {
-      "tenantName": string | null,
-      "unitNumber": string | null,
-      "issueType": string | null,
-      "intent": string | "CONTINUE"
-    }
-    `;
-
     try {
-      // 1. Gemini (Primary)
-      let extracted: any = null;
-      try {
-        const model = this.genAI.getGenerativeModel({
-          model: this.primaryModel,
-          generationConfig: { responseMimeType: 'application/json' },
-        });
-        const result = await model.generateContent(prompt);
-        extracted = JSON.parse(result.response.text());
-      } catch (e) {
-        this.logger.warn(
-          `[StateEngine] Tier 1 (Gemini 2.5 Pro) extraction failed, trying Tier 2 (Groq Llama): ${e.message}`,
-        );
-      }
-
-      // 2. Groq - Llama (Tier 2)
-      if (!extracted) {
-        try {
-          const completion = await this.groq.chat.completions.create({
-            model: this.fallbackModel,
-            messages: [
-              {
-                role: 'system',
-                content:
-                  'You are a state extraction assistant. Respond ONLY with valid JSON.',
-              },
-              { role: 'user', content: prompt },
-            ],
-            response_format: { type: 'json_object' },
-            temperature: 0.1,
-          });
-          extracted = JSON.parse(
-            completion.choices[0]?.message?.content || '{}',
-          );
-        } catch (e) {
-          this.logger.warn(
-            `[StateEngine] Tier 2 (Llama) extraction failed, trying Tier 3 (GPT OSS): ${e.message}`,
-          );
-        }
-      }
-
-      // 3. Groq - GPT OSS (Tier 3 Fallback)
-      if (!extracted) {
-        try {
-          const completion = await this.groq.chat.completions.create({
-            model: this.primaryModel, // Using primaryModel for GPT OSS
-            messages: [
-              {
-                role: 'system',
-                content:
-                  'You are a state extraction assistant. Respond ONLY with valid JSON.',
-              },
-              { role: 'user', content: prompt },
-            ],
-            response_format: { type: 'json_object' },
-            temperature: 0.1,
-          });
-          extracted = JSON.parse(
-            completion.choices[0]?.message?.content || '{}',
-          );
-        } catch (e) {
-          this.logger.error(
-            `[StateEngine] All extraction tiers failed: ${e.message}`,
-          );
-        }
-      }
-
-      const updates: Partial<SessionContext> = {};
-      if (extracted.tenantName)
-        updates.activeTenant = {
-          ...context.activeTenant,
-          id: context.activeTenant?.id || 'PENDING',
-          name: extracted.tenantName,
-        };
-      if (extracted.unitNumber) updates.activeUnitId = extracted.unitNumber;
-      if (extracted.issueType)
-        updates.activeIssue = {
-          ...context.activeIssue,
-          id: context.activeIssue?.id || 'PENDING',
-          type: extracted.issueType,
-          status: context.activeIssue?.status || 'identified',
-        };
-
-      if (extracted.intent && extracted.intent !== 'CONTINUE') {
-        updates.lastIntent = extracted.intent;
-      }
-
-      if (Object.keys(updates).length > 0) {
-        await this.contextMemory.setContext(chatId, updates);
-        this.logger.log(
-          `[StateEngine] Extracted state for ${chatId}: ${JSON.stringify(updates)}`,
-        );
-      }
-
-      // 4. REGEX FALLBACK (Guardian for short/Swahili messages)
+      // REGEX GUARDIAN (Immediate context resolution for short/Swahili messages)
       const text = message.toLowerCase();
       const unitMatch =
         text.match(
           /(?:unit|nyumba|house|room|nipo)\s*(?:no\.?|number|#)?\s*([a-z0-9]{1,4})/i,
         ) || text.match(/\b([a-z]\d{1,3})\b/i); // Matches B4, C21, A0
 
-      if (unitMatch && !updates.activeUnitId) {
+      if (unitMatch) {
         const resolvedUnit = unitMatch[1].toUpperCase();
         await this.contextMemory.setContext(chatId, {
           activeUnitId: resolvedUnit,
@@ -171,7 +46,7 @@ export class AiStateEngineService {
    */
   async resolveIntent(
     chatId: string,
-    message: string,
+    _message: string,
     classification: any,
   ): Promise<string> {
     const context = await this.contextMemory.getContext(chatId);
