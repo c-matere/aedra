@@ -18,7 +18,8 @@ import {
   History,
   AlertCircle,
   Loader2,
-  Brain
+  Brain,
+  Network
 } from "lucide-react";
 import { ZuriSyncCard } from "./zuri-sync-card";
 import { MpesaSyncCard } from "./mpesa-sync-card";
