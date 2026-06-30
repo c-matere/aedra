@@ -43,11 +43,11 @@ export function RecurringExpenses({ propertyId, token }: RecurringExpensesProps)
     })
 
     const categories = [
-        { value: "CLEANING", label: "Cleaning", icon: Sparkles, color: "text-blue-400" },
-        { value: "SECURITY", label: "Security", icon: Shield, color: "text-red-400" },
-        { value: "SALARY", label: "Caretaker / Salary", icon: UserCircle, color: "text-purple-400" },
-        { value: "UTILITY", label: "Common Utilities", icon: Clock, color: "text-amber-400" },
-        { value: "OTHER", label: "Other", icon: Plus, color: "text-neutral-400" },
+        { value: "CLEANING", label: "Cleaning", icon: Sparkles, color: "text-[#73726c]" },
+        { value: "SECURITY", label: "Security", icon: Shield, color: "text-[#73726c]" },
+        { value: "SALARY", label: "Caretaker / Salary", icon: UserCircle, color: "text-[#73726c]" },
+        { value: "UTILITY", label: "Common Utilities", icon: Clock, color: "text-[#73726c]" },
+        { value: "OTHER", label: "Other", icon: Plus, color: "text-[#73726c]" },
     ]
 
     const fetchExpenses = async () => {
@@ -98,41 +98,41 @@ export function RecurringExpenses({ propertyId, token }: RecurringExpensesProps)
     return (
         <section className="space-y-6">
             <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
+                <h3 className="text-xs font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-2">
                     Recurring Expense Schedules
                 </h3>
             </div>
 
             {/* Quick Add Form */}
-            <div className="bg-white/5 border border-white/5 p-4 rounded-2xl space-y-4">
+            <div className="bg-[#ffffff] border border-[#dedcd1] p-4 rounded-[16px] space-y-4 shadow-none">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-bold text-neutral-500 ml-1">Title / Description</label>
+                        <label className="text-[10px] uppercase font-bold text-[#73726c] ml-1">Title / Description</label>
                         <Input 
                             placeholder="e.g. Monthly Security Fee" 
-                            className="bg-black/20 border-white/5 text-sm h-10"
+                            className="bg-[#ffffff] border-[#dedcd1] text-sm h-10 focus:border-[#1f1e1d] focus:outline-none placeholder-[#9c9a92] rounded-[9.6px]"
                             value={newExpense.description}
                             onChange={e => setNewExpense({...newExpense, description: e.target.value})}
                         />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                            <label className="text-[10px] uppercase font-bold text-neutral-500 ml-1">Amount (KES)</label>
+                            <label className="text-[10px] uppercase font-bold text-[#73726c] ml-1">Amount (KES)</label>
                             <Input 
                                 type="number" 
                                 placeholder="0.00" 
-                                className="bg-black/20 border-white/5 text-sm h-10"
+                                className="bg-[#ffffff] border-[#dedcd1] text-sm h-10 focus:border-[#1f1e1d] focus:outline-none placeholder-[#9c9a92] rounded-[9.6px]"
                                 value={newExpense.amount}
                                 onChange={e => setNewExpense({...newExpense, amount: e.target.value})}
                             />
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-[10px] uppercase font-bold text-neutral-500 ml-1">Day of Month</label>
+                            <label className="text-[10px] uppercase font-bold text-[#73726c] ml-1">Day of Month</label>
                             <Input 
                                 type="number" 
                                 min="1" 
                                 max="31" 
-                                className="bg-black/20 border-white/5 text-sm h-10"
+                                className="bg-[#ffffff] border-[#dedcd1] text-sm h-10 focus:border-[#1f1e1d] focus:outline-none rounded-[9.6px]"
                                 value={newExpense.dayOfMonth}
                                 onChange={e => setNewExpense({...newExpense, dayOfMonth: e.target.value})}
                             />
@@ -147,8 +147,8 @@ export function RecurringExpenses({ propertyId, token }: RecurringExpensesProps)
                             onClick={() => setNewExpense({...newExpense, category: cat.value})}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
                                 newExpense.category === cat.value 
-                                ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400" 
-                                : "bg-white/5 border-white/5 text-neutral-500 hover:text-neutral-300"
+                                ? "bg-[#ccdbe8] border-[#dedcd1] text-[#141413]" 
+                                : "bg-[#ffffff] border-[#dedcd1] text-[#73726c] hover:bg-[#f0eee6] hover:text-[#1f1e1d]"
                             }`}
                         >
                             <cat.icon className="h-3.5 w-3.5" />
@@ -160,9 +160,9 @@ export function RecurringExpenses({ propertyId, token }: RecurringExpensesProps)
                         size="sm" 
                         onClick={handleCreate}
                         disabled={isCreating || !newExpense.description || !newExpense.amount}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-9 px-6 rounded-xl"
+                        className="bg-primary text-primary-foreground hover:opacity-90 font-medium h-9 px-6 rounded-[9.6px] border-none shadow-none"
                     >
-                        {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1.5" />}
+                        {isCreating ? <Loader2 className="h-4 w-4 animate-spin text-white" /> : <Plus className="h-4 w-4 mr-1.5" />}
                         Add Schedule
                     </Button>
                 </div>
@@ -171,29 +171,29 @@ export function RecurringExpenses({ propertyId, token }: RecurringExpensesProps)
             {/* List */}
             <div className="space-y-3">
                 {loading ? (
-                    <div className="py-12 flex flex-col items-center justify-center gap-2 text-neutral-500">
-                        <Loader2 className="h-6 w-6 animate-spin" />
+                    <div className="py-12 flex flex-col items-center justify-center gap-2 text-[#73726c]">
+                        <Loader2 className="h-6 w-6 animate-spin text-[#1f1e1d]" />
                         <span className="text-xs font-medium">Loading schedules...</span>
                     </div>
                 ) : expenses.length > 0 ? (
                     expenses.map(expense => {
                         const cat = categories.find(c => c.value === expense.category) || categories[5]
                         return (
-                            <Card key={expense.id} className={`bg-white/[0.02] border border-white/5 overflow-hidden transition-all hover:bg-white/[0.04] ${!expense.isActive ? 'opacity-50 grayscale' : ''}`}>
+                            <Card key={expense.id} className={`bg-[#ffffff] border border-[#dedcd1] overflow-hidden transition-all hover:bg-[#f0eee6] rounded-[16px] shadow-none ${!expense.isActive ? 'opacity-50 grayscale' : ''}`}>
                                 <CardContent className="p-4 flex items-center gap-4">
-                                    <div className={`h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center ${cat.color}`}>
+                                    <div className="h-10 w-10 rounded-[9.6px] bg-[#f0eee6] border border-[#dedcd1] flex items-center justify-center text-[#1f1e1d] shrink-0">
                                         <cat.icon className="h-5 w-5" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2">
-                                            <h4 className="font-bold text-white text-sm truncate">{expense.description}</h4>
-                                            <Badge variant="outline" className="bg-black/40 border-white/10 text-[9px] h-4">
+                                            <h4 className="font-bold text-[#1f1e1d] text-sm truncate">{expense.description}</h4>
+                                            <Badge className="bg-[#f0eee6] border-[#dedcd1] text-[#73726c] text-[9px] h-4 rounded-[9.6px] shadow-none hover:bg-[#f0eee6]">
                                                 {cat.label}
                                             </Badge>
                                         </div>
                                         <div className="flex items-center gap-3 mt-1">
-                                            <p className="text-emerald-400 font-black text-sm">KES {expense.amount.toLocaleString()}</p>
-                                            <div className="flex items-center gap-1 text-[11px] text-neutral-500">
+                                            <p className="text-[#141413] font-normal font-serif text-sm">KES {expense.amount.toLocaleString()}</p>
+                                            <div className="flex items-center gap-1 text-[11px] text-[#73726c]">
                                                 <Calendar className="h-3 w-3" />
                                                 Runs on day {expense.dayOfMonth}
                                             </div>
@@ -204,7 +204,7 @@ export function RecurringExpenses({ propertyId, token }: RecurringExpensesProps)
                                             size="icon" 
                                             variant="ghost" 
                                             onClick={() => handleToggleActive(expense.id, expense.isActive)}
-                                            className={`h-9 w-9 rounded-xl transition-colors ${expense.isActive ? 'hover:bg-amber-500/10 hover:text-amber-500' : 'hover:bg-emerald-500/10 hover:text-emerald-500'}`}
+                                            className="h-9 w-9 rounded-[9.6px] hover:bg-[#f0eee6] text-[#73726c] hover:text-[#1f1e1d]"
                                         >
                                             <Power className="h-4 w-4" />
                                         </Button>
@@ -212,7 +212,7 @@ export function RecurringExpenses({ propertyId, token }: RecurringExpensesProps)
                                             size="icon" 
                                             variant="ghost" 
                                             onClick={() => handleDelete(expense.id)}
-                                            className="h-9 w-9 rounded-xl hover:bg-red-500/10 hover:text-red-500"
+                                            className="h-9 w-9 rounded-[9.6px] hover:bg-red-500/5 hover:text-red-800"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
@@ -222,20 +222,20 @@ export function RecurringExpenses({ propertyId, token }: RecurringExpensesProps)
                         )
                     })
                 ) : (
-                    <div className="py-12 text-center rounded-2xl border border-dashed border-white/10 bg-white/[0.01]">
-                        <Clock className="h-8 w-8 text-neutral-700 mx-auto mb-3" />
-                        <p className="text-sm text-neutral-500">No recurring expenses scheduled yet.</p>
-                        <p className="text-[10px] text-neutral-600 mt-1 uppercase tracking-tight">Automate cleaning, security, and staff salaries</p>
+                    <div className="py-12 text-center rounded-[16px] border border-dashed border-[#dedcd1] bg-[#f0eee6]/10">
+                        <Clock className="h-8 w-8 text-[#9c9a92] mx-auto mb-3" />
+                        <p className="text-sm text-[#73726c]">No recurring expenses scheduled yet.</p>
+                        <p className="text-[10px] text-[#9c9a92] mt-1 uppercase tracking-tight">Automate cleaning, security, and staff salaries</p>
                     </div>
                 )}
             </div>
 
             {/* Info Message */}
-            <div className="flex gap-3 p-4 rounded-2xl bg-blue-500/5 border border-blue-500/20">
-                <AlertCircle className="h-5 w-5 text-blue-400 flex-shrink-0" />
-                <p className="text-xs text-neutral-400 leading-relaxed">
-                    <span className="text-blue-400 font-bold">Automation Info:</span> Scheduled expenses are generated automatically at midnight on their respective days. You can track generated entries in the main expense ledger.
-                </p>
+            <div className="flex gap-3 p-4 rounded-[16px] bg-[#ccdbe8]/20 border border-[#dedcd1]">
+                <AlertCircle className="h-5 w-5 text-[#1f1e1d] flex-shrink-0" />
+                <div className="text-xs text-[#1f1e1d] leading-relaxed">
+                    <span className="text-[#141413] font-bold">Automation Info:</span> Scheduled expenses are generated automatically at midnight on their respective days. You can track generated entries in the main expense ledger.
+                </div>
             </div>
         </section>
     )

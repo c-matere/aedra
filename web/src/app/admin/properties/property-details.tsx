@@ -39,6 +39,7 @@ import { ClipboardList } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 import { UnitDetailsPanel } from "./unit-details"
 import {
     DropdownMenu,
@@ -165,18 +166,18 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
     return (
         <>
             <SlidePanel open={!!propertyId} onOpenChange={(open) => !open && onClose()}>
-                <SlidePanelContent className="sm:max-w-2xl border-l border-white/5 bg-neutral-950/95 backdrop-blur-xl">
-                    <SlidePanelHeader className="border-b border-white/5 pb-6">
+                <SlidePanelContent className="sm:max-w-2xl border-l border-[#dedcd1] bg-[#ffffff] shadow-none">
+                    <SlidePanelHeader className="border-b border-[#dedcd1] pb-6">
                         <div className="flex items-center gap-4 mb-2">
-                            <div className="h-12 w-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                                <Building2 className="h-6 w-6 text-emerald-400" />
+                            <div className="h-12 w-12 rounded-[9.6px] bg-[#f0eee6] border border-[#dedcd1] flex items-center justify-center text-[#1f1e1d]">
+                                <Building2 className="h-6 w-6 text-[#141413]" />
                             </div>
                             <div>
-                                <SlidePanelTitle className="text-2xl font-bold text-white tracking-tight">
+                                <SlidePanelTitle className="text-2xl font-normal font-serif text-[#141413]">
                                     {loading ? "Loading..." : property?.name || "Property Details"}
                                 </SlidePanelTitle>
-                                <SlidePanelDescription className="flex items-center gap-1.5 mt-1">
-                                    <MapPin className="h-3.5 w-3.5 text-neutral-500" />
+                                <SlidePanelDescription className="flex items-center gap-1.5 mt-1 text-[#73726c]">
+                                    <MapPin className="h-3.5 w-3.5 text-[#9c9a92]" />
                                     {property?.address || "Address not provided"}
                                 </SlidePanelDescription>
                             </div>
@@ -184,29 +185,29 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                     </SlidePanelHeader>
 
                     {loading ? (
-                        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-neutral-500">
-                            <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+                        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-[#73726c]">
+                            <Loader2 className="h-8 w-8 animate-spin text-[#1f1e1d]" />
                             <p className="text-sm font-medium animate-pulse">Fetching property data...</p>
                         </div>
                     ) : error ? (
                         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                            <div className="h-12 w-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
-                                <span className="text-red-500 text-xl font-bold">!</span>
+                            <div className="h-12 w-12 rounded-[9.6px] bg-red-500/5 border border-red-500/20 flex items-center justify-center mb-4">
+                                <span className="text-red-800 text-xl font-bold">!</span>
                             </div>
-                            <h3 className="text-white font-semibold mb-2">Failed to load property</h3>
-                            <p className="text-neutral-400 text-sm mb-6">{error}</p>
+                            <h3 className="text-[#141413] font-semibold mb-2">Failed to load property</h3>
+                            <p className="text-[#73726c] text-sm mb-6">{error}</p>
                             <Button variant="outline" onClick={() => onClose()}>Close Panel</Button>
                         </div>
                     ) : property ? (
                         <div className="flex-1 overflow-y-auto py-8 space-y-8 pr-2 custom-scrollbar">
                             {/* View Toggle */}
-                            <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 w-fit">
+                            <div className="flex p-1 bg-[#f0eee6] rounded-[9.6px] border border-[#dedcd1] w-fit">
                                 <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => setView('DETAILS')}
-                                    className={`rounded-lg px-6 h-8 text-[11px] font-bold uppercase tracking-wider transition-all ${
-                                        view === 'DETAILS' ? "bg-emerald-500/10 text-emerald-400 shadow-inner" : "text-neutral-500 hover:text-neutral-300"
+                                    className={`rounded-[9.6px] px-6 h-8 text-[11px] font-bold uppercase tracking-wider transition-all ${
+                                        view === 'DETAILS' ? "bg-[#ffffff] border border-[#dedcd1] text-[#141413]" : "text-[#73726c] hover:text-[#141413]"
                                     }`}
                                 >
                                     Property Info
@@ -215,8 +216,8 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => setView('RECURRING')}
-                                    className={`rounded-lg px-6 h-8 text-[11px] font-bold uppercase tracking-wider transition-all ${
-                                        view === 'RECURRING' ? "bg-emerald-500/10 text-emerald-400 shadow-inner" : "text-neutral-500 hover:text-neutral-300"
+                                    className={`rounded-[9.6px] px-6 h-8 text-[11px] font-bold uppercase tracking-wider transition-all ${
+                                        view === 'RECURRING' ? "bg-[#ffffff] border border-[#dedcd1] text-[#141413]" : "text-[#73726c] hover:text-[#141413]"
                                     }`}
                                 >
                                     <Clock className="w-3 h-3 mr-1.5" /> Recurring
@@ -228,208 +229,207 @@ export function PropertyDetailsPanel({ propertyId, token, role, onClose }: Prope
                             ) : (
                                 <>
                                     {/* Summary Cards */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-1 transition-all hover:bg-white/10">
-                                    <span className="text-[10px] font-bold text-neutral-555 uppercase tracking-widest flex items-center gap-1.5">
-                                        <Layers className="h-3 w-3 text-blue-400" /> Units
-                                    </span>
-                                    <span className="text-2xl font-black text-white">{property.totalUnits || 0}</span>
-                                </div>
-                                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-1 transition-all hover:bg-white/10">
-                                    <span className="text-[10px] font-bold text-neutral-555 uppercase tracking-widest flex items-center gap-1.5 text-emerald-400">
-                                        <Users className="h-3 w-3" /> Occupancy
-                                    </span>
-                                    <span className="text-2xl font-black text-white">
-                                        {property.totalUnits ? Math.round(((property.occupiedUnits || 0) / property.totalUnits) * 100) : 0}%
-                                    </span>
-                                </div>
-                                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-1 transition-all hover:bg-white/10 overflow-hidden">
-                                    <span className="text-[10px] font-bold text-neutral-555 uppercase tracking-widest flex items-center gap-1.5 text-amber-400">
-                                        <TrendingUp className="h-3 w-3" /> Revenue
-                                    </span>
-                                    <div className="flex items-baseline gap-1 min-w-0">
-                                        <span className="text-[10px] font-bold text-neutral-500">KES</span>
-                                        <span className="text-base md:text-lg font-black text-white truncate">
-                                            {property.monthlyRevenue?.toLocaleString() || "—"}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className={`bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-1 transition-all hover:bg-white/10 ${property.vacatingUnits && property.vacatingUnits > 0 ? 'ring-1 ring-purple-500/50 bg-purple-500/5' : ''}`}>
-                                    <span className="text-[10px] font-bold text-neutral-555 uppercase tracking-widest flex items-center gap-1.5 text-purple-400">
-                                        <ClipboardList className="h-3 w-3" /> Notice
-                                    </span>
-                                    <span className={`text-2xl font-black ${property.vacatingUnits && property.vacatingUnits > 0 ? 'text-purple-400' : 'text-white'}`}>
-                                        {property.vacatingUnits || 0}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Description Section */}
-                            {property.description && (
-                                <section className="space-y-3">
-                                    <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
-                                        Property Description
-                                    </h3>
-                                    <p className="text-sm text-neutral-300 leading-relaxed bg-white/[0.02] p-4 rounded-xl border border-white/5 italic">
-                                        &ldquo;{property.description}&rdquo;
-                                    </p>
-                                </section>
-                            )}
-
-                            {/* Landlord Section */}
-                            {property.landlord && (
-                                <section className="space-y-4">
-                                    <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
-                                        Owner / Landlord
-                                    </h3>
-                                    <Card className="bg-emerald-500/5 border-emerald-500/20 overflow-hidden">
-                                        <CardContent className="p-5 flex items-start gap-4">
-                                            <div className="h-12 w-12 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 flex-shrink-0 shadow-inner">
-                                                <User className="h-6 w-6" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-bold text-white text-base">
-                                                    {property.landlord.firstName} {property.landlord.lastName}
-                                                </h4>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                                                    <div className="flex items-center gap-2 text-sm text-neutral-400 bg-black/20 p-2 rounded-lg border border-white/5">
-                                                        <Mail className="h-3.5 w-3.5 text-emerald-500" />
-                                                        <span className="truncate">{property.landlord.email || "No email"}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 text-sm text-neutral-400 bg-black/20 p-2 rounded-lg border border-white/5">
-                                                        <Phone className="h-3.5 w-3.5 text-emerald-500" />
-                                                        <span>{property.landlord.phone || "No phone"}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </section>
-                            )}
-
-                            {/* Units Section */}
-                            <section className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
-                                        Available Units ({property.units?.length || 0})
-                                    </h3>
-                                    <Button variant="link" className="text-emerald-400 text-xs h-auto p-0 hover:text-emerald-300">
-                                        Manage Units <ChevronRight className="h-3 w-3 ml-1" />
-                                    </Button>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-2">
-                                    {property.units && property.units.length > 0 ? (
-                                        property.units.map((unit) => (
-                                            <div
-                                                key={unit.id}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSelectedUnitId(unit.id);
-                                                }}
-                                                className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all hover:translate-x-1 group cursor-pointer"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-xs font-black ${unit.status === 'OCCUPIED' ? 'bg-emerald-500/20 text-emerald-400' :
-                                                        unit.status === 'UNDER_MAINTENANCE' ? 'bg-amber-500/20 text-amber-400' :
-                                                            unit.status === 'VACATING' ? 'bg-purple-500/20 text-purple-400' :
-                                                                'bg-blue-500/20 text-blue-400'
-                                                        }`}>
-                                                        {unit.unitNumber.match(/\d+/)?.[0] || 'U'}
-                                                    </div>
-                                                    <div>
-                                                        <div className="flex items-center gap-2">
-                                                            <p className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">Unit {unit.unitNumber}</p>
-                                                            {unit.status === 'VACATING' && (
-                                                                <span className="px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-[9px] font-black text-purple-400 uppercase tracking-tight">
-                                                                    Notice Given
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-[10px] text-neutral-500 flex items-center gap-2 mt-0.5">
-                                                            {unit.bedrooms} BR · {unit.bathrooms} BA ·
-                                                            <span className={`font-bold ${unit.status === 'OCCUPIED' ? 'text-emerald-500/60' :
-                                                                unit.status === 'VACATING' ? 'text-purple-500/60' :
-                                                                    'text-blue-500/60'
-                                                                }`}>{unit.status}</span>
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-sm font-black text-white">KES {unit.rentAmount?.toLocaleString() || "—"}</p>
-                                                    <p className="text-[10px] text-neutral-500 uppercase tracking-tighter">per month</p>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="text-center py-8 rounded-2xl border border-dashed border-white/10 bg-white/[0.02]">
-                                            <Home className="h-8 w-8 text-neutral-700 mx-auto mb-3" />
-                                            <p className="text-sm text-neutral-500">No units registered for this property yet.</p>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="bg-[#ffffff] border border-[#dedcd1] rounded-[16px] p-4 flex flex-col gap-1 transition-all hover:bg-[#f0eee6]">
+                                            <span className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-1.5">
+                                                <Layers className="h-3.5 w-3.5 text-[#9c9a92]" /> Units
+                                            </span>
+                                            <span className="text-2xl font-normal font-serif text-[#141413]">{property.totalUnits || 0}</span>
                                         </div>
+                                        <div className="bg-[#ffffff] border border-[#dedcd1] rounded-[16px] p-4 flex flex-col gap-1 transition-all hover:bg-[#f0eee6]">
+                                            <span className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-1.5">
+                                                <Users className="h-3.5 w-3.5 text-[#9c9a92]" /> Occupancy
+                                            </span>
+                                            <span className="text-2xl font-normal font-serif text-[#141413]">
+                                                {property.totalUnits ? Math.round(((property.occupiedUnits || 0) / property.totalUnits) * 100) : 0}%
+                                            </span>
+                                        </div>
+                                        <div className="bg-[#ffffff] border border-[#dedcd1] rounded-[16px] p-4 flex flex-col gap-1 transition-all hover:bg-[#f0eee6] overflow-hidden">
+                                            <span className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-1.5">
+                                                <TrendingUp className="h-3.5 w-3.5 text-[#9c9a92]" /> Revenue
+                                            </span>
+                                            <div className="flex items-baseline gap-1 min-w-0">
+                                                <span className="text-[10px] font-bold text-[#73726c]">KES</span>
+                                                <span className="text-base md:text-lg font-normal font-serif text-[#141413] truncate">
+                                                    {property.monthlyRevenue?.toLocaleString() || "—"}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className={`bg-[#ffffff] border border-[#dedcd1] rounded-[16px] p-4 flex flex-col gap-1 transition-all hover:bg-[#f0eee6] ${property.vacatingUnits && property.vacatingUnits > 0 ? 'border-[#ccdbe8] bg-[#ccdbe8]/10' : ''}`}>
+                                            <span className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-1.5">
+                                                <ClipboardList className="h-3.5 w-3.5 text-[#9c9a92]" /> Notice
+                                            </span>
+                                            <span className="text-2xl font-normal font-serif text-[#141413]">
+                                                {property.vacatingUnits || 0}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Description Section */}
+                                    {property.description && (
+                                        <section className="space-y-3">
+                                            <h3 className="text-xs font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-2">
+                                                Property Description
+                                            </h3>
+                                            <p className="text-sm text-[#1f1e1d] leading-relaxed bg-[#f0eee6] p-4 rounded-[16px] border border-[#dedcd1] italic">
+                                                &ldquo;{property.description}&rdquo;
+                                            </p>
+                                        </section>
                                     )}
-                                </div>
-                            </section>
 
-                            {/* Location / Action Section */}
-                            <section className="pt-4 border-t border-white/5 grid grid-cols-2 gap-4">
-                                <Button variant="outline" className="h-12 border-white/10 bg-white/5 hover:bg-white/10 text-white font-bold rounded-2xl">
-                                    <MapIcon className="mr-2 h-4 w-4 text-emerald-400" /> View on Map
-                                </Button>
+                                    {/* Landlord Section */}
+                                    {property.landlord && (
+                                        <section className="space-y-4">
+                                            <h3 className="text-xs font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-2">
+                                                Owner / Landlord
+                                            </h3>
+                                            <Card className="bg-[#ffffff] border-[#dedcd1] rounded-[16px] overflow-hidden shadow-none">
+                                                <CardContent className="p-5 flex items-start gap-4">
+                                                    <div className="h-12 w-12 rounded-[9.6px] bg-[#f0eee6] border border-[#dedcd1] flex items-center justify-center text-[#1f1e1d] flex-shrink-0">
+                                                        <User className="h-6 w-6" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="font-serif font-normal text-[#141413] text-base">
+                                                            {property.landlord.firstName} {property.landlord.lastName}
+                                                        </h4>
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                                                            <div className="flex items-center gap-2 text-sm text-[#73726c] bg-[#f0eee6] p-2 rounded-[9.6px] border border-[#dedcd1]">
+                                                                <Mail className="h-3.5 w-3.5 text-[#73726c]" />
+                                                                <span className="truncate">{property.landlord.email || "No email"}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 text-sm text-[#73726c] bg-[#f0eee6] p-2 rounded-[9.6px] border border-[#dedcd1]">
+                                                                <Phone className="h-3.5 w-3.5 text-[#73726c]" />
+                                                                <span>{property.landlord.phone || "No phone"}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        </section>
+                                    )}
 
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="default"
-                                            disabled={isGenerating}
-                                            className="h-12 bg-emerald-600 hover:bg-emerald-500 text-white font-black shadow-lg rounded-2xl border-none transition-all duration-300 group"
-                                        >
-                                            {isGenerating ? (
-                                                <>
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    Generating...
-                                                </>
+                                    {/* Units Section */}
+                                    <section className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-xs font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-2">
+                                                Available Units ({property.units?.length || 0})
+                                            </h3>
+                                            <Button variant="link" className="text-[#1f1e1d] text-xs h-auto p-0 hover:underline hover:text-[#141413]">
+                                                Manage Units <ChevronRight className="h-3 w-3 ml-1" />
+                                            </Button>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {property.units && property.units.length > 0 ? (
+                                                property.units.map((unit) => (
+                                                    <div
+                                                        key={unit.id}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedUnitId(unit.id);
+                                                        }}
+                                                        className="flex items-center justify-between p-3 rounded-[16px] bg-[#ffffff] border border-[#dedcd1] hover:bg-[#f0eee6] transition-all hover:translate-x-1 group cursor-pointer shadow-none"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={cn(
+                                                                "px-2.5 h-8 min-w-[36px] w-auto rounded-[9.6px] flex items-center justify-center text-[10px] font-bold border transition-colors shrink-0",
+                                                                unit.status === 'OCCUPIED' ? 'bg-[#ccdbe8] border-[#dedcd1] text-[#141413]' :
+                                                                'bg-[#f0eee6] border-[#dedcd1] text-[#73726c]'
+                                                            )}>
+                                                                {unit.unitNumber}
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="text-sm font-bold text-[#1f1e1d] group-hover:underline transition-all">Unit {unit.unitNumber}</p>
+                                                                    {unit.status === 'VACATING' && (
+                                                                        <span className="px-1.5 py-0.5 rounded-[9.6px] bg-[#f0eee6] border border-[#dedcd1] text-[9px] font-bold text-[#73726c] uppercase tracking-tight">
+                                                                            Notice Given
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <p className="text-[10px] text-[#73726c] flex items-center gap-2 mt-0.5">
+                                                                    {unit.bedrooms} BR · {unit.bathrooms} BA ·
+                                                                    <span className={`font-bold ${
+                                                                        unit.status === 'OCCUPIED' ? 'text-[#141413]' : 'text-[#73726c]'
+                                                                    }`}>{unit.status}</span>
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-sm font-normal font-serif text-[#141413]">KES {unit.rentAmount?.toLocaleString() || "—"}</p>
+                                                            <p className="text-[10px] text-[#73726c] uppercase tracking-tighter">per month</p>
+                                                        </div>
+                                                    </div>
+                                                ))
                                             ) : (
-                                                <>
-                                                    Generate Report
-                                                    <ChevronDown className="ml-1 h-4 w-4 opacity-50 group-hover:opacity-100 transition-opacity" />
-                                                </>
+                                                <div className="text-center py-8 rounded-[16px] border border-dashed border-[#dedcd1] bg-[#f0eee6]/20">
+                                                    <Home className="h-8 w-8 text-[#9c9a92] mx-auto mb-3" />
+                                                    <p className="text-sm text-[#73726c]">No units registered for this property yet.</p>
+                                                </div>
                                             )}
+                                        </div>
+                                    </section>
+
+                                    {/* Location / Action Section */}
+                                    <section className="pt-4 border-t border-[#dedcd1] grid grid-cols-2 gap-4">
+                                        <Button variant="outline" className="h-12 border-[#dedcd1] bg-[#ffffff] hover:bg-[#f0eee6] text-[#1f1e1d] font-medium rounded-[9.6px] shadow-none">
+                                            <MapIcon className="mr-2 h-4 w-4 text-[#73726c]" /> View on Map
                                         </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-48 bg-neutral-900 border-white/10 text-white rounded-xl shadow-2xl">
-                                        <DropdownMenuItem
-                                            onClick={() => handleGenerateReport('PDF')}
-                                            className="flex items-center gap-2 p-3 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer rounded-lg transition-colors"
-                                        >
-                                            <FileText className="h-4 w-4 text-emerald-500" />
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-xs underline-offset-1">Portable Document (PDF)</span>
-                                                <span className="text-[9px] text-neutral-500">Best for printing & sharing</span>
-                                            </div>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            onClick={() => handleGenerateReport('FINANCIAL_PDF')}
-                                            className="flex items-center gap-2 p-3 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer rounded-lg transition-colors"
-                                        >
-                                            <Printer className="h-4 w-4 text-emerald-500" />
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-xs">Remittance Report (PDF)</span>
-                                                <span className="text-[9px] text-neutral-500">Professional financial summary</span>
-                                            </div>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            onClick={() => handleGenerateReport('CSV')}
-                                            className="flex items-center gap-2 p-3 hover:bg-emerald-500/10 hover:text-emerald-400 cursor-pointer rounded-lg transition-colors"
-                                        >
-                                            <Printer className="h-4 w-4 text-emerald-500" />
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-xs">Financial Ledger (PDF)</span>
-                                                <span className="text-[9px] text-neutral-500">Professional financial breakdown</span>
-                                            </div>
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </section>
+
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    variant="default"
+                                                    disabled={isGenerating}
+                                                    className="h-12 bg-primary text-primary-foreground hover:opacity-90 font-medium shadow-none rounded-[9.6px] border-none transition-all duration-300 group"
+                                                >
+                                                    {isGenerating ? (
+                                                        <>
+                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                            Generating...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            Generate Report
+                                                            <ChevronDown className="ml-1 h-4 w-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="w-48 bg-[#ffffff] border-[#dedcd1] text-[#1f1e1d] rounded-[9.6px] shadow-none p-1">
+                                                <DropdownMenuItem
+                                                    onClick={() => handleGenerateReport('PDF')}
+                                                    className="flex items-center gap-2 p-3 hover:bg-[#f0eee6] hover:text-[#1f1e1d] cursor-pointer rounded-[9.6px] transition-colors"
+                                                >
+                                                    <FileText className="h-4 w-4 text-[#73726c]" />
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-xs underline-offset-1 text-[#1f1e1d]">Portable Document (PDF)</span>
+                                                        <span className="text-[9px] text-[#73726c]">Best for printing & sharing</span>
+                                                    </div>
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    onClick={() => handleGenerateReport('FINANCIAL_PDF')}
+                                                    className="flex items-center gap-2 p-3 hover:bg-[#f0eee6] hover:text-[#1f1e1d] cursor-pointer rounded-[9.6px] transition-colors"
+                                                >
+                                                    <Printer className="h-4 w-4 text-[#73726c]" />
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-xs text-[#1f1e1d]">Remittance Report (PDF)</span>
+                                                        <span className="text-[9px] text-[#73726c]">Professional financial summary</span>
+                                                    </div>
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    onClick={() => handleGenerateReport('CSV')}
+                                                    className="flex items-center gap-2 p-3 hover:bg-[#f0eee6] hover:text-[#1f1e1d] cursor-pointer rounded-[9.6px] transition-colors"
+                                                >
+                                                    <Printer className="h-4 w-4 text-[#73726c]" />
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-xs text-[#1f1e1d]">Financial Ledger (PDF)</span>
+                                                        <span className="text-[9px] text-[#73726c]">Professional financial breakdown</span>
+                                                    </div>
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </section>
                                 </>
                             )}
                         </div>

@@ -110,25 +110,32 @@ export default function LoginPage() {
             setLoading(false)
         }
     }
-
     const isRegistered = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('registered') === 'true'
 
-    return (
-        <div className="dark flex min-h-screen items-center justify-center bg-neutral-950 text-neutral-50 relative overflow-hidden px-4">
-            {/* Background Grid Pattern */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_80%,transparent_100%)] pointer-events-none z-0" />
+    const LogoMark = () => (
+        <svg className="w-6 h-6 text-[#d96b27] mr-2 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="2" x2="12" y2="22"></line>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+            <line x1="4.93" y1="19.07" x2="19.07" y2="4.93"></line>
+        </svg>
+    )
 
-            <Link href="/" className="absolute top-8 left-8 flex items-center gap-3 hover:opacity-90 transition-opacity">
-                <img src="/aedra-logo.png" alt="Aedra" className="h-8 w-auto" />
+    return (
+        <div className="flex min-h-screen items-center justify-center bg-[#faf9f5] text-[#141413] relative overflow-hidden px-4 font-sans">
+
+            <Link href="/" className="absolute top-8 left-8 flex items-center hover:opacity-90 transition-opacity">
+                <LogoMark />
+                <span className="font-serif font-normal text-2xl tracking-tight text-[#141413]">Aedra</span>
             </Link>
 
-            <div className="w-full max-w-md z-10">
-                <Card className="border-white/10 shadow-lg bg-neutral-900 p-2">
+            <div className="w-full max-w-md z-10 mt-12">
+                <Card className="border-[#dedcd1] shadow-none bg-[#ffffff] p-6 rounded-[16px]">
                     <CardHeader className="space-y-2 pb-6 text-center">
-                        <CardTitle className="text-3xl font-bold tracking-tight text-white">
+                        <CardTitle className="text-3xl font-normal font-serif text-[#141413]">
                             {mode === "EMAIL" ? "Welcome back" : "WhatsApp Login"}
                         </CardTitle>
-                        <CardDescription className="text-neutral-400 text-base">
+                        <CardDescription className="text-[#73726c] text-sm">
                             {mode === "EMAIL"
                                 ? "Enter your credentials to manage your properties."
                                 : otpStep === "PHONE"
@@ -141,59 +148,58 @@ export default function LoginPage() {
                         {mode === "EMAIL" ? (
                             <form onSubmit={handleLogin} className="space-y-4">
                                 {isRegistered && (
-                                    <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-200 mb-4">
+                                    <div className="rounded-[9.6px] border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm text-emerald-800 mb-4">
                                         Registration successful! Please sign in with your credentials.
                                     </div>
                                 )}
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium text-neutral-300 ml-1">Email</label>
+                                    <label className="text-sm font-medium text-[#1f1e1d] ml-1">Email</label>
                                     <div className="relative">
-                                        <Mail className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
+                                        <Mail className="absolute left-3 top-3 h-4 w-4 text-[#73726c]" />
                                         <Input
                                             type="email"
                                             placeholder="name@company.co.ke"
                                             required
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
-                                            className="pl-10 h-11 bg-white/5 border-white/10 text-white placeholder:text-neutral-500"
+                                            className="pl-10 h-11 bg-[#ffffff] border-[#dedcd1] rounded-[9.6px] text-[#141413] placeholder-[#73726c] focus:border-[#1f1e1d] focus:outline-none"
                                         />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between ml-1">
-                                        <label className="text-sm font-medium text-neutral-300">Password</label>
-                                        <Link href="#" className="text-xs font-semibold text-neutral-400 hover:text-neutral-300 hover:underline">
+                                        <label className="text-sm font-medium text-[#1f1e1d]">Password</label>
+                                        <Link href="#" className="text-xs font-semibold text-[#73726c] hover:text-[#1f1e1d] hover:underline">
                                             Forgot password?
                                         </Link>
                                     </div>
                                     <div className="relative">
-                                        <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
+                                        <KeyRound className="absolute left-3 top-3 h-4 w-4 text-[#73726c]" />
                                         <Input
                                             type="password"
                                             required
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            className="pl-10 h-11 bg-white/5 border-white/10 text-white"
+                                            className="pl-10 h-11 bg-[#ffffff] border-[#dedcd1] rounded-[9.6px] text-[#141413] focus:border-[#1f1e1d] focus:outline-none"
                                         />
                                     </div>
                                 </div>
 
                                 {error ? (
-                                    <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                                    <div className="rounded-[9.6px] border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-800">
                                         {error}
                                     </div>
                                 ) : null}
 
                                 <Button
                                     type="submit"
-                                    variant="glass"
                                     disabled={loading}
-                                    className="w-full h-11 mt-6 font-semibold bg-white/10 text-white hover:bg-white/20 border-white/20 shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all"
+                                    className="w-full h-11 mt-6 font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-all rounded-[9.6px]"
                                 >
                                     {loading ? (
                                         <>
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Authenticating
+                                            Authenticating...
                                         </>
                                     ) : (
                                         "Sign In"
@@ -204,24 +210,24 @@ export default function LoginPage() {
                             <form onSubmit={otpStep === "PHONE" ? handleRequestOtp : handleVerifyOtp} className="space-y-4">
                                 {otpStep === "PHONE" ? (
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium text-neutral-300 ml-1">Phone Number</label>
+                                        <label className="text-sm font-medium text-[#1f1e1d] ml-1">Phone Number</label>
                                         <div className="relative">
-                                            <Phone className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
+                                            <Phone className="absolute left-3 top-3 h-4 w-4 text-[#73726c]" />
                                             <Input
                                                 type="tel"
                                                 placeholder="254700000000"
                                                 required
                                                 value={phone}
                                                 onChange={(e) => setPhone(e.target.value)}
-                                                className="pl-10 h-11 bg-white/5 border-white/10 text-white placeholder:text-neutral-500"
+                                                className="pl-10 h-11 bg-[#ffffff] border-[#dedcd1] rounded-[9.6px] text-[#141413] placeholder-[#73726c] focus:border-[#1f1e1d] focus:outline-none"
                                             />
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium text-neutral-300 ml-1">OTP Code</label>
+                                        <label className="text-sm font-medium text-[#1f1e1d] ml-1">OTP Code</label>
                                         <div className="relative">
-                                            <QrCode className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
+                                            <QrCode className="absolute left-3 top-3 h-4 w-4 text-[#73726c]" />
                                             <Input
                                                 type="text"
                                                 placeholder="123456"
@@ -229,28 +235,27 @@ export default function LoginPage() {
                                                 maxLength={6}
                                                 value={code}
                                                 onChange={(e) => setCode(e.target.value)}
-                                                className="pl-10 h-11 bg-white/5 border-white/10 text-white tracking-[0.5em] text-center font-bold"
+                                                className="pl-10 h-11 bg-[#ffffff] border-[#dedcd1] rounded-[9.6px] text-[#141413] tracking-[0.5em] text-center font-bold focus:border-[#1f1e1d] focus:outline-none"
                                             />
                                         </div>
                                     </div>
                                 )}
 
                                 {error ? (
-                                    <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                                    <div className="rounded-[9.6px] border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-800">
                                         {error}
                                     </div>
                                 ) : null}
 
                                 <Button
                                     type="submit"
-                                    variant="glass"
                                     disabled={loading}
-                                    className="w-full h-11 mt-6 font-semibold bg-white/10 text-white hover:bg-white/20 border-white/20 shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all"
+                                    className="w-full h-11 mt-6 font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-all rounded-[9.6px]"
                                 >
                                     {loading ? (
                                         <>
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            {otpStep === "PHONE" ? "Sending OTP" : "Verifying"}
+                                            {otpStep === "PHONE" ? "Sending OTP..." : "Verifying..."}
                                         </>
                                     ) : (
                                         otpStep === "PHONE" ? "Send OTP Code" : "Verify & Sign In"
@@ -262,7 +267,7 @@ export default function LoginPage() {
                                         type="button"
                                         variant="ghost"
                                         onClick={() => setOtpStep("PHONE")}
-                                        className="w-full text-neutral-400 hover:text-white"
+                                        className="w-full text-[#73726c] hover:text-[#1f1e1d] hover:bg-[#f0eee6] rounded-[9.6px]"
                                     >
                                         Change Phone Number
                                     </Button>
@@ -271,9 +276,9 @@ export default function LoginPage() {
                         )}
 
                         <div className="mt-8 flex items-center gap-4">
-                            <div className="h-px flex-1 bg-white/10" />
-                            <div className="text-xs text-neutral-500 font-medium uppercase tracking-wider">or continue with</div>
-                            <div className="h-px flex-1 bg-white/10" />
+                            <div className="h-[1px] flex-1 bg-[#dedcd1]" />
+                            <div className="text-[11px] text-[#73726c] font-medium uppercase tracking-wider">or continue with</div>
+                            <div className="h-[1px] flex-1 bg-[#dedcd1]" />
                         </div>
 
                         <Button
@@ -283,7 +288,7 @@ export default function LoginPage() {
                                 setMode(mode === "EMAIL" ? "OTP" : "EMAIL")
                                 setError(null)
                             }}
-                            className="w-full h-11 mt-6 border-white/10 bg-white/5 text-white hover:bg-white/10 transition-all font-medium"
+                            className="w-full h-11 mt-6 border-[#dedcd1] bg-transparent text-[#1f1e1d] hover:bg-[#f0eee6] transition-all font-medium rounded-[9.6px]"
                         >
                             {mode === "EMAIL" ? (
                                 <>
@@ -300,18 +305,18 @@ export default function LoginPage() {
                     </CardContent>
 
                     <CardFooter className="flex flex-col items-center pt-6 space-y-4">
-                        <div className="text-sm text-neutral-400">
+                        <div className="text-sm text-[#73726c]">
                             Don&apos;t have an account?{" "}
-                            <Link href="/register" className="font-semibold text-white hover:text-neutral-300 hover:underline">
+                            <Link href="/register" className="font-semibold text-[#1f1e1d] hover:text-[#141413] hover:underline">
                                 Register Company
                             </Link>
                         </div>
                     </CardFooter>
                 </Card>
 
-                <div className="mt-8 text-center text-xs text-neutral-500">
+                <div className="mt-8 text-center text-xs text-[#73726c] space-y-1">
                     <p>By logging in, you agree to our Terms of Service & Privacy Policy.</p>
-                    <p className="mt-1">Aedra Support: +254 700 000 000</p>
+                    <p>Aedra Support: +254 700 000 000</p>
                 </div>
             </div>
         </div>

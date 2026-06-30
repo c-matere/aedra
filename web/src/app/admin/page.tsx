@@ -61,8 +61,8 @@ export default async function AdminDashboard() {
     return (
         <div className="flex flex-col gap-6 pb-10">
             <div className="space-y-1">
-                <h2 className="text-3xl font-bold tracking-tight text-white drop-shadow-md">Overview</h2>
-                <p className="text-neutral-400 font-medium text-sm">
+                <h2 className="text-3xl font-normal font-serif text-[#141413] tracking-tight">Overview</h2>
+                <p className="text-[#73726c] font-medium text-sm">
                     {resolvedRole
                         ? `Welcome back. Signed in as ${resolvedRole.replace("_", " ")}.`
                         : "Authentication required."}
@@ -71,73 +71,73 @@ export default async function AdminDashboard() {
 
             {/* KPI cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                <Card>
+                <Card className="bg-[#ffffff] border border-[#dedcd1] rounded-[16px] shadow-none">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-neutral-300">API Status</CardTitle>
-                        <Server className="h-4 w-4 text-neutral-500" />
+                        <CardTitle className="text-xs font-bold text-[#73726c] uppercase tracking-widest">API Status</CardTitle>
+                        <Server className="h-4 w-4 text-[#9c9a92]" />
                     </CardHeader>
                     <CardContent>
-                        <div className={`text-xl font-semibold ${backendOnline ? "text-emerald-400" : "text-red-400"}`}>
+                        <div className={`text-2xl font-normal font-serif ${backendOnline ? "text-[#141413]" : "text-red-800"}`}>
                             {backendOnline ? "Connected" : "Disconnected"}
                         </div>
-                        <p className="mt-1 text-xs text-neutral-400">
+                        <p className="mt-1 text-xs text-[#73726c]">
                             {backendOnline ? "Live API responses active" : meResult.error}
                         </p>
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="bg-[#ffffff] border border-[#dedcd1] rounded-[16px] shadow-none">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-neutral-300">Total Properties</CardTitle>
-                        <Building2 className="h-4 w-4 text-neutral-500" />
+                        <CardTitle className="text-xs font-bold text-[#73726c] uppercase tracking-widest">Total Properties</CardTitle>
+                        <Building2 className="h-4 w-4 text-[#9c9a92]" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-white">{totalProperties}</div>
-                        <p className="text-xs text-neutral-400 mt-1">across Mombasa County</p>
+                        <div className="text-2xl font-normal font-serif text-[#141413]">{totalProperties}</div>
+                        <p className="text-xs text-[#73726c] mt-1">across Mombasa County</p>
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="bg-[#ffffff] border border-[#dedcd1] rounded-[16px] shadow-none">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-neutral-300">Total Tenants</CardTitle>
-                        <Users className="h-4 w-4 text-neutral-500" />
+                        <CardTitle className="text-xs font-bold text-[#73726c] uppercase tracking-widest">Total Tenants</CardTitle>
+                        <Users className="h-4 w-4 text-[#9c9a92]" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-white">{totalTenants}</div>
-                        <p className="text-xs text-neutral-400 mt-1">across all properties</p>
+                        <div className="text-2xl font-normal font-serif text-[#141413]">{totalTenants}</div>
+                        <p className="text-xs text-[#73726c] mt-1">across all properties</p>
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="bg-[#ffffff] border border-[#dedcd1] rounded-[16px] shadow-none">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-neutral-300">Avg Occupancy</CardTitle>
-                        <Building2 className="h-4 w-4 text-neutral-500" />
+                        <CardTitle className="text-xs font-bold text-[#73726c] uppercase tracking-widest">Avg Occupancy</CardTitle>
+                        <Building2 className="h-4 w-4 text-[#9c9a92]" />
                     </CardHeader>
                     <CardContent>
                         {totalUnits > 0 ? (
                             <>
-                                <div className={`text-2xl font-bold ${totalOccupied / totalUnits >= 0.9 ? "text-emerald-400" : totalOccupied / totalUnits >= 0.7 ? "text-white" : "text-red-400"}`}>
+                                <div className={`text-2xl font-normal font-serif ${totalOccupied / totalUnits >= 0.9 ? "text-[#141413]" : totalOccupied / totalUnits >= 0.7 ? "text-[#141413]" : "text-red-800"}`}>
                                     {Math.round((totalOccupied / totalUnits) * 100)}%
                                 </div>
-                                <p className="text-xs text-neutral-400 mt-1">{totalOccupied} / {totalUnits} units occupied</p>
+                                <p className="text-xs text-[#73726c] mt-1">{totalOccupied} / {totalUnits} units occupied</p>
                             </>
                         ) : (
                             <>
-                                <div className="text-2xl font-bold text-neutral-500">—</div>
-                                <p className="text-xs text-neutral-400 mt-1">No unit data from API yet</p>
+                                <div className="text-2xl font-normal font-serif text-[#73726c]">—</div>
+                                <p className="text-xs text-[#73726c] mt-1">No unit data from API yet</p>
                             </>
                         )}
                     </CardContent>
                 </Card>
 
-                <Card className="border-red-500/20 bg-red-500/5 backdrop-blur-sm">
+                <Card className="bg-[#ffffff] border border-[#dedcd1] rounded-[16px] shadow-none">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-red-400 font-bold">Arrears</CardTitle>
-                        <Activity className="h-4 w-4 text-red-500" />
+                        <CardTitle className="text-xs font-bold text-[#73726c] uppercase tracking-widest">Arrears</CardTitle>
+                        <Activity className="h-4 w-4 text-[#9c9a92]" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-black text-red-400">KES {unpaidBalance.toLocaleString()}</div>
-                        <p className="text-xs text-neutral-500 mt-1 font-medium italic">Total outstanding balance</p>
+                        <div className="text-2xl font-normal font-serif text-red-800">KES {unpaidBalance.toLocaleString()}</div>
+                        <p className="text-xs text-[#73726c] mt-1 font-medium italic">Total outstanding balance</p>
                     </CardContent>
                 </Card>
             </div>

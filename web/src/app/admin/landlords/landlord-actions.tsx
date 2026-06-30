@@ -6,6 +6,7 @@ import { Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
 import {
   SlidePanel,
   SlidePanelContent,
@@ -132,54 +133,54 @@ export function AddLandlordButton({ role }: { role: UserRole | null }) {
   return (
     <SlidePanel open={open} onOpenChange={setOpen}>
       <SlidePanelTrigger asChild>
-        <Button variant="glass" disabled={!canMutate(role)}>
+        <Button variant="default" disabled={!canMutate(role)} className="bg-primary text-primary-foreground hover:opacity-90 font-medium h-9 rounded-[9.6px] border-none shadow-none">
           <Plus className="mr-2 h-4 w-4" />
           Add Landlord
         </Button>
       </SlidePanelTrigger>
-      <SlidePanelContent>
-        <SlidePanelHeader>
-          <SlidePanelTitle>Add Landlord</SlidePanelTitle>
-          <SlidePanelDescription>Create a landlord profile.</SlidePanelDescription>
+      <SlidePanelContent className="sm:max-w-2xl border-l border-[#dedcd1] bg-[#ffffff] shadow-none">
+        <SlidePanelHeader className="border-b border-[#dedcd1] pb-6">
+          <SlidePanelTitle className="text-2xl font-normal font-serif text-[#141413]">Add Landlord</SlidePanelTitle>
+          <SlidePanelDescription className="text-sm text-[#73726c]">Create a landlord profile.</SlidePanelDescription>
         </SlidePanelHeader>
         <form onSubmit={onSubmit} className="space-y-6 py-6">
-          {error ? <p className="text-sm text-red-400">{error}</p> : null}
+          {error ? <p className="text-sm text-red-800">{error}</p> : null}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-300">First Name</label>
+              <label className="text-[10px] uppercase font-bold text-[#73726c] ml-1">First Name</label>
               <Input
                 name="firstName"
                 placeholder="Jane"
                 required
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                className="bg-[#ffffff] border-[#dedcd1] text-[#141413] placeholder-[#9c9a92] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none h-11 shadow-none"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-300">Last Name</label>
+              <label className="text-[10px] uppercase font-bold text-[#73726c] ml-1">Last Name</label>
               <Input
                 name="lastName"
                 placeholder="Doe"
                 required
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                className="bg-[#ffffff] border-[#dedcd1] text-[#141413] placeholder-[#9c9a92] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none h-11 shadow-none"
               />
             </div>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-300">Email Address (Optional)</label>
+            <label className="text-[10px] uppercase font-bold text-[#73726c] ml-1">Email Address (Optional)</label>
             <Input
               name="email"
               placeholder="jane.doe@example.com"
               type="email"
-              className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+              className="bg-[#ffffff] border-[#dedcd1] text-[#141413] placeholder-[#9c9a92] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none h-11 shadow-none"
             />
           </div>
-          <div className="h-px bg-white/10 w-full my-4" />
+          <div className="h-px bg-[#dedcd1] w-full my-4" />
           <div className="space-y-4">
-            <h4 className="text-sm font-medium text-white">Assign Property</h4>
-            <p className="text-xs text-neutral-400">Select an existing property to assign to this landlord.</p>
+            <h4 className="text-sm font-bold text-[#141413]">Assign Property</h4>
+            <p className="text-xs text-[#73726c]">Select an existing property to assign to this landlord.</p>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-300">Property</label>
+              <label className="text-[10px] uppercase font-bold text-[#73726c] ml-1">Property</label>
               <AsyncCombobox
                 onSearch={handleSearchProperties}
                 value={selectedPropertyId}
@@ -190,8 +191,8 @@ export function AddLandlordButton({ role }: { role: UserRole | null }) {
             </div>
           </div>
           <div className="pt-6">
-            <Button type="submit" disabled={loading || !canMutate(role)} className="w-full">
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            <Button type="submit" disabled={loading || !canMutate(role)} className="w-full bg-primary text-primary-foreground hover:opacity-90 font-medium h-11 rounded-[9.6px] border-none shadow-none">
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" /> : null}
               Create Landlord
             </Button>
           </div>
@@ -272,20 +273,20 @@ export function LandlordRowActions({
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 text-neutral-400 hover:text-white transition-opacity"
+        className="h-8 w-8 text-[#73726c] hover:text-[#1f1e1d] hover:bg-[#f0eee6] rounded-[9.6px] transition-colors"
         disabled={loading || !canMutate(role)}
         onClick={() => setMenuOpen((v) => !v)}
       >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+        {loading ? <Loader2 className="h-4 w-4 animate-spin text-[#1f1e1d]" /> : <MoreHorizontal className="h-4 w-4" />}
       </Button>
 
       {menuOpen ? (
         <>
-          <div className="absolute right-0 z-50 mt-1 w-32 rounded-lg border border-white/10 bg-neutral-900 shadow-2xl overflow-hidden">
-            <button className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-neutral-200 hover:bg-white/10 transition-colors" onClick={() => { setMenuOpen(false); setOpen(true) }}>
-              <Pencil className="h-3.5 w-3.5" /> Edit
+          <div className="absolute right-0 z-50 mt-1 w-32 rounded-[9.6px] border border-[#dedcd1] bg-[#ffffff] shadow-none overflow-hidden">
+            <button className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-[#1f1e1d] hover:bg-[#f0eee6] transition-colors" onClick={() => { setMenuOpen(false); setOpen(true) }}>
+              <Pencil className="h-3.5 w-3.5 text-[#73726c]" /> Edit
             </button>
-            <button className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 transition-colors" onClick={onDelete}>
+            <button className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-red-800 hover:bg-red-50/10 transition-colors" onClick={onDelete}>
               <Trash2 className="h-3.5 w-3.5" /> Delete
             </button>
           </div>
@@ -297,47 +298,47 @@ export function LandlordRowActions({
       ) : null}
 
       <SlidePanel open={open} onOpenChange={setOpen}>
-        <SlidePanelContent>
-          <SlidePanelHeader>
-            <SlidePanelTitle>Edit Landlord</SlidePanelTitle>
-            <SlidePanelDescription>Update profile details.</SlidePanelDescription>
+        <SlidePanelContent className="sm:max-w-2xl border-l border-[#dedcd1] bg-[#ffffff] shadow-none">
+          <SlidePanelHeader className="border-b border-[#dedcd1] pb-6">
+            <SlidePanelTitle className="text-2xl font-normal font-serif text-[#141413]">Edit Landlord</SlidePanelTitle>
+            <SlidePanelDescription className="text-sm text-[#73726c]">Update profile details.</SlidePanelDescription>
           </SlidePanelHeader>
           <form onSubmit={onSubmit} className="space-y-6 py-6">
-            {error ? <p className="text-sm text-red-400">{error}</p> : null}
+            {error ? <p className="text-sm text-red-800">{error}</p> : null}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-300">First Name</label>
+                <label className="text-[10px] uppercase font-bold text-[#73726c] ml-1">First Name</label>
                 <Input
                   name="firstName"
                   defaultValue={landlord.firstName}
                   placeholder="First name"
                   required
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                  className="bg-[#ffffff] border-[#dedcd1] text-[#141413] placeholder-[#9c9a92] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none h-11 shadow-none"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-300">Last Name</label>
+                <label className="text-[10px] uppercase font-bold text-[#73726c] ml-1">Last Name</label>
                 <Input
                   name="lastName"
                   defaultValue={landlord.lastName}
                   placeholder="Last name"
                   required
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                  className="bg-[#ffffff] border-[#dedcd1] text-[#141413] placeholder-[#9c9a92] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none h-11 shadow-none"
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-300">Email Address (Optional)</label>
+              <label className="text-[10px] uppercase font-bold text-[#73726c] ml-1">Email Address (Optional)</label>
               <Input
                 name="email"
                 type="email"
                 defaultValue={landlord.email || ""}
                 placeholder="Email address"
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                className="bg-[#ffffff] border-[#dedcd1] text-[#141413] placeholder-[#9c9a92] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none h-11 shadow-none"
               />
             </div>
             <div className="pt-6">
-              <Button type="submit" disabled={loading || !canMutate(role)} className="w-full">
+              <Button type="submit" disabled={loading || !canMutate(role)} className="w-full bg-primary text-primary-foreground hover:opacity-90 font-medium h-11 rounded-[9.6px] border-none shadow-none">
                 Save Changes
               </Button>
             </div>

@@ -48,81 +48,91 @@ export default function RegisterPage() {
         }
     }
 
-    return (
-        <div className="flex min-h-screen items-center justify-center bg-neutral-950 p-4 relative overflow-hidden">
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none z-0" />
+    const LogoMark = () => (
+        <svg className="w-6 h-6 text-[#d96b27] mr-2 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="2" x2="12" y2="22"></line>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+            <line x1="4.93" y1="19.07" x2="19.07" y2="4.93"></line>
+        </svg>
+    )
 
-            <Card className="w-full max-w-md bg-neutral-900 border-neutral-800 text-white z-10 shadow-2xl">
+    return (
+        <div className="flex min-h-screen items-center justify-center bg-[#faf9f5] text-[#141413] p-4 relative overflow-hidden font-sans">
+
+            <Link href="/" className="absolute top-8 left-8 flex items-center hover:opacity-90 transition-opacity">
+                <LogoMark />
+                <span className="font-serif font-normal text-2xl tracking-tight text-[#141413]">Aedra</span>
+            </Link>
+
+            <Card className="w-full max-w-md bg-[#ffffff] border-[#dedcd1] text-[#141413] z-10 shadow-none p-4 rounded-[16px] mt-12">
                 <CardHeader className="space-y-1 flex flex-col items-center">
-                    <div className="mb-4 hover:opacity-90 transition-opacity">
-                        <img src="/aedra-logo.png" alt="Aedra" className="h-12 w-auto" />
-                    </div>
-                    <CardTitle className="text-2xl font-bold tracking-tight">Create your company</CardTitle>
-                    <CardDescription className="text-neutral-400 text-center">
+                    <CardTitle className="text-2xl font-normal font-serif tracking-tight">Create your company</CardTitle>
+                    <CardDescription className="text-[#73726c] text-center text-sm">
                         Enter your details to start managing your properties with Aedra.
                     </CardDescription>
                 </CardHeader>
                 <form onSubmit={handleSubmit}>
                     <CardContent className="space-y-4">
                         {error && (
-                            <div className="p-3 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                            <div className="p-3 rounded-[9.6px] bg-red-500/5 border border-red-500/20 text-red-800 text-sm">
                                 {error}
                             </div>
                         )}
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-300">Company Name</label>
+                            <label className="text-sm font-medium text-[#1f1e1d] ml-1">Company Name</label>
                             <Input
                                 name="companyName"
                                 placeholder="Mombasa Estates Ltd"
                                 required
-                                className="bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500"
+                                className="bg-[#ffffff] border-[#dedcd1] text-[#141413] placeholder-[#73726c] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none"
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-neutral-300">First Name</label>
+                                <label className="text-sm font-medium text-[#1f1e1d] ml-1">First Name</label>
                                 <Input
                                     name="firstName"
                                     placeholder="John"
                                     required
-                                    className="bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500"
+                                    className="bg-[#ffffff] border-[#dedcd1] text-[#141413] placeholder-[#73726c] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none"
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-neutral-300">Last Name</label>
+                                <label className="text-sm font-medium text-[#1f1e1d] ml-1">Last Name</label>
                                 <Input
                                     name="lastName"
                                     placeholder="Doe"
                                     required
-                                    className="bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500"
+                                    className="bg-[#ffffff] border-[#dedcd1] text-[#141413] placeholder-[#73726c] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none"
                                 />
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-300">Email</label>
+                            <label className="text-sm font-medium text-[#1f1e1d] ml-1">Email</label>
                             <Input
                                 name="email"
                                 type="email"
                                 placeholder="john@example.com"
                                 required
-                                className="bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500"
+                                className="bg-[#ffffff] border-[#dedcd1] text-[#141413] placeholder-[#73726c] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none"
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-300">Password</label>
+                            <label className="text-sm font-medium text-[#1f1e1d] ml-1">Password</label>
                             <Input
                                 name="password"
                                 type="password"
                                 placeholder="••••••••"
                                 required
-                                className="bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500"
+                                className="bg-[#ffffff] border-[#dedcd1] text-[#141413] placeholder-[#73726c] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none"
                             />
                         </div>
                     </CardContent>
-                    <CardFooter className="flex flex-col space-y-4">
+                    <CardFooter className="flex flex-col space-y-4 pt-4">
                         <Button
                             type="submit"
-                            className="w-full bg-white text-black hover:bg-neutral-200"
+                            className="w-full bg-primary text-primary-foreground hover:opacity-90 rounded-[9.6px] h-11"
                             disabled={isLoading}
                         >
                             {isLoading ? (
@@ -136,9 +146,9 @@ export default function RegisterPage() {
                                 </>
                             )}
                         </Button>
-                        <div className="text-center text-sm text-neutral-400">
+                        <div className="text-center text-sm text-[#73726c]">
                             Already have an account?{" "}
-                            <Link href="/login" className="text-white hover:underline">
+                            <Link href="/login" className="text-[#1f1e1d] hover:text-[#141413] font-semibold hover:underline">
                                 Sign in
                             </Link>
                         </div>

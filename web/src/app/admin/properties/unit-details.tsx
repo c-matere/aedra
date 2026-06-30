@@ -32,6 +32,7 @@ import { getUnitById, listTenants, type UnitRecord, type TenantRecord } from "@/
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 interface UnitDetailsPanelProps {
     unitId: string | null
@@ -79,35 +80,33 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
     return (
         <SlidePanel open={!!unitId} onOpenChange={(open) => !open && onClose()}>
             <SlidePanelContent
-                className="sm:max-w-3xl border-l border-white/5 bg-neutral-950/95 backdrop-blur-xl p-0"
+                className="sm:max-w-3xl border-l border-[#dedcd1] bg-[#ffffff] shadow-none p-0"
                 zIndex={200}
             >
                 <div className="flex flex-col h-full p-6">
-                    <SlidePanelHeader className="border-b border-white/5 pb-6">
+                    <SlidePanelHeader className="border-b border-[#dedcd1] pb-6">
                         <div className="flex items-center gap-4 mb-2">
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={onClose}
-                                className="h-8 w-8 rounded-lg hover:bg-white/5 -ml-2"
+                                className="h-8 w-8 rounded-[9.6px] hover:bg-[#f0eee6] -ml-2"
                             >
-                                <ArrowLeft className="h-4 w-4 text-neutral-400" />
+                                <ArrowLeft className="h-4 w-4 text-[#73726c]" />
                             </Button>
-                            <div className={`h-12 w-12 rounded-xl flex items-center justify-center border ${unit?.status === 'OCCUPIED' ? 'bg-emerald-500/10 border-emerald-500/20' :
-                                unit?.status === 'UNDER_MAINTENANCE' ? 'bg-amber-500/10 border-amber-500/20' :
-                                    'bg-blue-500/10 border-blue-500/20'
-                                }`}>
-                                <Home className={`h-6 w-6 ${unit?.status === 'OCCUPIED' ? 'text-emerald-400' :
-                                    unit?.status === 'UNDER_MAINTENANCE' ? 'text-amber-400' :
-                                        'text-blue-400'
-                                    }`} />
+                            <div className={cn(
+                                "h-12 w-12 rounded-[9.6px] flex items-center justify-center border",
+                                unit?.status === 'OCCUPIED' ? 'bg-[#ccdbe8] border-[#dedcd1] text-[#141413]' :
+                                'bg-[#f0eee6] border-[#dedcd1] text-[#73726c]'
+                            )}>
+                                <Home className="h-6 w-6" />
                             </div>
                             <div>
-                                <SlidePanelTitle className="text-2xl font-bold text-white tracking-tight">
+                                <SlidePanelTitle className="text-2xl font-normal font-serif text-[#141413]">
                                     {loading ? "Loading..." : unit ? `Unit ${unit.unitNumber}` : "Unit Details"}
                                 </SlidePanelTitle>
-                                <SlidePanelDescription className="flex items-center gap-1.5 mt-1">
-                                    <MapPin className="h-3.5 w-3.5 text-neutral-500" />
+                                <SlidePanelDescription className="flex items-center gap-1.5 mt-1 text-[#73726c]">
+                                    <MapPin className="h-3.5 w-3.5 text-[#9c9a92]" />
                                     {unit?.property?.name || "Property Unknown"} • {unit?.floor ? `Floor ${unit.floor}` : "Ground Floor"}
                                 </SlidePanelDescription>
                             </div>
@@ -115,49 +114,52 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
                     </SlidePanelHeader>
 
                     {loading ? (
-                        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-neutral-500">
-                            <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+                        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-[#73726c]">
+                            <Loader2 className="h-8 w-8 animate-spin text-[#1f1e1d]" />
                             <p className="text-sm font-medium animate-pulse">Fetching unit history...</p>
                         </div>
                     ) : error ? (
                         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                            <h3 className="text-white font-semibold mb-2">Failed to load unit</h3>
-                            <p className="text-neutral-400 text-sm mb-6">{error}</p>
+                            <h3 className="text-[#141413] font-semibold mb-2">Failed to load unit</h3>
+                            <p className="text-[#73726c] text-sm mb-6">{error}</p>
                             <Button variant="outline" onClick={onClose}>Close</Button>
                         </div>
                     ) : unit ? (
                         <div className="flex-1 overflow-y-auto py-8 space-y-8 pr-2 custom-scrollbar">
                             {/* Summary Stats */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <Card className="bg-white/5 border-white/10 flex flex-col items-center justify-center p-4">
-                                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1">Status</span>
-                                    <Badge variant={unit.status === 'OCCUPIED' ? 'success' : unit.status === 'UNDER_MAINTENANCE' ? 'warning' : unit.status === 'VACATING' ? 'vacating' : 'info'}>
+                                <Card className="bg-[#ffffff] border-[#dedcd1] flex flex-col items-center justify-center p-4 shadow-none rounded-[16px]">
+                                    <span className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest mb-1">Status</span>
+                                    <Badge className={cn("rounded-[9.6px] border shadow-none",
+                                        unit.status === 'OCCUPIED' ? 'bg-[#ccdbe8] border-[#dedcd1] text-[#141413]' :
+                                        'bg-[#f0eee6] border-[#dedcd1] text-[#73726c]'
+                                    )}>
                                         {unit.status}
                                     </Badge>
                                 </Card>
-                                <Card className="bg-white/5 border-white/10 p-4">
-                                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-1.5 mb-1">
-                                        <TrendingUp className="h-3 w-3 text-emerald-400" /> Rent
+                                <Card className="bg-[#ffffff] border-[#dedcd1] p-4 shadow-none rounded-[16px]">
+                                    <span className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-1.5 mb-1">
+                                        <TrendingUp className="h-3 w-3 text-[#9c9a92]" /> Rent
                                     </span>
-                                    <div className="text-lg font-black text-white">KES {unit.rentAmount?.toLocaleString()}</div>
+                                    <div className="text-lg font-normal font-serif text-[#141413]">KES {unit.rentAmount?.toLocaleString()}</div>
                                 </Card>
-                                <Card className="bg-white/5 border-white/10 p-4">
-                                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-1.5 mb-1">
-                                        <Users className="h-3 w-3 text-blue-400" /> Specs
+                                <Card className="bg-[#ffffff] border-[#dedcd1] p-4 shadow-none rounded-[16px]">
+                                    <span className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-1.5 mb-1">
+                                        <Users className="h-3 w-3 text-[#9c9a92]" /> Specs
                                     </span>
-                                    <div className="text-lg font-black text-white">{unit.bedrooms}BR · {unit.bathrooms}BA</div>
+                                    <div className="text-lg font-normal font-serif text-[#141413]">{unit.bedrooms}BR · {unit.bathrooms}BA</div>
                                 </Card>
-                                <Card className="bg-white/5 border-white/10 p-4">
-                                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-1.5 mb-1">
-                                        <Home className="h-3 w-3 text-purple-400" /> Size
+                                <Card className="bg-[#ffffff] border-[#dedcd1] p-4 shadow-none rounded-[16px]">
+                                    <span className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-1.5 mb-1">
+                                        <Home className="h-3 w-3 text-[#9c9a92]" /> Size
                                     </span>
-                                    <div className="text-lg font-black text-white">{unit.sizeSqm ? `${unit.sizeSqm}m²` : "—"}</div>
+                                    <div className="text-lg font-normal font-serif text-[#141413]">{unit.sizeSqm ? `${unit.sizeSqm}m²` : "—"}</div>
                                 </Card>
                             </div>
 
                             {/* Leases History */}
                             <section className="space-y-4">
-                                <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
+                                <h3 className="text-xs font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-2">
                                     Lease History ({unit.leases?.length || 0})
                                     <CreateLeaseButton unit={unit} role={role} tenants={tenants} onSuccess={fetchDetails} />
                                 </h3>
@@ -165,12 +167,12 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
                                 {unit.leases && unit.leases.length > 0 ? (
                                     <div className="space-y-6">
                                         {unit.leases.map((lease) => (
-                                            <Card key={lease.id} className={`bg-white/[0.03] border-white/10 overflow-hidden ${lease.status === 'ACTIVE' ? 'ring-1 ring-emerald-500/30' : ''}`}>
-                                                <div className="bg-white/5 px-4 py-3 flex items-center justify-between border-b border-white/5">
-                                                    <div className="flex items-center gap-2 text-sm font-bold text-white">
-                                                        <Calendar className="h-4 w-4 text-emerald-400" />
+                                            <Card key={lease.id} className="bg-[#ffffff] border-[#dedcd1] rounded-[16px] overflow-hidden shadow-none">
+                                                <div className="bg-[#f0eee6] px-4 py-3 flex items-center justify-between border-b border-[#dedcd1]">
+                                                    <div className="flex items-center gap-2 text-sm font-medium text-[#1f1e1d]">
+                                                        <Calendar className="h-4 w-4 text-[#73726c]" />
                                                         {lease.startDate ? new Date(lease.startDate).toLocaleDateString() : 'N/A'}
-                                                        <ChevronRight className="h-3 w-3 text-neutral-600" />
+                                                        <ChevronRight className="h-3 w-3 text-[#73726c]" />
                                                         {lease.endDate ? new Date(lease.endDate).toLocaleDateString() : 'Active'}
                                                     </div>
                                                     <div className="flex items-center gap-2">
@@ -180,7 +182,9 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
                                                                 <TerminateLeaseButton leaseId={lease.id} unitId={unit.id} role={role} onSuccess={fetchDetails} />
                                                             </>
                                                         )}
-                                                        <Badge variant={lease.status === 'ACTIVE' ? 'success' : 'secondary'}>
+                                                        <Badge className={cn("rounded-[9.6px] border shadow-none",
+                                                            lease.status === 'ACTIVE' ? 'bg-[#ccdbe8] border-[#dedcd1] text-[#141413]' : 'bg-[#f0eee6] border-[#dedcd1] text-[#73726c]'
+                                                        )}>
                                                             {lease.status}
                                                         </Badge>
                                                         {lease.status === 'ACTIVE' && <ViewStatementButton leaseId={lease.id} />}
@@ -189,21 +193,21 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
 
                                                 <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                                                     <div className="space-y-3">
-                                                        <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Tenant</p>
+                                                        <p className="text-[10px] font-bold text-[#73726c] uppercase tracking-wider">Tenant</p>
                                                         <div className="flex items-start gap-3">
-                                                            <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 border border-emerald-500/20">
+                                                            <div className="h-10 w-10 rounded-[9.6px] bg-[#f0eee6] border border-[#dedcd1] flex items-center justify-center text-[#1f1e1d]">
                                                                 <User className="h-5 w-5" />
                                                             </div>
                                                             <div className="min-w-0">
-                                                                <h4 className="text-sm font-bold text-white">
+                                                                <h4 className="font-serif font-normal text-[#141413] text-sm">
                                                                     {lease.tenant?.firstName || 'Unknown'} {lease.tenant?.lastName || 'Tenant'}
                                                                 </h4>
                                                                 <div className="flex flex-col gap-1 mt-1">
-                                                                    <span className="flex items-center gap-1 text-[11px] text-neutral-400">
-                                                                        <Mail className="h-3 w-3 text-emerald-500" /> {lease.tenant?.email || '—'}
+                                                                    <span className="flex items-center gap-1 text-[11px] text-[#73726c]">
+                                                                        <Mail className="h-3 w-3 text-[#73726c]" /> {lease.tenant?.email || '—'}
                                                                     </span>
-                                                                    <span className="flex items-center gap-1 text-[11px] text-neutral-400">
-                                                                        <Phone className="h-3 w-3 text-emerald-500" /> {lease.tenant?.phone || '—'}
+                                                                    <span className="flex items-center gap-1 text-[11px] text-[#73726c]">
+                                                                        <Phone className="h-3 w-3 text-[#73726c]" /> {lease.tenant?.phone || '—'}
                                                                     </span>
                                                                 </div>
                                                             </div>
@@ -211,26 +215,26 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
                                                     </div>
 
                                                     <div className="space-y-3">
-                                                        <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Financials</p>
+                                                        <p className="text-[10px] font-bold text-[#73726c] uppercase tracking-wider">Financials</p>
                                                         <div className="grid grid-cols-2 gap-2">
-                                                            <div className="bg-black/20 p-2 rounded-lg border border-white/5">
-                                                                <p className="text-[9px] text-neutral-500 uppercase">Rent</p>
-                                                                <p className="text-sm font-black text-white">KES {lease.rentAmount?.toLocaleString() || 0}</p>
+                                                            <div className="bg-[#f0eee6] p-2 rounded-[9.6px] border border-[#dedcd1]">
+                                                                <p className="text-[9px] text-[#73726c] uppercase">Rent</p>
+                                                                <p className="text-sm font-normal font-serif text-[#141413]">KES {lease.rentAmount?.toLocaleString() || 0}</p>
                                                             </div>
-                                                            <div className="bg-black/20 p-2 rounded-lg border border-white/5">
-                                                                <p className="text-[9px] text-neutral-500 uppercase">Deposit</p>
-                                                                <p className="text-sm font-black text-amber-400">KES {lease.deposit?.toLocaleString() || 0}</p>
+                                                            <div className="bg-[#f0eee6] p-2 rounded-[9.6px] border border-[#dedcd1]">
+                                                                <p className="text-[9px] text-[#73726c] uppercase">Deposit</p>
+                                                                <p className="text-sm font-normal font-serif text-[#141413]">KES {lease.deposit?.toLocaleString() || 0}</p>
                                                             </div>
                                                             {(lease as any).balance !== undefined && (lease as any).balance > 0 && (
-                                                                <div className="bg-red-500/10 p-2 rounded-lg border border-red-500/20 col-span-2">
-                                                                    <p className="text-[9px] text-red-400 font-bold uppercase">Outstanding Balance (Arrears)</p>
-                                                                    <p className="text-sm font-black text-red-500">KES {(lease as any).balance.toLocaleString()}</p>
+                                                                <div className="bg-red-500/5 p-2 rounded-[9.6px] border border-red-500/20 col-span-2 text-red-800 text-sm font-normal font-serif">
+                                                                    <p className="text-[9px] text-red-800 font-bold uppercase">Outstanding Balance (Arrears)</p>
+                                                                    <p className="text-sm font-normal font-serif text-red-800">KES {(lease as any).balance.toLocaleString()}</p>
                                                                 </div>
                                                             )}
                                                             {(lease as any).balance !== undefined && (lease as any).balance <= 0 && (
-                                                                <div className="bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20 col-span-2">
-                                                                    <p className="text-[9px] text-emerald-400 font-bold uppercase">Balance</p>
-                                                                    <p className="text-sm font-black text-emerald-500">PAID UP</p>
+                                                                <div className="bg-[#ccdbe8]/20 p-2 rounded-[9.6px] border border-[#dedcd1] col-span-2 text-sm font-normal font-serif">
+                                                                    <p className="text-[9px] text-[#141413] font-bold uppercase">Balance</p>
+                                                                    <p className="text-sm font-normal font-serif text-[#141413]">PAID UP</p>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -239,41 +243,41 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
                                                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                                                         <div className="space-y-2">
                                                             <div className="flex items-center justify-between">
-                                                                <h5 className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-1.5">
-                                                                    <FileText className="h-3 w-3 text-blue-400" /> Recent Invoices
+                                                                <h5 className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-1.5">
+                                                                    <FileText className="h-3 w-3 text-[#9c9a92]" /> Recent Invoices
                                                                 </h5>
                                                                 <AddInvoiceButton leaseId={lease.id} role={role} onSuccess={fetchDetails} />
                                                             </div>
                                                             <div className="space-y-1">
                                                                 {lease.invoices && lease.invoices.length > 0 ? (
                                                                     lease.invoices.slice(0, 3).map(inv => (
-                                                                        <div key={inv.id} className="flex items-center justify-between p-2 rounded bg-black/20 border border-white/5">
-                                                                            <span className="text-[11px] text-neutral-300 truncate max-w-[150px]">{inv.description}</span>
-                                                                            <span className="text-[11px] font-bold text-white">KES {inv.amount?.toLocaleString() || 0}</span>
+                                                                        <div key={inv.id} className="flex items-center justify-between p-2 rounded-[9.6px] bg-[#f0eee6] border border-[#dedcd1] text-[#1f1e1d]">
+                                                                            <span className="text-[11px] text-[#73726c] truncate max-w-[150px]">{inv.description}</span>
+                                                                            <span className="text-[11px] font-normal font-serif text-[#141413]">KES {inv.amount?.toLocaleString() || 0}</span>
                                                                         </div>
                                                                     ))
                                                                 ) : (
-                                                                    <p className="text-[10px] text-neutral-500 italic">None</p>
+                                                                    <p className="text-[10px] text-[#73726c] italic">None</p>
                                                                 )}
                                                             </div>
                                                         </div>
                                                         <div className="space-y-2">
                                                             <div className="flex items-center justify-between">
-                                                                <h5 className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-1.5">
-                                                                    <CreditCard className="h-3 w-3 text-emerald-400" /> Recent Payments
+                                                                <h5 className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-1.5">
+                                                                    <CreditCard className="h-3 w-3 text-[#9c9a92]" /> Recent Payments
                                                                 </h5>
                                                                 <AddPaymentButton leaseId={lease.id} role={role} onSuccess={fetchDetails} />
                                                             </div>
                                                             <div className="space-y-1">
                                                                 {lease.payments && lease.payments.length > 0 ? (
                                                                     lease.payments.slice(0, 3).map(pmt => (
-                                                                        <div key={pmt.id} className="flex items-center justify-between p-2 rounded bg-black/20 border border-white/5">
-                                                                            <span className="text-[11px] text-neutral-300">{pmt.method}</span>
-                                                                            <span className="text-[11px] font-bold text-emerald-400">KES {pmt.amount?.toLocaleString() || 0}</span>
+                                                                        <div key={pmt.id} className="flex items-center justify-between p-2 rounded-[9.6px] bg-[#f0eee6] border border-[#dedcd1] text-[#1f1e1d]">
+                                                                            <span className="text-[11px] text-[#73726c]">{pmt.method}</span>
+                                                                            <span className="text-[11px] font-normal font-serif text-[#141413]">KES {pmt.amount?.toLocaleString() || 0}</span>
                                                                         </div>
                                                                     ))
                                                                 ) : (
-                                                                    <p className="text-[10px] text-neutral-500 italic">None</p>
+                                                                    <p className="text-[10px] text-[#73726c] italic">None</p>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -283,8 +287,8 @@ export function UnitDetailsPanel({ unitId, token, role, onClose }: UnitDetailsPa
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="text-center py-12 rounded-2xl border border-dashed border-white/10 bg-white/[0.02]">
-                                        <p className="text-sm text-neutral-500">No occupancy history registered.</p>
+                                    <div className="text-center py-12 rounded-[16px] border border-dashed border-[#dedcd1] bg-[#f0eee6]/10">
+                                        <p className="text-sm text-[#73726c]">No occupancy history registered.</p>
                                     </div>
                                 )}
                             </section>

@@ -44,11 +44,11 @@ export default async function LandlordsPage({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 pb-10">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Landlords</h1>
-          <p className="text-sm text-neutral-300">Manage landlord profiles.</p>
+          <h1 className="text-3xl font-normal font-serif text-[#141413] tracking-tight">Landlords</h1>
+          <p className="text-sm text-[#73726c]">Manage landlord profiles.</p>
         </div>
         <AddLandlordButton role={role} />
       </div>
@@ -59,32 +59,32 @@ export default async function LandlordsPage({
             name="search"
             placeholder="Search landlords by name or email..."
             defaultValue={search}
-            className="bg-neutral-900 border-neutral-800 text-white"
+            className="h-10 bg-[#ffffff] border-[#dedcd1] text-sm text-[#141413] placeholder-[#9c9a92] focus:border-[#1f1e1d] focus:outline-none rounded-[9.6px] shadow-none"
           />
         </form>
       </div>
 
-      <Card>
+      <Card className="bg-[#ffffff] border border-[#dedcd1] rounded-[16px] shadow-none">
         <CardHeader>
-          <CardTitle className="text-sm text-neutral-300">Directory</CardTitle>
+          <CardTitle className="text-xs font-bold text-[#73726c] uppercase tracking-widest">Directory</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {landlords.length ? (
             <div className="space-y-2">
               {landlords.map((landlord) => (
-                <div key={landlord.id} className="flex items-center justify-between rounded border border-white/10 bg-white/5 p-3">
+                <div key={landlord.id} className="flex items-center justify-between rounded-[16px] border border-[#dedcd1] bg-[#ffffff] hover:bg-[#f0eee6] p-4 transition-all shadow-none">
                   <div>
-                    <p className="text-sm font-medium text-white">
+                    <p className="text-sm font-bold text-[#1f1e1d]">
                       {landlord.firstName} {landlord.lastName}
                     </p>
-                    <p className="text-xs text-neutral-400">{landlord.email || "No email"}</p>
+                    <p className="text-xs text-[#73726c]">{landlord.email || "No email"}</p>
                   </div>
                   <LandlordRowActions role={role} landlord={landlord} />
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-neutral-400">{landlordsResult.error || "No landlords found."}</p>
+            <p className="text-sm text-[#73726c] italic">{landlordsResult.error || "No landlords found."}</p>
           )}
 
           {meta && (
