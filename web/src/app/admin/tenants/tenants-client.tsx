@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { TenantDetailsPanel } from "./tenant-details"
-import { TenantRowActions } from "./tenant-actions"
+import { AddTenantButton, TenantRowActions } from "./tenant-actions"
 import type { TenantRecord, PropertyRecord, PaginatedResponse } from "@/lib/backend-api"
 import type { UserRole } from "@/lib/rbac"
 import { Pagination } from "@/components/ui/pagination"
@@ -86,6 +86,7 @@ export function TenantsClient({ tenants, properties, meta, role, token, search, 
                             />
                         </form>
                     </div>
+                    <AddTenantButton role={role} properties={properties} />
                 </div>
             </div>
 

@@ -50,7 +50,7 @@ services:
         - NEXT_PUBLIC_AEDRA_API_URL=${NEXT_PUBLIC_AEDRA_API_URL:-http://localhost:4001}
     container_name: aedra-web
     ports:
-      - "4000:4000"
+      - "4002:4000"
     environment:
       - AEDRA_API_URL=http://aedra-api:4001
     depends_on:

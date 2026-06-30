@@ -129,6 +129,8 @@ else
     exit 1
   }
   echo "✅ Certificates obtained."
+  sudo ln -sf /etc/letsencrypt/live/$DOMAIN/fullchain.pem "$ORIGIN_CERT"
+  sudo ln -sf /etc/letsencrypt/live/$DOMAIN/privkey.pem "$ORIGIN_KEY"
 fi
 
 # Apply full TLS-enabled config
