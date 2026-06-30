@@ -1,16 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { 
+    SlidePanel,
+    SlidePanelContent,
+    SlidePanelDescription,
+    SlidePanelHeader,
+    SlidePanelTitle,
+} from "@/components/ui/slide-panel";
 import { 
     updateCompany, 
     testMpesaConnection, 
@@ -18,14 +17,14 @@ import {
 } from "@/lib/backend-api";
 import { 
     Loader2, 
-    CheckCircle2, 
     AlertCircle, 
-    Settings2, 
     Zap,
     CreditCard,
-    ShieldCheck
+    ShieldCheck,
+    Settings
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 interface MpesaSyncCardProps {
     company: CompanyRecord;
@@ -88,132 +87,149 @@ export function MpesaSyncCard({ company, token }: MpesaSyncCardProps) {
     };
 
     return (
-        <Card className="bg-white/[0.02] backdrop-blur-3xl border-white/5 overflow-hidden group transition-all duration-700 hover:border-emerald-500/30 hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] relative rounded-[2.5rem] flex flex-col h-full">
-            {/* Header / Head Section */}
-            <div className="p-8 pb-4 relative flex items-center justify-center min-h-[140px]">
-                <div className={`absolute top-4 right-6 px-3 py-1 rounded-full border ${isConnected ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400' : 'border-white/10 bg-white/5 text-neutral-500'} text-[9px] font-black uppercase tracking-[0.2em] transition-all duration-500`}>
-                    {isConnected ? 'Active' : 'Offline'}
-                </div>
-                
-                <div className="relative group/logo">
-                    <div className="h-20 w-20 rounded-[1.5rem] bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center transition-all duration-700 group-hover:scale-110 group-hover:bg-emerald-500/10 shadow-inner overflow-hidden">
-                        <CreditCard className="h-10 w-10 text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]" />
+        <>
+            <div 
+                onClick={() => setIsEditing(true)}
+                className="bg-[#ffffff] border border-[#dedcd1] rounded-[16px] p-5 shadow-none transition-all hover:bg-[#f0eee6]/40 cursor-pointer flex flex-col justify-between h-full group hover:border-[#9c9a92] min-h-[160px]"
+            >
+                <div className="flex items-start justify-between">
+                    <div className="flex gap-3">
+                        <div className="h-12 w-12 rounded-[9.6px] bg-[#f0eee6] border border-[#dedcd1] flex items-center justify-center shrink-0 text-[#141413]">
+                            <CreditCard className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-[#1f1e1d]">Safaricom M-Pesa</h3>
+                            <p className="text-[10px] text-[#73726c] font-medium uppercase tracking-wider mt-0.5">Payment Services</p>
+                        </div>
                     </div>
+                    <div className={cn(
+                        "px-2 py-0.5 rounded-[9.6px] border text-[9px] font-bold uppercase tracking-wider",
+                        isConnected ? "bg-[#ccdbe8] border-[#dedcd1] text-[#141413]" : "bg-[#f0eee6] border-[#dedcd1] text-[#73726c]"
+                    )}>
+                        {isConnected ? "Active" : "Offline"}
+                    </div>
+                </div>
+                <p className="text-xs text-[#73726c] leading-relaxed mt-4 flex-1">
+                    Direct C2B/B2C gateway for automated rent collection, disbursement tracking, and instant statement sync via Daraja.
+                </p>
+                <div className="mt-4 flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-[#73726c] group-hover:text-[#1f1e1d] flex items-center gap-1 transition-colors">
+                        <Settings className="h-3 w-3" /> Configure Port
+                    </span>
                 </div>
             </div>
 
-            {/* Body Section */}
-            <CardContent className="px-10 pb-10 flex-1 flex flex-col text-center">
-                {!isEditing ? (
-                    <div className="space-y-4 flex-1">
-                        <div className="space-y-1">
-                            <h3 className="text-xl font-bold text-white tracking-tight group-hover:text-emerald-400 transition-colors duration-500">
-                                Safaricom M-Pesa
-                            </h3>
-                            <p className="text-[11px] font-black text-emerald-500/60 uppercase tracking-[0.15em]">
-                                Payment Services
-                            </p>
-                        </div>
-                        
-                        <p className="text-sm text-neutral-500 leading-relaxed font-medium px-4">
-                            Direct C2B/B2C gateway for automated rent collection, disbursement tracking, and instant statement sync via Daraja.
-                        </p>
+            <SlidePanel open={isEditing} onOpenChange={setIsEditing}>
+                <SlidePanelContent className="sm:max-w-2xl border-l border-[#dedcd1] bg-[#faf9f5] shadow-none flex flex-col h-full justify-between p-0">
+                    <div className="p-8 space-y-6 overflow-y-auto flex-1">
+                        <SlidePanelHeader className="border-b border-[#dedcd1] pb-6">
+                            <SlidePanelTitle className="text-2xl font-normal font-serif text-[#141413]">
+                                Configure Safaricom M-Pesa
+                            </SlidePanelTitle>
+                            <SlidePanelDescription className="text-sm text-[#73726c]">
+                                Set up direct tenant rent payment sync via the Daraja C2B gateway.
+                            </SlidePanelDescription>
+                        </SlidePanelHeader>
 
-                        <div className="pt-6">
-                            <Button 
-                                variant="outline" 
-                                className="w-full h-12 rounded-2xl border-white/5 bg-white/[0.03] text-neutral-400 hover:text-white hover:bg-white/10 hover:border-emerald-500/30 font-bold text-xs uppercase tracking-widest transition-all duration-500 active:scale-95 group/btn"
-                                onClick={() => setIsEditing(true)}
-                            >
-                                <Settings2 className="h-4 w-4 mr-2 group-hover/btn:rotate-90 transition-transform duration-500" />
-                                Configure Gateway
-                            </Button>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">Shortcode</label>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest">Shortcode</label>
                                     <Input 
                                         value={formData.mpesaShortcode}
                                         onChange={(e) => setFormData({...formData, mpesaShortcode: e.target.value})}
-                                        className="h-11 bg-white/5 border-white/10 text-sm focus:ring-emerald-500/30 rounded-xl"
+                                        className="h-10 bg-[#ffffff] border-[#dedcd1] text-sm text-[#141413] placeholder-[#9c9a92] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none shadow-none"
                                         placeholder="174379"
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">Environment</label>
-                                    <div className="h-11 bg-white/5 border-white/10 rounded-xl relative">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest">Environment</label>
+                                    <div className="h-10 bg-[#ffffff] border-[#dedcd1] rounded-[9.6px] relative px-3 flex items-center">
                                         <select 
                                             value={formData.mpesaEnvironment}
                                             onChange={(e) => setFormData({...formData, mpesaEnvironment: e.target.value as any})}
-                                            className="w-full h-full bg-transparent text-sm text-white px-3 outline-none appearance-none cursor-pointer"
+                                            className="w-full bg-transparent text-sm text-[#141413] outline-none appearance-none cursor-pointer"
                                         >
-                                            <option value="sandbox" className="bg-neutral-900">Sandbox</option>
-                                            <option value="production" className="bg-neutral-900">Production</option>
+                                            <option value="sandbox">Sandbox</option>
+                                            <option value="production">Production</option>
                                         </select>
                                     </div>
                                 </div>
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">Consumer Key</label>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest">Consumer Key</label>
                                 <Input 
                                     value={formData.mpesaConsumerKey}
                                     type="password"
                                     onChange={(e) => setFormData({...formData, mpesaConsumerKey: e.target.value})}
-                                    className="h-11 bg-white/5 border-white/10 text-sm focus:ring-emerald-500/30 rounded-xl"
+                                    className="h-10 bg-[#ffffff] border-[#dedcd1] text-sm text-[#141413] placeholder-[#9c9a92] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none shadow-none"
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">Consumer Secret</label>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest">Consumer Secret</label>
                                 <Input 
                                     value={formData.mpesaConsumerSecret}
                                     type="password"
                                     onChange={(e) => setFormData({...formData, mpesaConsumerSecret: e.target.value})}
-                                    className="h-11 bg-white/5 border-white/10 text-sm focus:ring-emerald-500/30 rounded-xl"
+                                    className="h-10 bg-[#ffffff] border-[#dedcd1] text-sm text-[#141413] placeholder-[#9c9a92] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none shadow-none"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest">Passkey (Lipa na M-Pesa Online)</label>
+                                <Input 
+                                    value={formData.mpesaPasskey}
+                                    type="password"
+                                    onChange={(e) => setFormData({...formData, mpesaPasskey: e.target.value})}
+                                    className="h-10 bg-[#ffffff] border-[#dedcd1] text-sm text-[#141413] placeholder-[#9c9a92] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none shadow-none"
                                 />
                             </div>
                         </div>
 
                         {testStatus !== "idle" && (
-                            <div className={`p-4 rounded-2xl flex items-start gap-3 text-xs font-medium animate-in zoom-in-95 duration-500 ${testStatus === "success" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : testStatus === "testing" ? "bg-white/5 text-neutral-300 border border-white/10" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
-                                {testStatus === "testing" ? <Loader2 className="h-4 w-4 animate-spin" /> : testStatus === "success" ? <ShieldCheck className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                            <div className={cn(
+                                "p-4 rounded-[12px] flex items-start gap-3 text-xs font-medium border transition-all",
+                                testStatus === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-800" :
+                                testStatus === "testing" ? "bg-white border-[#dedcd1] text-[#73726c]" :
+                                "bg-red-50 border-red-200 text-red-800"
+                            )}>
+                                {testStatus === "testing" ? <Loader2 className="h-4 w-4 animate-spin text-[#141413]" /> : <ShieldCheck className="h-4 w-4" />}
                                 <div className="flex-1">
-                                    <p className="font-black uppercase tracking-widest text-[9px] mb-0.5">{testStatus.toUpperCase()}</p>
-                                    <p className="opacity-80 italic">{message || "Processing..."}</p>
+                                    <p className="font-bold uppercase tracking-wider text-[9px] mb-0.5">{testStatus.toUpperCase()}</p>
+                                    <p className="opacity-90">{message || "Processing request..."}</p>
                                 </div>
                             </div>
                         )}
-
-                        <div className="flex gap-3 pt-2">
-                            <Button 
-                                onClick={handleSave} 
-                                disabled={loading}
-                                className="flex-1 h-12 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-500 font-bold text-xs uppercase tracking-widest active:scale-95 transition-all shadow-lg shadow-emerald-500/20"
-                            >
-                                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Bind Keys"}
-                            </Button>
-                            <Button 
-                                onClick={handleTest} 
-                                disabled={loading || testStatus === "testing"}
-                                variant="outline"
-                                className="h-12 w-12 rounded-2xl border-white/10 bg-white/5 text-white hover:bg-white/10 flex items-center justify-center active:scale-95 transition-all"
-                            >
-                                <Zap className={`h-5 w-5 ${testStatus === 'testing' ? 'animate-pulse text-emerald-400' : ''}`} />
-                            </Button>
-                            <Button 
-                                onClick={() => setIsEditing(false)}
-                                variant="ghost"
-                                className="h-12 w-12 rounded-2xl text-neutral-500 hover:text-white hover:bg-white/5 active:scale-95 transition-all"
-                            >
-                                <AlertCircle className="rotate-45 h-5 w-5" />
-                            </Button>
-                        </div>
                     </div>
-                )}
-            </CardContent>
-        </Card>
+
+                    <div className="border-t border-[#dedcd1] p-6 bg-[#ffffff] flex gap-3">
+                        <Button 
+                            onClick={handleSave} 
+                            disabled={loading}
+                            className="flex-1 h-10 rounded-[9.6px] bg-primary text-primary-foreground font-medium text-xs uppercase tracking-wider transition-all"
+                        >
+                            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Configuration"}
+                        </Button>
+                        <Button 
+                            onClick={handleTest} 
+                            disabled={loading || testStatus === "testing"}
+                            variant="outline"
+                            className="h-10 px-4 rounded-[9.6px] border-[#dedcd1] text-[#141413] hover:bg-[#f0eee6]/50 flex items-center justify-center transition-all"
+                        >
+                            <Zap className="h-4 w-4 mr-2" /> Test
+                        </Button>
+                        <Button 
+                            onClick={() => setIsEditing(false)}
+                            variant="ghost"
+                            className="h-10 px-4 rounded-[9.6px] text-[#73726c] hover:bg-[#f0eee6]/50 transition-all"
+                        >
+                            Cancel
+                        </Button>
+                    </div>
+                </SlidePanelContent>
+            </SlidePanel>
+        </>
     );
 }

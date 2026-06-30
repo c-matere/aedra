@@ -29,7 +29,7 @@ import { MapsSyncCard } from "./maps-sync-card";
 import { WhatsAppSyncCard } from "./whatsapp-sync-card";
 import { BrainSyncCard } from "./brain-sync-card";
 import { CompanySelector } from "../settings/company-selector";
-import { IntegrationsContainer, FadeIn } from "./integrations-client";
+import { IntegrationsClientComponent, FadeIn } from "./integrations-client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -95,22 +95,17 @@ export default async function IntegrationsPage({
   );
 
   return (
-    <div className="flex flex-col gap-8 pb-10 relative">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-emerald-500/5 pointer-events-none -z-10 blur-3xl opacity-50" />
-      
-      <FadeIn className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between relative z-10">
+    <div className="flex flex-col gap-6 pb-10">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
-          <h1 className="text-4xl font-black text-white tracking-tighter drop-shadow-2xl flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shadow-lg shadow-blue-500/10">
-                <Plug className="h-7 w-7 text-blue-400" />
-            </div>
-            Integrations <span className="text-neutral-500">Hub</span>
+          <h1 className="text-3xl font-normal font-serif text-[#141413] tracking-tight">
+            Integrations
           </h1>
-          <p className="text-neutral-400 text-sm font-medium ml-1">
+          <p className="text-[#73726c] text-sm">
             Operational sync health and 3rd-party service configuration.
           </p>
         </div>
-      </FadeIn>
+      </div>
 
       {role === "SUPER_ADMIN" && allCompanies.length > 0 && (
         <CompanySelector 
@@ -120,41 +115,41 @@ export default async function IntegrationsPage({
       )}
 
       {/* Global & Company Health Overview */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <Card className="bg-white/5 border-white/10 hover:bg-white/[0.07] transition-all group">
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="bg-[#ffffff] border border-[#dedcd1] rounded-[16px] shadow-none group">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
-              <CreditCard className="h-3 w-3 text-emerald-400" /> Payments Logged
+            <CardTitle className="text-xs font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-2">
+              <CreditCard className="h-3.5 w-3.5 text-[#9c9a92]" /> Payments Logged
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-black text-white group-hover:translate-x-1 transition-transform">
+          <CardContent className="text-2xl font-normal font-serif text-[#141413]">
             {payments.length}
           </CardContent>
         </Card>
-        <Card className="bg-white/5 border-white/10 hover:bg-white/[0.07] transition-all group">
+        <Card className="bg-[#ffffff] border border-[#dedcd1] rounded-[16px] shadow-none group">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
-              <Activity className="h-3 w-3 text-blue-400" /> Maintenance Volume
+            <CardTitle className="text-xs font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-2">
+              <Activity className="h-3.5 w-3.5 text-[#9c9a92]" /> Maintenance Volume
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-black text-white group-hover:translate-x-1 transition-transform">
+          <CardContent className="text-2xl font-normal font-serif text-[#141413]">
             {maintenance.length}
           </CardContent>
         </Card>
-        <Card className="bg-white/5 border-white/10 hover:bg-white/[0.07] transition-all group">
+        <Card className="bg-[#ffffff] border border-[#dedcd1] rounded-[16px] shadow-none group">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
-              <Database className="h-3 w-3 text-purple-400" /> Gateway Integrity
+            <CardTitle className="text-xs font-bold text-[#73726c] uppercase tracking-widest flex items-center gap-2">
+              <Database className="h-3.5 w-3.5 text-[#9c9a92]" /> Gateway Integrity
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-sm font-semibold text-neutral-200">
+          <CardContent className="text-sm font-semibold text-[#141413]">
             {paymentsResult.error || maintenanceResult.error || companyResult.error ? (
-              <span className="text-red-400 flex items-center gap-2">
-                <AlertCircle className="h-3 w-3" />
+              <span className="text-red-800 flex items-center gap-2">
+                <AlertCircle className="h-3.5 w-3.5" />
                 {companyResult.error || paymentsResult.error || maintenanceResult.error}
               </span>
             ) : (
-              <span className="flex items-center gap-2 text-emerald-400">
+              <span className="flex items-center gap-1.5 text-emerald-800">
                 <ShieldCheck className="h-4 w-4" /> Operational
               </span>
             )}
@@ -163,133 +158,33 @@ export default async function IntegrationsPage({
       </div>
 
       {!effectiveCompanyId && role === "SUPER_ADMIN" ? (
-        <Card className="bg-blue-500/5 border-blue-500/20 p-12 flex flex-col items-center text-center gap-4">
-            <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center">
-                <Plug className="h-8 w-8 text-blue-400" />
+        <Card className="bg-[#ffffff] border border-[#dedcd1] rounded-[16px] p-12 flex flex-col items-center text-center gap-4 shadow-none">
+            <div className="h-16 w-16 rounded-[9.6px] bg-[#f0eee6] border border-[#dedcd1] flex items-center justify-center">
+                <Plug className="h-8 w-8 text-[#141413]" />
             </div>
             <div className="space-y-2 max-w-md">
-                <h3 className="text-lg font-bold text-white">Central Config Required</h3>
-                <p className="text-neutral-400 text-sm leading-relaxed">
+                <h3 className="text-lg font-bold text-[#141413]">Central Config Required</h3>
+                <p className="text-[#73726c] text-sm leading-relaxed">
                     As a platform administrator, you can manage integration syncs for any company. 
                     Please select a specific company from the dropdown to begin auditing or configuring ports.
                 </p>
             </div>
         </Card>
       ) : !company && !companyResult.error ? (
-        <div className="p-12 text-center text-neutral-500">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+        <div className="p-12 text-center text-[#73726c]">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-[#1f1e1d]" />
             <p className="text-sm font-medium">Resolving tenant configuration...</p>
         </div>
       ) : (
-        <>
-            <FadeIn delay={0.05} className="space-y-6">
-                <h2 className="text-sm font-black text-neutral-500 uppercase tracking-widest flex items-center gap-2 px-6">
-                    <Brain className="h-4 w-4 text-indigo-500" />
-                    Cognitive Oversight & Autonomy
-                </h2>
-                <IntegrationsContainer>
-                    <BrainSyncCard token={sessionToken} />
-                    <Card className="bg-indigo-500/5 border border-dashed border-indigo-500/20 backdrop-blur-md flex flex-col items-center justify-center p-12 text-center gap-4 hover:bg-indigo-500/10 transition-colors group rounded-[2.5rem]">
-                        <div className="h-16 w-16 rounded-full bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Network className="h-8 w-8 text-indigo-600" />
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-base font-bold text-indigo-400/80">Neural Node Scalability</p>
-                            <p className="text-xs text-indigo-900/60 font-medium">Provision additional reasoning clusters.</p>
-                        </div>
-                        <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-indigo-500/40 hover:text-indigo-400 mt-4 disabled:opacity-50" disabled>
-                            Coming Soon
-                        </Button>
-                    </Card>
-                </IntegrationsContainer>
-            </FadeIn>
-
-            <FadeIn delay={0.1} className="space-y-6 pt-8">
-                <h2 className="text-sm font-black text-neutral-500 uppercase tracking-widest flex items-center gap-2 px-6">
-                    <Smartphone className="h-4 w-4 text-emerald-500" />
-                    Financial & Communications
-                </h2>
-                <IntegrationsContainer>
-                    {company && <MpesaSyncCard company={company} token={sessionToken} />}
-                    {company && <JengaSyncCard company={company} token={sessionToken} />}
-                    {company && <SmsSyncCard company={company} token={sessionToken} />}
-                    {company && <WhatsAppSyncCard company={company} token={sessionToken} />}
-                </IntegrationsContainer>
-            </FadeIn>
-
-            <FadeIn delay={0.2} className="space-y-6 pt-8">
-                <h2 className="text-sm font-black text-neutral-500 uppercase tracking-widest flex items-center gap-2 px-6">
-                    <MapIcon className="h-4 w-4 text-blue-500" />
-                    Property & Geo-Services
-                </h2>
-                <IntegrationsContainer>
-                    {company && <MapsSyncCard company={company} token={sessionToken} />}
-                    {company && <ZuriSyncCard company={company} token={sessionToken} />}
-                    <Card className="bg-white/[0.02] border border-dashed border-white/5 backdrop-blur-md flex flex-col items-center justify-center p-12 text-center gap-4 hover:bg-white/5 transition-colors group rounded-[2.5rem]">
-                        <div className="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Plug className="h-8 w-8 text-neutral-600" />
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-base font-bold text-neutral-400">Add Another Connector</p>
-                            <p className="text-xs text-neutral-600">ERP, SCADA, or legacy sources.</p>
-                        </div>
-                        <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-neutral-500 hover:text-white mt-4">
-                            Browse Marketplace
-                        </Button>
-                    </Card>
-                </IntegrationsContainer>
-            </FadeIn>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-8">
-                <Card className="bg-neutral-900 border-white/10 overflow-hidden">
-                    <CardHeader className="border-b border-white/5">
-                        <CardTitle className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
-                            <History className="h-4 w-4 text-neutral-400" /> Payment Methods Mix
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                        {Object.entries(paymentMethodCounts).length > 0 ? (
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                {Object.entries(paymentMethodCounts).map(([method, count]) => (
-                                    <div key={method} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col">
-                                        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-tight">{capitalize(method)}</span>
-                                        <span className="text-2xl font-black text-white">{count}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="py-10 text-center text-neutral-600 font-medium italic text-xs">
-                                No processed payments found for this channel.
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-
-                <Card className="bg-neutral-900 border-white/10 overflow-hidden">
-                    <CardHeader className="border-b border-white/5">
-                        <CardTitle className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
-                            <Activity className="h-4 w-4 text-neutral-400" /> Maintenance Status Distribution
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                        {Object.entries(maintenanceStatusCounts).length > 0 ? (
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                {Object.entries(maintenanceStatusCounts).map(([status, count]) => (
-                                    <div key={status} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col">
-                                        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-tight">{capitalize(status)}</span>
-                                        <span className="text-2xl font-black text-white">{count}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="py-10 text-center text-neutral-600 font-medium italic text-xs">
-                                No maintenance history available for this node.
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
-        </>
+        <IntegrationsClientComponent
+          company={company}
+          token={sessionToken}
+          paymentMethodCounts={paymentMethodCounts}
+          maintenanceStatusCounts={maintenanceStatusCounts}
+          paymentsCount={payments.length}
+          maintenanceCount={maintenance.length}
+          gatewayStatusError={paymentsResult.error || maintenanceResult.error || companyResult.error}
+        />
       )}
     </div>
   );

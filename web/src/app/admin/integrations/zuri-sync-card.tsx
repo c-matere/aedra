@@ -1,8 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { 
+    SlidePanel,
+    SlidePanelContent,
+    SlidePanelDescription,
+    SlidePanelHeader,
+    SlidePanelTitle,
+} from "@/components/ui/slide-panel";
 import { 
     triggerZuriSync, 
     updateCompany,
@@ -13,13 +20,12 @@ import {
     RefreshCw, 
     CheckCircle2, 
     AlertCircle, 
-    ExternalLink,
-    Settings2,
-    Database,
-    Zap
+    Compass,
+    ShieldCheck,
+    Settings
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 interface ZuriSyncCardProps {
     company: CompanyRecord;
@@ -83,121 +89,126 @@ export function ZuriSyncCard({ company, token }: ZuriSyncCardProps) {
     };
 
     return (
-        <Card className="bg-white/[0.02] backdrop-blur-3xl border-white/5 overflow-hidden group transition-all duration-700 hover:border-purple-500/30 hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] relative rounded-[2.5rem] flex flex-col h-full">
-            {/* Header / Head Section */}
-            <div className="p-8 pb-4 relative flex items-center justify-center min-h-[140px]">
-                <div className={`absolute top-4 right-6 px-3 py-1 rounded-full border ${isConfigured ? 'border-purple-500/30 bg-purple-500/5 text-purple-400' : 'border-white/10 bg-white/5 text-neutral-500'} text-[9px] font-black uppercase tracking-[0.2em] transition-all duration-500`}>
-                    {isConfigured ? 'Active' : 'Offline'}
-                </div>
-                
-                <div className="relative group/logo">
-                    <div className="h-20 w-20 rounded-[1.5rem] bg-purple-500/5 border border-purple-500/10 flex items-center justify-center transition-all duration-700 group-hover:scale-110 group-hover:bg-purple-500/10 shadow-inner overflow-hidden">
-                        <Database className="h-10 w-10 text-purple-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.3)]" />
+        <>
+            <div 
+                onClick={() => setIsEditing(true)}
+                className="bg-[#ffffff] border border-[#dedcd1] rounded-[16px] p-5 shadow-none transition-all hover:bg-[#f0eee6]/40 cursor-pointer flex flex-col justify-between h-full group hover:border-[#9c9a92] min-h-[160px]"
+            >
+                <div className="flex items-start justify-between">
+                    <div className="flex gap-3">
+                        <div className="h-12 w-12 rounded-[9.6px] bg-[#f0eee6] border border-[#dedcd1] flex items-center justify-center shrink-0 text-[#141413]">
+                            <Compass className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-[#1f1e1d]">Zuri PMS Connect</h3>
+                            <p className="text-[10px] text-[#73726c] font-medium uppercase tracking-wider mt-0.5">PMS Bridge Node</p>
+                        </div>
                     </div>
+                    <div className={cn(
+                        "px-2 py-0.5 rounded-[9.6px] border text-[9px] font-bold uppercase tracking-wider",
+                        isConfigured ? "bg-[#ccdbe8] border-[#dedcd1] text-[#141413]" : "bg-[#f0eee6] border-[#dedcd1] text-[#73726c]"
+                    )}>
+                        {isConfigured ? "Active" : "Offline"}
+                    </div>
+                </div>
+                <p className="text-xs text-[#73726c] leading-relaxed mt-4 flex-1">
+                    Bi-directional data tunnel for property ingestion, unit synchronization, and tenant document mirroring from Zuri PMS.
+                </p>
+                <div className="mt-4 flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-[#73726c] group-hover:text-[#1f1e1d] flex items-center gap-1 transition-colors">
+                        <Settings className="h-3 w-3" /> Configure Port
+                    </span>
                 </div>
             </div>
 
-            {/* Body Section */}
-            <CardContent className="px-10 pb-10 flex-1 flex flex-col text-center">
-                {!isEditing ? (
-                    <div className="space-y-4 flex-1">
-                        <div className="space-y-1">
-                            <h3 className="text-xl font-bold text-white tracking-tight group-hover:text-purple-400 transition-colors duration-500">
-                                Zuri Property Connect
-                            </h3>
-                            <p className="text-[11px] font-black text-purple-500/60 uppercase tracking-[0.15em]">
-                                PMS Bridge Node
-                            </p>
-                        </div>
-                        
-                        <p className="text-sm text-neutral-500 leading-relaxed font-medium px-4">
-                            Bi-directional data tunnel for property ingestion, unit synchronization, and tenant document mirroring from Zuri PMS.
-                        </p>
+            <SlidePanel open={isEditing} onOpenChange={setIsEditing}>
+                <SlidePanelContent className="sm:max-w-2xl border-l border-[#dedcd1] bg-[#faf9f5] shadow-none flex flex-col h-full justify-between p-0">
+                    <div className="p-8 space-y-6 overflow-y-auto flex-1">
+                        <SlidePanelHeader className="border-b border-[#dedcd1] pb-6">
+                            <SlidePanelTitle className="text-2xl font-normal font-serif text-[#141413]">
+                                Configure Zuri PMS Bridge
+                            </SlidePanelTitle>
+                            <SlidePanelDescription className="text-sm text-[#73726c]">
+                                Set up real-time property, unit, and tenant synchronizations from your Zuri PMS account.
+                            </SlidePanelDescription>
+                        </SlidePanelHeader>
 
-                        <div className="grid grid-cols-1 gap-3 pt-6">
-                            <Button 
-                                variant="outline" 
-                                className="h-12 rounded-2xl border-white/5 bg-white/[0.03] text-neutral-400 hover:text-white hover:bg-white/10 hover:border-purple-500/30 font-bold text-xs uppercase tracking-widest transition-all duration-500 active:scale-95 group/btn"
-                                onClick={() => setIsEditing(true)}
-                            >
-                                <Settings2 className="h-4 w-4 mr-2 group-hover/btn:rotate-90 transition-transform duration-500" />
-                                Configure Tunnel
-                            </Button>
-                            {isConfigured && (
-                                <Button 
-                                    onClick={handleSync} 
-                                    disabled={loading}
-                                    variant="ghost"
-                                    className="h-12 rounded-2xl bg-purple-500/5 text-purple-400 hover:bg-purple-500/10 font-bold text-xs uppercase tracking-widest transition-all duration-500 active:scale-95 group/sync"
-                                >
-                                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2 group-hover/sync:rotate-180 transition-transform duration-700" />}
-                                    Initiate Handshake
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
                         <div className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">Portal Domain</label>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest">Portal Domain</label>
                                 <Input 
                                     value={formData.zuriDomain}
                                     onChange={(e) => setFormData({...formData, zuriDomain: e.target.value})}
-                                    className="h-11 bg-white/5 border-white/10 text-sm focus:ring-purple-500/30 rounded-xl"
+                                    className="h-10 bg-[#ffffff] border-[#dedcd1] text-sm text-[#141413] placeholder-[#9c9a92] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none shadow-none"
                                     placeholder="https://..."
                                 />
                             </div>
+
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">Username</label>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest">Username</label>
                                     <Input 
                                         value={formData.zuriUsername}
                                         onChange={(e) => setFormData({...formData, zuriUsername: e.target.value})}
-                                        className="h-11 bg-white/5 border-white/10 text-sm focus:ring-purple-500/30 rounded-xl"
+                                        className="h-10 bg-[#ffffff] border-[#dedcd1] text-sm text-[#141413] placeholder-[#9c9a92] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none shadow-none"
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">Password</label>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold text-[#73726c] uppercase tracking-widest">Password</label>
                                     <Input 
                                         value={formData.zuriPassword}
                                         type="password"
                                         onChange={(e) => setFormData({...formData, zuriPassword: e.target.value})}
-                                        className="h-11 bg-white/5 border-white/10 text-sm focus:ring-purple-500/30 rounded-xl"
+                                        className="h-10 bg-[#ffffff] border-[#dedcd1] text-sm text-[#141413] placeholder-[#9c9a92] rounded-[9.6px] focus:border-[#1f1e1d] focus:outline-none shadow-none"
                                     />
                                 </div>
                             </div>
                         </div>
 
                         {status !== "idle" && (
-                            <div className={`p-4 rounded-2xl flex items-start gap-3 text-xs font-medium animate-in zoom-in-95 duration-500 ${status === "success" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
-                                {status === "success" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                            <div className={cn(
+                                "p-4 rounded-[12px] flex items-start gap-3 text-xs font-medium border transition-all",
+                                status === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-800" :
+                                "bg-red-50 border-red-200 text-red-800"
+                            )}>
+                                <ShieldCheck className="h-4 w-4" />
                                 <div className="flex-1">
-                                    <p className="font-black uppercase tracking-widest text-[9px] mb-0.5">{status.toUpperCase()}</p>
-                                    <p className="opacity-80 italic">{message || "Operation complete."}</p>
+                                    <p className="font-bold uppercase tracking-wider text-[9px] mb-0.5">{status.toUpperCase()}</p>
+                                    <p className="opacity-90">{message || "Operation complete."}</p>
                                 </div>
                             </div>
                         )}
-
-                        <div className="flex gap-3 pt-2">
-                            <Button 
-                                onClick={handleSave} 
-                                disabled={loading}
-                                className="flex-1 h-12 rounded-2xl bg-purple-600 text-white hover:bg-purple-500 font-bold text-xs uppercase tracking-widest active:scale-95 transition-all shadow-lg shadow-purple-500/20"
-                            >
-                                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Bind Keys"}
-                            </Button>
-                            <Button 
-                                onClick={() => setIsEditing(false)}
-                                variant="ghost"
-                                className="h-12 w-12 rounded-2xl text-neutral-500 hover:text-white hover:bg-white/5 active:scale-95 transition-all"
-                            >
-                                <AlertCircle className="rotate-45 h-5 w-5" />
-                            </Button>
-                        </div>
                     </div>
-                )}
-            </CardContent>
-        </Card>
+
+                    <div className="border-t border-[#dedcd1] p-6 bg-[#ffffff] flex gap-3">
+                        <Button 
+                            onClick={handleSave} 
+                            disabled={loading}
+                            className="flex-1 h-10 rounded-[9.6px] bg-primary text-primary-foreground font-medium text-xs uppercase tracking-wider transition-all"
+                        >
+                            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Configuration"}
+                        </Button>
+                        {isConfigured && (
+                            <Button 
+                                onClick={handleSync} 
+                                disabled={loading}
+                                variant="outline"
+                                className="h-10 px-4 rounded-[9.6px] border-[#dedcd1] text-[#141413] hover:bg-[#f0eee6]/50 flex items-center justify-center transition-all"
+                            >
+                                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                                Sync Data
+                            </Button>
+                        )}
+                        <Button 
+                            onClick={() => setIsEditing(false)}
+                            variant="ghost"
+                            className="h-10 px-4 rounded-[9.6px] text-[#73726c] hover:bg-[#f0eee6]/50 transition-all"
+                        >
+                            Cancel
+                        </Button>
+                    </div>
+                </SlidePanelContent>
+            </SlidePanel>
+        </>
     );
 }

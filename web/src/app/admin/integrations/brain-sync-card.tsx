@@ -1,22 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getAiManifest } from "@/lib/backend-api";
 import { 
     Loader2, 
-    CheckCircle2, 
-    AlertCircle, 
-    Cpu,
-    Zap,
-    Brain,
+    Brain, 
     ShieldCheck,
     Network,
     Activity,
-    Search
+    RefreshCw
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface BrainSyncCardProps {
     token: string;
@@ -61,101 +56,65 @@ export function BrainSyncCard({ token }: BrainSyncCardProps) {
     const toolCount = manifest?.tools ? Object.keys(manifest.tools).length : 0;
 
     return (
-        <Card className="bg-white/[0.02] backdrop-blur-3xl border-white/5 overflow-hidden group transition-all duration-700 hover:border-indigo-500/30 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] relative rounded-[2.5rem] flex flex-col h-full min-h-[380px]">
-            {/* Background Neural Pulse Effect */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className={`absolute -top-24 -right-24 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] transition-opacity duration-1000 ${status === 'connected' ? 'opacity-100' : 'opacity-0'}`} />
-                <div className={`absolute -bottom-24 -left-24 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] transition-opacity duration-1000 ${status === 'connected' ? 'opacity-100' : 'opacity-0'}`} />
-            </div>
-
-            {/* Header / Connection Status */}
-            <div className="p-8 pb-4 relative flex items-center justify-center min-h-[140px]">
-                <div className={`absolute top-4 right-6 px-3 py-1 rounded-full border ${status === 'connected' ? 'border-indigo-500/30 bg-indigo-500/5 text-indigo-400' : status === 'loading' ? 'border-amber-500/30 bg-amber-500/5 text-amber-400' : 'border-red-500/30 bg-red-500/5 text-red-500'} text-[9px] font-black uppercase tracking-[0.2em] transition-all duration-500`}>
-                    {status === 'connected' ? 'Protocol Online' : status === 'loading' ? 'Syncing...' : 'Link Severed'}
-                </div>
-                
-                <div className="relative group/logo">
-                    <motion.div 
-                        initial={false}
-                        animate={status === 'connected' ? { scale: [1, 1.05, 1], rotate: [0, 2, -2, 0] } : {}}
-                        transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-                        className="h-20 w-20 rounded-[1.5rem] bg-indigo-500/5 border border-indigo-500/10 flex items-center justify-center transition-all duration-700 group-hover:scale-110 group-hover:bg-indigo-500/10 shadow-inner"
-                    >
-                        <Brain className="h-10 w-10 text-indigo-400 drop-shadow-[0_0_15px_rgba(129,140,248,0.4)]" />
-                    </motion.div>
-                    {status === 'connected' && (
-                        <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-indigo-500 rounded-full border-[3px] border-[#0a0a0a] animate-pulse" />
-                    )}
-                </div>
-            </div>
-
-            {/* Body Section */}
-            <CardContent className="px-10 pb-10 flex-1 flex flex-col text-center relative z-10">
-                <div className="space-y-4 flex-1">
-                    <div className="space-y-1">
-                        <h3 className="text-xl font-bold text-white tracking-tight group-hover:text-indigo-400 transition-colors duration-500">
-                            Reasoning Engine
-                        </h3>
-                        <p className="text-[11px] font-black text-indigo-500/60 uppercase tracking-[0.15em]">
-                            Cognitive Autonomy Core
-                        </p>
+        <div 
+            className="bg-[#ffffff] border border-[#dedcd1] rounded-[16px] p-5 shadow-none flex flex-col justify-between h-full group min-h-[160px]"
+        >
+            <div className="flex items-start justify-between">
+                <div className="flex gap-3">
+                    <div className="h-12 w-12 rounded-[9.6px] bg-[#f0eee6] border border-[#dedcd1] flex items-center justify-center shrink-0 text-[#141413]">
+                        <Brain className="h-6 w-6" />
                     </div>
-                    
-                    <p className="text-xs text-neutral-500 leading-relaxed font-medium px-4">
-                        Autonomous decision-making layer. Handshakes with {manifest?.appName || 'Brain'} via Secure Semantic Protocol.
+                    <div>
+                        <h3 className="text-sm font-bold text-[#1f1e1d]">Reasoning Engine</h3>
+                        <p className="text-[10px] text-[#73726c] font-medium uppercase tracking-wider mt-0.5">Cognitive Autonomy Core</p>
+                    </div>
+                </div>
+                <div className={cn(
+                    "px-2 py-0.5 rounded-[9.6px] border text-[9px] font-bold uppercase tracking-wider",
+                    status === "connected" ? "bg-[#ccdbe8] border-[#dedcd1] text-[#141413]" : 
+                    status === "loading" ? "bg-amber-50 border-amber-200 text-amber-800" :
+                    "bg-red-50 border-red-200 text-red-800"
+                )}>
+                    {status === "connected" ? "Online" : status === "loading" ? "Syncing" : "Offline"}
+                </div>
+            </div>
+
+            <p className="text-xs text-[#73726c] leading-relaxed mt-4 flex-1">
+                Autonomous decision-making layer. Handshakes with {manifest?.appName || 'Aedra Engine'} via Secure Semantic Protocol.
+            </p>
+
+            {/* Metrics */}
+            <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-[#dedcd1]">
+                <div className="bg-[#f0eee6]/30 border border-[#dedcd1] rounded-[12px] p-2">
+                    <p className="text-[8px] font-bold text-[#73726c] uppercase tracking-wider mb-0.5 flex items-center gap-1">
+                        <Network className="h-2 w-2 text-[#9c9a92]" /> Toolset Size
                     </p>
-
-                    {/* Live Metrics Grid */}
-                    <div className="grid grid-cols-2 gap-3 pt-4">
-                        <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-3 text-left">
-                            <p className="text-[8px] font-black text-neutral-500 uppercase tracking-widest mb-1 flex items-center gap-1">
-                                <Network className="h-2 w-2" /> Toolset Size
-                            </p>
-                            <p className="text-lg font-black text-white">
-                                {status === 'connected' ? toolCount : '--'}
-                                <span className="text-[10px] text-neutral-600 ml-1 font-bold">Capabilities</span>
-                            </p>
-                        </div>
-                        <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-3 text-left">
-                            <p className="text-[8px] font-black text-neutral-500 uppercase tracking-widest mb-1 flex items-center gap-1">
-                                <Activity className="h-2 w-2" /> Latency
-                            </p>
-                            <p className="text-lg font-black text-white">
-                                {status === 'connected' ? `${latency}ms` : '--'}
-                                <span className="text-[10px] text-neutral-600 ml-1 font-bold">Handoff</span>
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="pt-6">
-                        <Button 
-                            variant="outline" 
-                            disabled={status === "loading"}
-                            className="w-full h-12 rounded-2xl border-white/5 bg-white/[0.03] text-neutral-400 hover:text-white hover:bg-white/10 hover:border-indigo-500/30 font-bold text-xs uppercase tracking-widest transition-all duration-500 active:scale-95 group/btn"
-                            onClick={checkConnectivity}
-                        >
-                            {status === "loading" ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                                <Zap className="h-4 w-4 mr-2 group-hover/btn:scale-110 transition-transform duration-500 text-indigo-400" />
-                            )}
-                            Re-bind Protocol
-                        </Button>
-                    </div>
-                    
-                    {status === "error" && (
-                        <div className="mt-4 p-3 rounded-xl bg-red-500/5 border border-red-500/20 text-[10px] text-red-500 font-bold italic animate-in fade-in duration-500">
-                            Error: {error}
-                        </div>
-                    )}
+                    <p className="text-sm font-normal font-serif text-[#141413]">
+                        {status === 'connected' ? `${toolCount} Actions` : '--'}
+                    </p>
                 </div>
-                
-                {lastSync && (
-                    <div className="pt-4 text-[9px] text-neutral-600 uppercase tracking-widest font-black">
-                        Last Handshake: {lastSync.toLocaleTimeString()}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+                <div className="bg-[#f0eee6]/30 border border-[#dedcd1] rounded-[12px] p-2">
+                    <p className="text-[8px] font-bold text-[#73726c] uppercase tracking-wider mb-0.5 flex items-center gap-1">
+                        <Activity className="h-2 w-2 text-[#9c9a92]" /> Latency
+                    </p>
+                    <p className="text-sm font-normal font-serif text-[#141413]">
+                        {status === 'connected' ? `${latency}ms` : '--'}
+                    </p>
+                </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between text-[9px] text-[#73726c]">
+                <span>
+                    {lastSync ? `Sync: ${lastSync.toLocaleTimeString()}` : "Syncing..."}
+                </span>
+                <button 
+                    onClick={checkConnectivity}
+                    disabled={status === "loading"}
+                    className="hover:text-[#1f1e1d] p-1 rounded-full hover:bg-[#f0eee6] transition-colors"
+                >
+                    <RefreshCw className={cn("h-3 w-3", status === "loading" && "animate-spin")} />
+                </button>
+            </div>
+        </div>
     );
 }
